@@ -4,12 +4,12 @@ import { LegalContact, LegalDocument, legalEmail } from '@/components/legal-docu
 
 export const metadata: Metadata = {
   title: 'תנאי שימוש',
-  description: 'תנאי השימוש ב־Freelance Zone: חשבונות, פרויקטים, הצעות, הודעות, כלי AI, זכויות בתוכן ומגבלות השירות.',
+  description: 'תנאי השימוש ב־Freelance Place: חשבונות, פרויקטים, הצעות, הודעות, כלי AI, זכויות בתוכן ומגבלות השירות.',
   alternates: { canonical: '/terms' },
 };
 
 export default function TermsPage() {
-  return <LegalDocument title="תנאי שימוש" intro="תנאים אלה מסדירים את השימוש ב־Freelance Zone באתר freelance-place.com ובתת־הדומיין www. קראו אותם לפני פתיחת חשבון, העלאת תוכן או שימוש בכלי השירות." sections={[
+  return <LegalDocument title="תנאי שימוש" intro="תנאים אלה מסדירים את השימוש ב־Freelance Place באתר freelance-place.com ובתת־הדומיין www. קראו אותם לפני פתיחת חשבון, העלאת תוכן או שימוש בכלי השירות." sections={[
     { id: 'agreement', title: 'ההסכם והשירות', content: <>
       <p>השירות מופעל בידי Or David AI Assimilation Services (אור דוד), המכונה בתנאים אלה ״אנחנו״ או ״המפעיל״. התנאים חלים על מבקרים, פרילנסרים ולקוחות. בפתיחת חשבון או בביצוע פעולה בשירות אתם מאשרים שקראתם והסכמתם לתנאים החלים על אותה פעולה. אם אינכם מסכימים, הימנעו מפתיחת חשבון ומביצוע הפעולה. דין מחייב גובר על הוראה סותרת בתנאים.</p>
       <p>השירות מאפשר פרסום פרויקטים, הגשת הצעות, שמירת פרופיל ומקורותיו, שיחות הקשורות להצעות וכלי עזר מבוססי AI. לצד מידע של משתמשים מוצג גם תוכן דוגמה שמסומן בהתאם. זמינות תכונות תלויה בגרסה ובתצורת הספקים. <Link href="/privacy">מדיניות הפרטיות</Link> מפרטת את עיבוד המידע; אין בתנאים הסכמה גורפת לשימושים שאינם מפורטים בה.</p>
