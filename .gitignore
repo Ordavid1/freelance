@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+gha-creds-*.json
+*credentials*.json

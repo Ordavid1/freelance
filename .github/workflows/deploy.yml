@@ -1,0 +1,45 @@
+name: Deploy engine
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-engine
+  cancel-in-progress: false
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if test -f package.json && test -f package-lock.json; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Waiting for the application source from the laptop.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+  deploy:
+    needs: source
+    if: needs.source.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/561053183039/locations/global/workloadIdentityPools/github/providers/freelance
+          service_account: freelance-deployer@freelance-514118.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - run: scripts/deploy-engine.sh

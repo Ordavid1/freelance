@@ -1,0 +1,10 @@
+.git
+node_modules
+.next
+.env*
+.terraform
+**/.terraform
+**/*.tfstate*
+**/*.tfplan
+**/*credentials*.json
+gha-creds-*.json
