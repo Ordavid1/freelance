@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { Project } from '@/lib/data';
+import { AuthControl } from '@/components/auth-control';
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <Link className="brand" href="/"><span className="brand-mark">f</span>{!compact && <span>freelance<span className="brand-zone">zone</span></span>}</Link>;
@@ -12,7 +13,7 @@ export function AppShell({ children, active = 'discover' }: { children: React.Re
   const [role, setRole] = useState('פרילנסר/ית');
   const links = [{ href: '/', label: 'הבית שלי', icon: '⌂', key: 'home' }, { href: '/', label: 'גילוי פרויקטים', icon: '⌕', key: 'discover' }, { href: '/messages', label: 'הודעות', icon: '▤', key: 'messages' }, { href: '/profile/import', label: 'הפרופיל שלי', icon: '◉', key: 'profile' }, { href: '/membership', label: 'חברות ותשלום', icon: '₪', key: 'membership' }];
   return <div className="app-shell" dir="rtl">
-    <header className="topbar"><Brand/><div className="top-search"><span>⌕</span><span>מה בא לך ליצור היום?</span><kbd>⌘ K</kbd></div><button className="role-switch" onClick={() => setRole(role === 'פרילנסר/ית' ? 'מחפש/ת פרילנסר/ית' : 'פרילנסר/ית')} aria-label="החלפת תפקיד"><span className="role-dot"/>{role}<span className="chevron">⌄</span></button><Link className="icon-button inbox-top" href="/messages" aria-label="הודעות">▤<i/></Link><button className="avatar" aria-label="החשבון שלי">א</button></header>
+    <header className="topbar"><Brand/><div className="top-search"><span>⌕</span><span>מה בא לך ליצור היום?</span><kbd>⌘ K</kbd></div><button className="role-switch" onClick={() => setRole(role === 'פרילנסר/ית' ? 'מחפש/ת פרילנסר/ית' : 'פרילנסר/ית')} aria-label="החלפת תפקיד"><span className="role-dot"/>{role}<span className="chevron">⌄</span></button><Link className="icon-button inbox-top" href="/messages" aria-label="הודעות">▤<i/></Link><AuthControl/></header>
     <div className="workspace"><aside className="sidebar"><div className="sidebar-label">המרחב שלך</div><nav>{links.map((l) => <Link key={l.key} href={l.href} className={`nav-item ${active === l.key ? 'active' : ''}`}><span className="nav-icon">{l.icon}</span><span>{l.label}</span>{l.key === 'messages' && <b className="nav-count">2</b>}</Link>)}</nav><div className="sidebar-bottom"><div className="mini-profile"><div className="avatar avatar-small">א</div><div><strong>אור דוד</strong><small>פרופיל · 72%</small></div><span className="more">•••</span></div><Link href="/membership" className="membership-nudge"><span>החברות שלך</span><strong>₪19.99 <small>/ חודש</small></strong><span className="progress"><i/></span><small>ניהול חברות ותשלום ←</small></Link></div></aside>
       <main className="main-content">{children}</main></div>
     <nav className="mobile-nav" aria-label="ניווט ראשי">{[{ href: '/', label: 'בית', icon: '⌂' }, { href: '/', label: 'גילוי', icon: '⌕' }, { href: '/messages', label: 'הודעות', icon: '▤' }, { href: '/profile/import', label: 'פרופיל', icon: '◉' }].map(i => <Link key={i.label} href={i.href}><span>{i.icon}</span>{i.label}</Link>)}</nav>

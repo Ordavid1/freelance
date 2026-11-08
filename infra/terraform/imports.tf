@@ -1,8 +1,12 @@
 # Adopt resources created during initial bootstrap; retain these blocks for audit.
 import {
-  for_each = local.apis
+  for_each = local.initial_apis
   to       = google_project_service.api[each.key]
   id       = "${var.project_id}/${each.key}"
+}
+import {
+  to = google_project_service.api["storage.googleapis.com"]
+  id = "${var.project_id}/storage.googleapis.com"
 }
 import {
   for_each = local.accounts
