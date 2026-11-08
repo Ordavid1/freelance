@@ -1,6 +1,6 @@
 # GitHub and LinkedIn profile imports
 
-The profile editor uses Nango Connect for user authorization. Google/Firebase signs a user into Freelance Zone; Nango separately authorizes that user to share data from GitHub or LinkedIn.
+The profile editor uses Nango Connect for user authorization. Google/Firebase signs a user into Freelance Place; Nango separately authorizes that user to share data from GitHub or LinkedIn.
 
 ## Nango setup
 

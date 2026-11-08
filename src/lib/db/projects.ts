@@ -18,7 +18,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     deadline: record.deadline || 'גמיש',
     posted: 'פרויקט חדש',
     client: name,
-    clientHistory: 'פרויקט ראשון ב־Freelance Zone',
+    clientHistory: 'פרויקט ראשון ב־Freelance Place',
     skills: Array.isArray(record.skills) ? record.skills : [],
     fit: 'בדקו אם הפרויקט מתאים לכם',
     activity: 'פתוח להצעות',

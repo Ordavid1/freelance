@@ -159,7 +159,7 @@ resource "google_identity_platform_config" "default" {
 resource "google_firebase_web_app" "web" {
   provider     = google-beta
   project      = var.project_id
-  display_name = "Freelance Zone"
+  display_name = "Freelance Place"
   depends_on   = [google_identity_platform_config.default]
 }
 data "google_firebase_web_app_config" "web" {
