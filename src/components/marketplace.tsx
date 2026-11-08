@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import type { Project } from '@/lib/data';
 import { AuthControl } from '@/components/auth-control';
 
 export function Brand({ compact = false }: { compact?: boolean }) {
-  return <Link className="brand" href="/"><span className="brand-mark">f</span>{!compact && <span>freelance<span className="brand-zone">zone</span></span>}</Link>;
+  return <Link className="brand" href="/" aria-label="Freelance Place"><Image src="/freelance-place-logo.svg" width={compact ? 32 : 44} height={compact ? 32 : 44} alt="Freelance Place" /></Link>;
 }
 
 export function AppShell({ children, active = 'discover' }: { children: React.ReactNode; active?: string }) {

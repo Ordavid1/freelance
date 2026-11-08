@@ -1,3 +1,13 @@
 import type { MetadataRoute } from 'next';
-import { projects } from '@/lib/data';
-export default function sitemap(): MetadataRoute.Sitemap { const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://freelance-place.com'; return [{ url: base, changeFrequency: 'daily', priority: 1 }, ...['privacy', 'terms'].map(path => ({ url: `${base}/${path}`, changeFrequency: 'yearly' as const, priority: 0.3 })), ...projects.map((project) => ({ url: `${base}/projects/${project.slug}`, changeFrequency: 'daily' as const, priority: 0.8 }))]; }
+import { editorialPaths } from '@/lib/seo/content';
+import { absoluteUrl, indexingEnabled } from '@/lib/seo/site';
+import { sitemapProjects } from '@/lib/seo/projects';
+export const dynamic = 'force-dynamic';
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (!indexingEnabled()) return [];
+  const projects = await sitemapProjects();
+  return [
+    ...editorialPaths.map((path) => ({ url: absoluteUrl(path) })),
+    ...projects.map(({ slug, updatedAt }) => ({ url: absoluteUrl(`/projects/${encodeURIComponent(slug)}`), ...(updatedAt ? { lastModified: updatedAt } : {}) })),
+  ];
+}

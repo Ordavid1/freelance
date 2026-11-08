@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<title id="title">Freelance Place</title><desc id="desc">A dedicated place for independent talent and ambitious projects.</desc>
+<rect width="128" height="128" rx="28" fill="#CEEF00"/><g transform="translate(20 20) scale(0.88)">
+<path fill="#151719" d="M22 0H80V20H22V72H0V22ZM66 30H100V100H22V80H62L80 50H66Z"/>
+<path fill="#151719" d="M36 38H56V58H36Z"/>
+</g>
+</svg>

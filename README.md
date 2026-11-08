@@ -1,4 +1,4 @@
-# Freelance
+# Freelance Place
 
 Freelance Place production deployment foundation.
 
@@ -7,4 +7,12 @@ Freelance Place production deployment foundation.
 - [Terraform infrastructure](infra/terraform/main.tf)
 - [GitHub Actions deployment](.github/workflows/deploy.yml)
 
-The application source must be transferred from the existing laptop project. Deployment is skipped until `package.json` and `package-lock.json` are present.
+The Next.js application source is included. See the deployment status and readiness audit for the current release boundary.
+
+## Brand identity
+
+[Selected logo and usage](docs/brand/README.md) · [Logo preview](public/freelance-place-logo.png)
+
+## Search and answer discovery
+
+[SEO/AEO implementation and launch checks](docs/seo-aeo.md)
