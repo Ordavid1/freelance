@@ -9,7 +9,7 @@ variable "region" {
 variable "canonical_domain" {
   type        = string
   default     = "freelance-place.com"
-  description = "Primary public hostname for the Freelance Zone website."
+  description = "Primary public hostname for the Freelance Place website."
 }
 variable "google_sign_in_enabled" {
   type        = bool

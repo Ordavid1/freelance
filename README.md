@@ -1,6 +1,6 @@
 # Freelance
 
-Freelance Zone production deployment foundation.
+Freelance Place production deployment foundation.
 
 - [Deployment guide](deploy/README.md)
 - [Verified deployment status and blockers](deploy/STATUS.md)

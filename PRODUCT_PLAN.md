@@ -1,7 +1,7 @@
-# Freelance Zone — Product and UX Blueprint
+# Freelance Place — Product and UX Blueprint
 
 **Status:** Product direction for discovery and first build  
-**Working name:** Freelance Zone (name and identity are not final)  
+**Brand:** Freelance Place
 **Market:** Israel first; Hebrew and right-to-left by default  
 **Research basis:** Representative public and logged-in XPlace pages reviewed on 8 November 2026. No bid, message, profile change, or subscription change was made during the review.
 
@@ -247,7 +247,7 @@ Give each project a compact **opportunity signal**: a readable state combining f
 ```text
 Desktop (Hebrew / RTL)
 ┌──────────────────────────────────────────────────────────────────┐
-│ Freelance Zone   [role switch]      חיפוש…       הודעות   חשבון │
+│ Freelance Place  [role switch]      חיפוש…       הודעות   חשבון │
 ├────────────────┬─────────────────────────────────────────────────┤
 │ ניווט קצר      │ כותרת פעולה ברורה     [פעולה ראשית אחת]         │
 │ בית            │                                                 │
