@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Heebo, Space_Grotesk } from 'next/font/google';
 import './globals.css';
+import './legal.css';
+import { LegalFooter } from '@/components/legal-document';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
@@ -13,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body>{children}</body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body>{children}<LegalFooter/></body></html>;
 }
