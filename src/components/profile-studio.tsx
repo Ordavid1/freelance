@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 const platforms = ['Dribbble', 'Behance', 'Website'] as const;
 type SocialProvider = 'github' | 'linkedin';
@@ -140,7 +141,7 @@ export function ProfileStudio() {
     const response = await fetch(`/api/integrations/nango/connections?provider=${provider}&connectionId=${encodeURIComponent(connection.connectionId)}`, { method: 'DELETE' }).catch(() => null);
     if (!response?.ok) { setNotice('לא הצלחנו לנתק את החשבון. נסו שוב.'); return; }
     setSocialSources((current) => { const next = { ...current }; delete next[provider]; return next; });
-    setNotice(`חיבור ${providerLabels[provider]} נותק וההרשאה הוסרה.`);
+    setNotice(`חיבור ${providerLabels[provider]} נותק. אפשר לבטל הרשאה גם בהגדרות הספק; מידע שכבר נשמר בפרופיל לא נמחק.`);
   }
 
   async function generate() {
@@ -186,6 +187,7 @@ export function ProfileStudio() {
     <p>מביאים את החומרים. יוצרים פרופיל שמרגיש כמוך.</p>
     <div className="source-workbench">
       <h2>המקורות שלך</h2>
+      <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: לאחר האישור נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>
       <label className="profile-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void addFiles(Array.from(event.dataTransfer.files)); }}>
         <span>↥</span><strong>גררו לכאן את העבודה שלכם</strong><small>קורות חיים, תיק עבודות או מסמך מקצועי</small>
         <input type="file" multiple accept=".pdf,.txt,.md" disabled={uploading} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.currentTarget.value = ''; }}/>
@@ -211,7 +213,7 @@ export function ProfileStudio() {
         </article>;
       })}
       <small>GitHub ו־LinkedIn יתחברו בחלון מאובטח. אפשר להסיר את הייבוא בכל עת לפני יצירת הפרופיל.</small>
-      <label className="source-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/>מאשר/ת עיבוד המקורות ב־Vertex AI ליצירת טיוטה.</label>
+      <label className="source-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/>מאשר/ת לשלוח את המסמכים, הקישורים והמידע המיובא שנבחרו ל־Google Vertex AI ליצירת טיוטה, כמפורט במדיניות הפרטיות.</label>
       <button type="button" className="generate-profile" disabled={busy || !consent || !hasSources} onClick={generate}>{busy ? 'יוצרים את הפרופיל…' : '✦ Generate'}</button>
     </div>
     <p role="status">{notice}</p>

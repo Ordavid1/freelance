@@ -173,6 +173,13 @@ resource "google_storage_bucket_iam_member" "source" {
   role     = "roles/storage.objectUser"
   member   = "serviceAccount:${google_service_account.account[each.key].email}"
 }
+resource "google_storage_bucket_iam_member" "source_deployer_metadata" {
+  bucket = google_storage_bucket.source.name
+  # gcloud builds submit checks bucket metadata before uploading source.
+  # roles/storage.objectUser alone does not include storage.buckets.get.
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.account["deployer"].email}"
+}
 resource "google_cloud_run_v2_service" "engine" {
   count               = var.engine_image == null ? 0 : 1
   name                = "freelance-engine"

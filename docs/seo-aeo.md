@@ -6,6 +6,8 @@ The canonical origin is `https://freelance-place.com`. HTTPS requests on `www.fr
 
 The application source was imported from the repository's `app/deployment-readiness` branch. The current checkout now contains the real Next.js application, not only the earlier deployment scaffold.
 
+The legal pages and global legal footer from current `main` are retained, including privacy/terms sitemap entries.
+
 ### Server-rendered public pages
 
 - `/`: product explanation, public project links, category navigation, and visible FAQs alongside the interactive workspace.

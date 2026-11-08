@@ -4,6 +4,9 @@ import { SITE_NAME, SITE_URL, SITE_DESCRIPTION, siteGraph } from '@/lib/seo/site
 import { StructuredData } from '@/components/discovery/structured-data';
 import './globals.css';
 import './discovery.css';
+import './legal.css';
+import { LegalFooter } from '@/components/legal-document';
+
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
 // Runtime configuration (including search verification) must not be frozen into a Docker build.
@@ -19,5 +22,5 @@ export const metadata: Metadata = {
   referrer: 'strict-origin-when-cross-origin',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph} />{children}</body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph} />{children}<LegalFooter /></body></html>;
 }
