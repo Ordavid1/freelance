@@ -1,49 +1,44 @@
-# Legal pages: prepared production release
+# Legal pages: deployed application, domain cutover pending
 
-The Hebrew privacy policy (`/privacy`) and terms (`/terms`) are complete, tested and merged to `main` through [PR #2](https://github.com/Ordavid1/freelance/pull/2). Operator/contact: Or David AI Assimilation Services (Or David), `or@ailead.work`. See [the evidence audit](../docs/legal-data-audit.md).
+Status as of 9 November 2026 (Asia/Jerusalem). The Hebrew privacy policy (`/privacy`) and terms (`/terms`) are implemented and deployed to the production Cloud Run application. **The public domain cutover and public HTTPS verification are not complete.**
 
-## Verified image
+Operator/contact: Or David AI Assimilation Services (Or David), `or@ailead.work`. The original legal work was merged through [PR #2](https://github.com/Ordavid1/freelance/pull/2). Subsequent revisions reconcile the profile-started trial and use 9 November 2026 as the final legal update date. See [the evidence audit](../docs/legal-data-audit.md).
 
-Cloud Build `ca2e5e97-1aeb-422b-8ee6-7920ccde824c` finished successfully on 8 November 2026. Source commit: `5b6e853d1edc51de4cf20d7126b23b861f33c5b3`; merged application tree: `756f05a664b19365a7860074d2e01b1ed001445f`.
+## Verified production application
+
+- Application source: `16c6eb16d38fbb195a56b06414ad13f8b0b41396`.
+- [GitHub production deployment 42528089837](https://github.com/Ordavid1/freelance/actions/runs/42528089837): **success**.
+- Cloud Build: `591051b7-3919-4b22-a574-cc4c7e9948b6`, **success**.
+- Cloud Run: `freelance-engine`, `me-west1`, revision `freelance-engine-00003-rgr`, Ready, 100% traffic.
+- Immutable image:
 
 ```text
-me-west1-docker.pkg.dev/freelance-514118/freelance/engine@sha256:481b531e73dab44273ef7953bc921103a37b9816bf86418a9ff84c2317b860f0
+me-west1-docker.pkg.dev/freelance-514118/freelance/engine@sha256:4b3ac5891aa4d78db1fc52b00ddecb37ea67c8b9e59f6647d6e28ce41a144143
 ```
 
-Typecheck, production/container builds, Terraform formatting/validation and mobile/desktop browser checks passed. No payment processing is enabled. Google login remains hidden until configured. Social connectors remain conditional on successful Nango/provider setup; producing these legal pages did not certify the external OAuth configuration.
+The initial Terraform apply completed with **14 additions, 1 update, 0 deletions**. It provisioned Cloud Run, the external HTTPS load balancer, managed certificate, redirect, static IP and scoped runtime/deployment grants. A subsequent infrastructure plan returned no changes. No billing-account attachment was changed.
 
-## Administrator step required
+The bucket metadata-reader grant fixed the GitHub build-source access failure. The owner applied `scripts/grant-release-iam.sh` from an administrator identity, enabling the cloud release. Its Cloud Run IAM bootstrap grant expires at `2026-11-08T23:47:31Z` (01:47 on 9 November in Israel). Existing production bindings remain after this temporary administrative grant expires. Administrator credentials were not transferred to the cloud agent.
 
-To let the cloud chat finish the release instead of applying Terraform from the laptop, an existing project administrator can run `bash scripts/grant-release-iam.sh` from current `main`. The script creates two minimal custom roles (refusing to overwrite a different existing definition), binds storage/secret IAM permissions only on the build-source bucket and `NANGO_API_KEY`, and grants only Cloud Run IAM read/write permissions at project level for two hours. The temporary project scope is necessary because the first service does not yet exist; it is not a claim that Cloud Run resource-name IAM Conditions are supported. It does not grant project IAM-policy administration, Project Owner, secret-payload access, or object-data access. Run it using the administrator's existing credentials, without sharing them with the cloud agent. Then tell the cloud chat the grants are ready.
+## Remaining DNS step
 
-The current cloud identity, `for-ai-agents@freelance-514118.iam.gserviceaccount.com`, can build the image and prepare the plan but lacks IAM-policy write permissions for Cloud Run, the build-source bucket and the Nango secret. This is a GCP authorization limitation, not a Codex automatic-approval rejection. No blanket project-owner grant or credential transfer is needed: an existing authorized administrator can apply the reviewed Terraform configuration from their laptop.
+Static production IP: **136.81.206.15**.
 
-The immutable-image plan prepared for this release has **14 additions, 1 update, 0 deletions**. It creates the first Cloud Run service, public invoker binding, external HTTPS load balancer, static IP, managed certificate, redirect and two scoped IAM grants. The update renames the Firebase Web App display name to Freelance Place. No billing-account attachment changes or data-store destruction are planned. Review a fresh plan if infrastructure has changed since preparation; do not reuse a stale binary plan across checkouts or machines.
+| Type | Host | Value |
+| --- | --- | --- |
+| A | @ | 136.81.206.15 |
+| CNAME | www | freelance-place.com |
 
-From a clean checkout of current `main`, using the administrator's existing authorized GCP credentials, Terraform 1.13.5 and the explicit project configuration:
+Replace only Squarespace's old website A records, its website HTTPS record with Squarespace IP hints, and its www CNAME. Preserve email/MX/TXT/security records and `_domainconnect`. No DNS edit has yet been made by this chat. Public DNS still returned Squarespace addresses at the last check.
 
-```sh
-terraform -chdir=infra/terraform init -backend-config=backend.hcl
-terraform -chdir=infra/terraform plan \
-  -var='engine_image=me-west1-docker.pkg.dev/freelance-514118/freelance/engine@sha256:481b531e73dab44273ef7953bc921103a37b9816bf86418a9ff84c2317b860f0' \
-  -out=legal-release.tfplan
-terraform -chdir=infra/terraform show legal-release.tfplan
-terraform -chdir=infra/terraform apply legal-release.tfplan
-terraform -chdir=infra/terraform output website_dns_records
-```
+The managed certificate `freelance-website-cert` covers `freelance-place.com` and `www.freelance-place.com` and is PROVISIONING pending the cutover. The HTTP frontend redirects to HTTPS. Direct requests to the Cloud Run URL return 404 under its load-balancer-only ingress policy, as intended; that URL is not a public fallback.
 
-Keep the non-null image setting in untracked production configuration for subsequent plans, as described in [the deployment guide](README.md). Omitting it would propose removing the conditional service/edge resources. Plan and state files are private operational artifacts and must not be committed.
+The cloud shared-browser tool failed before opening with `the gaas-browser node_repl sandbox cannot be disabled`. This chat has no local-browser control tool for the laptop Squarespace tab. TinyFish is now connected, but its Default profile has no recorded Squarespace sign-in. The user has authorized making the DNS changes; an authenticated browser connection is the remaining access dependency. Never request a password in chat.
 
-The scoped grants in this configuration are:
+## Validation boundary
 
-- Build-source bucket `freelance-514118-build-source`: `roles/storage.legacyBucketReader` for `freelance-deployer`, in addition to its existing object access. `gcloud builds submit` needs bucket metadata access; object access alone is insufficient.
-- Secret `NANGO_API_KEY`: `roles/secretmanager.secretAccessor` for `freelance-runtime`, with secret version 1 referenced by Cloud Run.
-- Cloud Run service `freelance-engine`: `roles/run.invoker` for `allUsers`, with ingress restricted to the load balancer and private application actions protected by Firebase sessions.
+TypeScript, the production build, nine SEO tests and four membership-state tests passed. Desktop/mobile browser checks verified both legal routes, Hebrew/RTL, contact and canonical links, contents anchors, footer navigation and no document overflow. The trial policy update covers eligibility state, trial timestamps, profile type, expiry restrictions, retained data and no automatic billing. No live customer rows or private content were read for this work.
 
-## DNS and final verification
+After DNS is saved, verify the managed certificate becomes ACTIVE, then verify HTTP redirects, both hostnames, public HTTP 200 responses for `/privacy` and `/terms`, final legal content/date, footer and contextual links, and unauthenticated API boundaries. Do not report the custom domain as live until these checks pass. Optional Google/Nango provider flows have not been certified end to end by this legal-page task.
 
-After Terraform provides the real IP, replace only the Squarespace website records: apex A record to `website_ip_address`, and `www` CNAME to `freelance-place.com`. Preserve email/security TXT, mail records and `_domainconnect`; remove conflicting Squarespace website defaults only. No DNS edit has been made by this legal-page task.
-
-Wait for the managed certificate to become active, then verify both hostnames, the HTTP-to-HTTPS redirect, `/privacy`, `/terms`, footer and contextual links. Verify the account/API access boundaries before treating the whole marketplace as fully validated. The legal routes must load without authentication. Do not report production completion from an image build, merge, pending certificate or Terraform plan alone.
-
-Current outcome: **merged source and successful production image; public deployment remains blocked on the administrator step and subsequent DNS/HTTPS verification.**
+For future Terraform plans, retain a non-null production image setting, preferably the immutable digest above, in untracked production configuration. The cloud checkout has an ignored `infra/terraform/production.auto.tfvars` for this purpose; do not commit plans, state, credentials or secret values. See [the deployment guide](README.md).

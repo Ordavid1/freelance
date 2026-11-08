@@ -1,3 +1,13 @@
+# Current production update — 9 November 2026
+
+- Cloud Run, external HTTPS load balancer, static IP and managed certificate have been provisioned. Terraform applied 14 additions, one display-name update and no deletions; a post-apply plan showed no changes.
+- Final legal-page source `16c6eb1` was deployed successfully by GitHub run `42528089837`. Cloud Run revision `freelance-engine-00003-rgr` is Ready and has 100% of traffic.
+- Production IP: `136.81.206.15`. Public DNS still targets Squarespace; DNS cutover and public HTTPS/page verification are pending. The managed certificate is PROVISIONING.
+- The IAM/bootstrap and GitHub build-source access blockers below are resolved. Payment remains unavailable; the profile-started trial is implemented and reflected in the policies.
+- Full source/image/DNS details and the remaining authenticated-browser dependency are in [LEGAL-RELEASE.md](LEGAL-RELEASE.md).
+
+The following is the historical pre-release status, retained for context; statements that no Cloud Run service or edge exists are superseded by the update above.
+
 # Deployment status — 2026-11-08
 
 ## Implemented in the review branch

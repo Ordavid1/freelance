@@ -1,3 +1,9 @@
+# Release update — 9 November 2026
+
+The first Cloud Run/HTTPS-edge infrastructure apply and subsequent GitHub application release succeeded. The historical first-image, service, IAM and staging-bucket blockers below are resolved. The public-domain DNS cutover and HTTPS verification remain pending; see [LEGAL-RELEASE.md](LEGAL-RELEASE.md). The current code includes durable conversations and profile-started trial gates, despite older descriptions below. Billing remains unavailable, and optional OAuth flows have not been certified end to end by the legal release.
+
+The remainder records the pre-release audit and is retained as historical evidence.
+
 # Deployment readiness audit — 2026-11-08
 
 ## Local source and configuration

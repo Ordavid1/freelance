@@ -59,3 +59,7 @@ Revisit both pages and point-of-collection notices before enabling billing/renew
 - Public rollout is blocked pending an administrator's IAM/apply step, followed by DNS migration and HTTPS/live-route verification. No successful Cloud Run production deployment is claimed. See `deploy/LEGAL-RELEASE.md` for the exact release handoff.
 
 Credentials and Terraform plans remain outside Git. No live customer records were accessed during this task.
+
+## Deployment continuation — 9 November 2026
+
+The owner applied the scoped IAM bootstrap. Infrastructure apply succeeded (14 added, one updated, zero destroyed), followed by a no-change plan. Final legal revision `16c6eb1` passed the GitHub production workflow (`42528089837`) and is running in Ready Cloud Run revision `freelance-engine-00003-rgr` with 100% traffic. The immutable digest and the pending domain cutover are documented in `deploy/LEGAL-RELEASE.md`. The domain is not yet verified live: DNS still targets Squarespace and its managed certificate is provisioning. No authenticated Squarespace browser is available to this chat yet; TinyFish is connected with an unsigned-in default profile. This is an access dependency, not an additional request for permission to publish.
