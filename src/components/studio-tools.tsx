@@ -1,7 +1,8 @@
 'use client';
+import { MemberGate } from './trial-status';
 import { useEffect, useState, type FormEvent } from 'react';
 type Entry={tagline:string;text:string};
-export function BidForm({project,onSent,sample=false}:{project:string;onSent:()=>void;sample?:boolean}){
+function BidFormContent({project,onSent,sample=false}:{project:string;onSent:()=>void;sample?:boolean}){
  const [text,setText]=useState('');const [history,setHistory]=useState<Entry[]>([]);const [show,setShow]=useState(false);const [status,setStatus]=useState('');const [busy,setBusy]=useState(false);
  async function loadHistory(){const response=await fetch('/api/marketplace/proposals',{cache:'no-store'});if(!response.ok)return;const data=await response.json();setHistory((data.proposals||[]).map((proposal:{message:string})=>({tagline:proposal.message.trim().split(/\s+/).slice(0,7).join(' '),text:proposal.message})).slice(0,5))}
  useEffect(()=>{void loadHistory()},[]);
@@ -10,7 +11,7 @@ export function BidForm({project,onSent,sample=false}:{project:string;onSent:()=
 }
 type Conversation = { id: string; clientUid: string; freelancerUid: string; clientName: string; freelancerName: string; projectTitle: string; lastMessage: string };
 type ConversationMessage = { id: string; senderUid: string; senderName: string; text: string };
-export function StudioInbox(){
+function StudioInboxContent(){
  const [conversations,setConversations]=useState<Conversation[]>([]);const [active,setActive]=useState<string|null>(null);const [messages,setMessages]=useState<ConversationMessage[]>([]);const [draft,setDraft]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [uid,setUid]=useState('');
  async function loadList(){const [response,session]=await Promise.all([fetch('/api/marketplace/conversations',{cache:'no-store'}),fetch('/api/auth/session',{cache:'no-store'})]);if(response.ok){const data=await response.json();setConversations(data.conversations||[])}if(session.ok){const data=await session.json();setUid(data.user?.uid||'')}}
  useEffect(()=>{void (async()=>{try{await loadList();const id=new URLSearchParams(window.location.search).get('conversation');if(id)await openConversation(id)}catch{setError('לא ניתן לטעון שיחות כרגע.')}})()},[]);
@@ -19,3 +20,7 @@ export function StudioInbox(){
  const current=conversations.find((conversation)=>conversation.id===active);
  return <section className="studio-inbox">{!current?<><h1>השיחות שלך</h1>{conversations.length?conversations.map((conversation)=><button className="conversation-item" key={conversation.id} onClick={()=>void openConversation(conversation.id)}><strong>{conversation.clientUid===uid?conversation.freelancerName:conversation.clientName}</strong><span>{conversation.projectTitle}</span><small>{conversation.lastMessage}</small></button>):<p className="empty-state">עדיין אין שיחות. אחרי שליחת הצעה, השיחה תופיע כאן.</p>}</>:<><button className="back-to-chat" onClick={()=>setActive(null)}>→ חזרה לכל השיחות</button><h2>{current.clientUid===uid?current.freelancerName:current.clientName}</h2><p>{current.projectTitle}</p><div className="chat-messages">{messages.map((message)=><div className={`bubble ${message.senderUid===uid?'mine':''}`} key={message.id}>{message.text}<small>{message.senderUid===uid?'אני':message.senderName}</small></div>)}</div><form className="chat-compose" onSubmit={send}><input aria-label="הודעה" value={draft} onChange={(event)=>setDraft(event.target.value)} placeholder="כתבו הודעה…"/><button disabled={busy||!draft.trim()}>{busy?'שולחים…':'שליחה'}</button></form>{error&&<p role="alert">{error}</p>}</>}</section>
 }
+
+export function BidForm(props: React.ComponentProps<typeof BidFormContent>) { return <MemberGate><BidFormContent {...props} /></MemberGate>; }
+
+export function StudioInbox() { return <MemberGate><StudioInboxContent /></MemberGate>; }

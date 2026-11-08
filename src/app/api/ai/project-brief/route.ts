@@ -1,3 +1,4 @@
+import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { NextResponse } from 'next/server';
 import { generateWithVertex, isVertexConfigured } from '@/lib/ai';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
@@ -6,7 +7,9 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  if (!await getCurrentUser()) return NextResponse.json({ error: 'יש להתחבר כדי להשתמש בכלי הניסוח.' }, { status: 401 });
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי להשתמש בכלי הניסוח.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   if (Number(request.headers.get('content-length') || 0) > 12_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
   const body = await request.json().catch(() => null) as { sentence?: unknown } | null;
   if (typeof body?.sentence !== 'string' || body.sentence.trim().length < 8 || body.sentence.length > 3000) return NextResponse.json({ error: 'כתבו לפחות משפט קצר (עד 3,000 תווים).' }, { status: 400 });

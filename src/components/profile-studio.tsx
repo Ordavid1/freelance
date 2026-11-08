@@ -168,11 +168,11 @@ export function ProfileStudio() {
     setBusy(true);
     setNotice('');
     try {
-      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile }) });
+      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { ...profile, profileType: 'freelancer' } }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       window.dispatchEvent(new CustomEvent('fz-profile-updated', { detail: profile }));
-      setNotice('הפרופיל נשמר בחשבון שלך.');
+      setNotice(data.access?.state === 'trial' ? 'הפרופיל נשמר ותקופת הניסיון שלך פעילה. תאריך הסיום מופיע בחברות שלך.' : 'הפרופיל נשמר. להפעלת הניסיון השלימו שם, משפט על עצמכם וכישור אחד.');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'שמירת הפרופיל נכשלה.');
     } finally {
@@ -184,7 +184,7 @@ export function ProfileStudio() {
 
   return <section className="profile-studio">
     <h1>הסיפור המקצועי שלך.</h1>
-    <p>מביאים את החומרים. יוצרים פרופיל שמרגיש כמוך.</p>
+    <p>קל להקים פרופיל: מחברים אתר או מוסיפים מסמך, ואנחנו עוזרים למלא את הפרטים. אפשר גם למלא לבד.</p>
     <div className="source-workbench">
       <h2>המקורות שלך</h2>
       <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: לאחר האישור נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>

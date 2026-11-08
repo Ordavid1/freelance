@@ -40,6 +40,7 @@ People can switch roles without creating a second account or paying twice.
 ## Product decisions and assumptions
 
 - **Membership:** one membership at **₪19.99 per month** for an account using either or both roles. The account pays once, not once per role. This follows the stated monthly price and “anyone who joins” requirement.
+- **Trial and preview:** new accounts can browse public discovery in read-only mode. Saving a role-appropriate profile starts one 14-day account-wide trial of full activity. Hiring-side setup requires only a name or business name; freelancer setup requires a name, tagline or summary, and one skill. At trial expiry, full activity requires the ₪19.99/month membership. Payment activation requires explicit checkout after billing is connected; there is no automatic charge at trial end. Accounts predating the fixed rollout cutoff keep their previous access.
 - **Billing integration:** provider is intentionally undecided. Design the membership and billing experience so a provider can be connected later without changing user-facing concepts.
 - **Marketplace transaction:** membership billing is in scope; payment between a client and freelancer is not yet defined. Treat project payment, escrow, platform fees, and disputes as open business decisions.
 - **Language:** Hebrew-first, RTL-first. Provide a clear language switch and support English content and LTR text without breaking mixed-language project titles or messages.

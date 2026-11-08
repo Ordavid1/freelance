@@ -1,3 +1,4 @@
+import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
@@ -9,6 +10,7 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בהצעות.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   try {
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשלוח הצעה.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   if (Number(request.headers.get('content-length') || 0) > 16_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const projectSlug = body?.projectSlug;

@@ -1,3 +1,4 @@
+import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
@@ -13,6 +14,7 @@ function belongsTo(data: FirebaseFirestore.DocumentData, uid: string) {
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בשיחות.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const db = firestore();
   const id = new URL(request.url).searchParams.get('id');
   try {
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשלוח הודעה.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   if (Number(request.headers.get('content-length') || 0) > 8_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
   const body = await request.json().catch(() => null) as { conversationId?: unknown; text?: unknown } | null;
   const conversationId = body?.conversationId;
