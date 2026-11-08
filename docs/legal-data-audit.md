@@ -49,4 +49,11 @@ Revisit both pages and point-of-collection notices before enabling billing/renew
 
 ## Validation and deployment
 
-Release checks and the production outcome are recorded here after verification. Credentials and Terraform plans remain outside Git.
+- `npm run typecheck`, `npm run build`, Terraform formatting/validation and `git diff --check` passed.
+- Chromium checks at 390px and 1440px passed: legal routes return 200, Hebrew/RTL, section anchors, canonical URLs, contact links, no document overflow, footer navigation and sign-in notices. Final-build checks also exercised the upload notice link and sitemap entries. Screenshots were visually inspected.
+- [PR #2](https://github.com/Ordavid1/freelance/pull/2) merged to main at `756f05a664b19365a7860074d2e01b1ed001445f`. Its application tree matches image source commit `5b6e853d1edc51de4cf20d7126b23b861f33c5b3`.
+- Cloud Build `ca2e5e97-1aeb-422b-8ee6-7920ccde824c` succeeded and pushed the immutable image listed in `deploy/LEGAL-RELEASE.md`. This validates the production container build; it does not establish that the website is live.
+- The first-release Terraform plan has 14 additions, one Firebase display-name update and no deletions. The cloud identity's IAM permission test returned no `run.services.setIamPolicy`, `storage.buckets.setIamPolicy`, or `secretmanager.secrets.setIamPolicy` permissions. The existing GitHub deployment also fails while checking build-source bucket access. A bucket-scoped metadata-reader grant is prepared in Terraform.
+- Public rollout is blocked pending an administrator's IAM/apply step, followed by DNS migration and HTTPS/live-route verification. No successful Cloud Run production deployment is claimed. See `deploy/LEGAL-RELEASE.md` for the exact release handoff.
+
+Credentials and Terraform plans remain outside Git. No live customer records were accessed during this task.
