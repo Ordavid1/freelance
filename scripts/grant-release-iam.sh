@@ -36,12 +36,30 @@ ensure_role 'freelanceReleaseDataIam' 'Freelance release data IAM' \
 ensure_role 'freelanceReleaseRunIam' 'Freelance release Cloud Run IAM' \
   'run.services.getIamPolicy,run.services.setIamPolicy'
 
+# Newly created custom roles can be readable in IAM before Cloud Storage
+# recognizes them. Retry only that propagation error, never permission denials.
+grant_with_role_propagation_retry() {
+  local attempt
+  for attempt in {1..12}; do
+    if "$@" > "$task_tmp/binding.log" 2>&1; then
+      cat "$task_tmp/binding.log"
+      return 0
+    fi
+    if ! grep -Fq "does not exist in the resource's hierarchy" "$task_tmp/binding.log" || [[ "$attempt" -eq 12 ]]; then
+      cat "$task_tmp/binding.log" >&2
+      return 1
+    fi
+    printf 'Waiting for the new custom role to propagate; retry %s/12 in 20 seconds.\n' "$attempt" >&2
+    sleep 20
+  done
+}
+
 # These bindings apply only to the named source bucket and Nango secret.
 # They do not themselves grant access to secret payloads or stored objects.
-gcloud storage buckets add-iam-policy-binding 'gs://freelance-514118-build-source' \
+grant_with_role_propagation_retry gcloud storage buckets add-iam-policy-binding 'gs://freelance-514118-build-source' \
   --project="$task_project" --member="$task_member" \
   --role="projects/$task_project/roles/freelanceReleaseDataIam" --quiet
-gcloud secrets add-iam-policy-binding 'NANGO_API_KEY' \
+grant_with_role_propagation_retry gcloud secrets add-iam-policy-binding 'NANGO_API_KEY' \
   --project="$task_project" --member="$task_member" \
   --role="projects/$task_project/roles/freelanceReleaseDataIam" --condition=None --quiet
 
@@ -53,7 +71,7 @@ from datetime import datetime, timedelta, timezone
 print((datetime.now(timezone.utc) + timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%SZ'))
 PY
 )
-gcloud projects add-iam-policy-binding "$task_project" \
+grant_with_role_propagation_retry gcloud projects add-iam-policy-binding "$task_project" \
   --member="$task_member" \
   --role="projects/$task_project/roles/freelanceReleaseRunIam" \
   --condition="expression=request.time < timestamp(\"$task_expiry\"),title=FreelanceReleaseRunIamBootstrap,description=Two-hour first-release Cloud Run IAM bootstrap" \
