@@ -2,7 +2,7 @@
 
 Live inspection from the laptop account, against project `freelance-514118` (explicit project flags; the laptop default project is different).
 
-## Verified gaps
+## Initial findings (before remediation)
 
 - Cloud Run list in me-west1 returned no services.
 - Global Workload Identity Pool list returned no pools. GitHub OIDC provider URI in the workflow is therefore not usable yet.
@@ -32,3 +32,9 @@ OAuth callback URIs cannot be honestly declared configured: no callback route ex
 ## Safe handoff
 
 Application source has been copied from the prior laptop workspace into a review branch, preserving the infrastructure files. No private .env files, credentials, node_modules or build output are included. Do not merge to main or publicly deploy until the application gates above are implemented. The main workflow deploys on push.
+
+## Remediation completed in this session
+
+Terraform apply using the laptop identity completed successfully: **15 added, 0 changed, 0 destroyed**. All planned deployment IAM grants and the GitHub pool/provider are now created. Provider: `projects/561053183039/locations/global/workloadIdentityPools/github/providers/freelance`. This resolves the previous IAM/federation blocker; an end-to-end GitHub OIDC deployment has not been exercised.
+
+Source is pushed to `app/deployment-readiness`, draft PR #1. `npm ci`, production build, Terraform initialization and validation succeeded. No Cloud Run service was created because engine_image is unset. The application launch gaps above remain. Codex Cloud agent authentication is separate from this GitHub Actions federation; this change does not configure Codex Cloud credentials.

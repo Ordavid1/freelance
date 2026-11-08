@@ -1,3 +1,7 @@
+# Current update — 2026-11-08
+
+The laptop session successfully applied the remaining Terraform resources: 15 added, zero changed/destroyed. GitHub federation and deployment IAM grants now exist. Source is available in draft PR #1 on app/deployment-readiness. See READINESS-AUDIT.md for unresolved application and configuration gaps. No production app has been deployed. The historical denial below is resolved.
+
 # Deployment status — 2026-11-08
 
 Created in GCP and adopted into Terraform state:
