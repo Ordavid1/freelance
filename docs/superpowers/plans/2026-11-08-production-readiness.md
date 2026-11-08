@@ -196,4 +196,3 @@
 - Which third-party profile connections are actually wanted (for example LinkedIn, GitHub, Dribbble, Behance) and which API access/scopes the owner has approved.
 - Billing provider and tax/receipt requirements remain undecided; billing stays disabled and the existing GCP billing account is not to be modified.
 - A repository hygiene review must verify that ignore patterns cover nested Terraform caches/state, local variable files, generated Next.js/build output, credentials, and OS/editor noise; ignore rules do not remove files already committed.
-
