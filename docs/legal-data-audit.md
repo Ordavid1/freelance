@@ -45,6 +45,8 @@ The policies use original wording, avoid blanket consent and waivers, preserve m
 
 ## Maintenance triggers
 
+The concurrent profile-started trial implementation (`46e80d6`, reviewed with `cf0742f`) was reconciled before the final legal-page rollout. The privacy policy now covers `profiles.profileType`, publisher/business names, account-creation-time eligibility checks, `memberships/{uid}` state and trial start/end timestamps, and retained data after expiry. The terms explain the 14-day trigger, non-reset behavior, restricted actions after expiry, and the absence of available checkout/automatic billing. Relevant evidence: `src/lib/membership/{access,state}.ts`, `src/app/api/marketplace/{profile,access}/route.ts`, `src/components/publisher-profile-setup.tsx`, and `src/components/trial-status.tsx`. Dribbble's new setup document records an unavailable provider; there is still no implemented Dribbble OAuth flow, so the public-URL disclosure remains accurate.
+
 Revisit both pages and point-of-collection notices before enabling billing/renewals, public profile discovery, new analytics/marketing, additional providers/scopes, AI training, a different processing region, a new retention schedule, self-service account deletion, or a material audience/operator change. Update the effective date deliberately. The legal footer is global; sign-in and the upload/AI editor have contextual policy links.
 
 ## Validation and deployment
