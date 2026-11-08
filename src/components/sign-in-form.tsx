@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signOut, type Auth } from '@firebase/auth';
 import { getClientAuth } from '@/lib/auth/firebase-client';
 
@@ -92,6 +93,6 @@ export function SignInForm() {
     </form>
     {notice && <p className="signin-notice" role="status">{notice}</p>}
     {error && <p className="error-text" role="alert">{error}</p>}
-    <small>האימות מנוהל דרך Google Identity Platform. אימות אימייל נדרש לפני שימוש בחשבון.</small>
+    <p className="legal-inline-notice">השירות מיועד לבני ובנות 18 ומעלה. בפתיחת חשבון אתם מסכימים ל<Link href="/terms">תנאי השימוש</Link>. מידע על עיבוד נתונים וזכויותיכם מופיע ב<Link href="/privacy">מדיניות הפרטיות</Link>. האימות מנוהל דרך Google Identity Platform; אימות אימייל נדרש לפני שימוש בחשבון.</p>
   </section>;
 }

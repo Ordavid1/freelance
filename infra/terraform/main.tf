@@ -159,7 +159,7 @@ resource "google_identity_platform_config" "default" {
 resource "google_firebase_web_app" "web" {
   provider     = google-beta
   project      = var.project_id
-  display_name = "Freelance Zone"
+  display_name = "Freelance Place"
   depends_on   = [google_identity_platform_config.default]
 }
 data "google_firebase_web_app_config" "web" {
@@ -172,6 +172,13 @@ resource "google_storage_bucket_iam_member" "source" {
   bucket   = google_storage_bucket.source.name
   role     = "roles/storage.objectUser"
   member   = "serviceAccount:${google_service_account.account[each.key].email}"
+}
+resource "google_storage_bucket_iam_member" "source_deployer_metadata" {
+  bucket = google_storage_bucket.source.name
+  # gcloud builds submit checks bucket metadata before uploading source.
+  # roles/storage.objectUser alone does not include storage.buckets.get.
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.account["deployer"].email}"
 }
 resource "google_cloud_run_v2_service" "engine" {
   count               = var.engine_image == null ? 0 : 1
