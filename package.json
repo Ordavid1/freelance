@@ -1,12 +1,13 @@
 {
-  "name": "freelance-zone",
+  "name": "freelance-place",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:seo": "node --test tests/seo.test.mjs"
   },
   "dependencies": {
     "@firebase/app": "0.14.9",

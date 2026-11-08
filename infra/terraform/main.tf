@@ -197,6 +197,10 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.project_id
       }
       env {
+        name  = "SITE_INDEXABLE"
+        value = "true"
+      }
+      env {
         name  = "NEXT_PUBLIC_SITE_URL"
         value = "https://${var.canonical_domain}"
       }
@@ -330,8 +334,10 @@ resource "google_compute_url_map" "http_redirect" {
   count = var.engine_image == null ? 0 : 1
   name  = "freelance-http-redirect"
   default_url_redirect {
-    https_redirect = true
-    strip_query    = false
+    https_redirect         = true
+    host_redirect          = var.canonical_domain
+    redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+    strip_query            = false
   }
 }
 resource "google_compute_target_http_proxy" "http_redirect" {

@@ -1,10 +1,11 @@
 import 'server-only';
 import type { Project } from '@/lib/data';
 import { firestore } from './firestore';
+import { isDiscoverableProject } from '@/lib/seo/publication';
 
 type ProjectDocument = {
   title?: string; category?: string; description?: string; budget?: string; deadline?: string;
-  clientName?: string; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown;
+  clientName?: string; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
 };
 
 export function toPublicProject(slug: string, record: ProjectDocument): Project {
@@ -29,6 +30,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
 export async function listOpenProjects(): Promise<Project[]> {
   const snapshot = await firestore().collection('projects').where('status', '==', 'open').limit(100).get();
   return snapshot.docs
+    .filter((doc) => isDiscoverableProject(doc.data()))
     .map((doc) => ({ project: toPublicProject(doc.id, doc.data() as ProjectDocument), createdAt: (doc.data() as ProjectDocument).createdAt as { toMillis?: () => number } | undefined }))
     .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
     .map(({ project }) => project);
@@ -36,6 +38,6 @@ export async function listOpenProjects(): Promise<Project[]> {
 
 export async function getOpenProject(slug: string): Promise<Project | null> {
   const snapshot = await firestore().collection('projects').doc(slug).get();
-  if (!snapshot.exists || snapshot.get('status') !== 'open') return null;
+  if (!snapshot.exists || !isDiscoverableProject(snapshot.data() || {})) return null;
   return toPublicProject(snapshot.id, snapshot.data() as ProjectDocument);
 }
