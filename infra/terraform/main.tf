@@ -1,13 +1,15 @@
 locals {
-  apis     = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  accounts = toset(["runtime", "deployer", "builder"])
+  initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com"])
+  accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
-    runtime_vertex = { account = "runtime", role = "roles/aiplatform.user" }
-    deployer_run   = { account = "deployer", role = "roles/run.developer" }
-    deployer_build = { account = "deployer", role = "roles/cloudbuild.builds.editor" }
-    deployer_usage = { account = "deployer", role = "roles/serviceusage.serviceUsageConsumer" }
-    deployer_logs  = { account = "deployer", role = "roles/logging.viewer" }
-    builder_logs   = { account = "builder", role = "roles/logging.logWriter" }
+    runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
+    runtime_firestore = { account = "runtime", role = "roles/datastore.user" }
+    deployer_run      = { account = "deployer", role = "roles/run.developer" }
+    deployer_build    = { account = "deployer", role = "roles/cloudbuild.builds.editor" }
+    deployer_usage    = { account = "deployer", role = "roles/serviceusage.serviceUsageConsumer" }
+    deployer_logs     = { account = "deployer", role = "roles/logging.viewer" }
+    builder_logs      = { account = "builder", role = "roles/logging.logWriter" }
   }
 }
 data "google_project" "current" {}
@@ -27,6 +29,27 @@ resource "google_project_iam_member" "role" {
   project  = var.project_id
   role     = each.value.role
   member   = "serviceAccount:${google_service_account.account[each.value.account].email}"
+}
+resource "google_project_iam_custom_role" "runtime_auth_session" {
+  project     = var.project_id
+  role_id     = "freelanceRuntimeAuthSession"
+  title       = "Freelance Runtime Auth Sessions"
+  description = "Allows the runtime to create and verify sessions without managing user accounts."
+  permissions = ["firebaseauth.users.createSession", "firebaseauth.users.get"]
+  stage       = "GA"
+}
+resource "google_project_iam_member" "runtime_auth_session" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.runtime_auth_session.name
+  member  = "serviceAccount:${google_service_account.account["runtime"].email}"
+}
+resource "google_secret_manager_secret_iam_member" "runtime_nango" {
+  count      = var.nango_secret_name == null ? 0 : 1
+  project    = var.project_id
+  secret_id  = var.nango_secret_name
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.account["runtime"].email}"
+  depends_on = [google_project_service.api]
 }
 resource "google_artifact_registry_repository" "images" {
   location      = var.region
@@ -78,6 +101,72 @@ resource "google_storage_bucket" "source" {
     action { type = "Delete" }
   }
 }
+resource "google_storage_bucket" "user_uploads" {
+  name                        = "${var.project_id}-user-uploads"
+  location                    = var.data_location
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+
+  versioning { enabled = true }
+
+  lifecycle_rule {
+    condition {
+      age        = 7
+      with_state = "ARCHIVED"
+    }
+    action { type = "Delete" }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+resource "google_storage_bucket_iam_member" "user_uploads_runtime" {
+  bucket = google_storage_bucket.user_uploads.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.account["runtime"].email}"
+}
+resource "google_firestore_database" "default" {
+  project                     = var.project_id
+  name                        = "(default)"
+  location_id                 = var.data_location
+  type                        = "FIRESTORE_NATIVE"
+  delete_protection_state     = "DELETE_PROTECTION_ENABLED"
+  deletion_policy             = "PREVENT"
+  app_engine_integration_mode = "DISABLED"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.api]
+}
+resource "google_identity_platform_config" "default" {
+  project = var.project_id
+  sign_in {
+    phone_number {
+      enabled = false
+    }
+    email {
+      enabled           = true
+      password_required = true
+    }
+  }
+  authorized_domains = distinct(concat(var.auth_authorized_domains, [var.canonical_domain, "www.${var.canonical_domain}"]))
+  depends_on         = [google_project_service.api]
+}
+resource "google_firebase_web_app" "web" {
+  provider     = google-beta
+  project      = var.project_id
+  display_name = "Freelance Zone"
+  depends_on   = [google_identity_platform_config.default]
+}
+data "google_firebase_web_app_config" "web" {
+  provider   = google-beta
+  project    = var.project_id
+  web_app_id = google_firebase_web_app.web.app_id
+}
 resource "google_storage_bucket_iam_member" "source" {
   for_each = toset(["builder", "deployer"])
   bucket   = google_storage_bucket.source.name
@@ -89,7 +178,7 @@ resource "google_cloud_run_v2_service" "engine" {
   name                = "freelance-engine"
   location            = var.region
   deletion_protection = true
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   template {
     service_account = google_service_account.account["runtime"].email
     scaling {
@@ -108,8 +197,64 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.project_id
       }
       env {
+        name  = "NEXT_PUBLIC_SITE_URL"
+        value = "https://${var.canonical_domain}"
+      }
+      env {
         name  = "GOOGLE_CLOUD_LOCATION"
         value = "global"
+      }
+      env {
+        name  = "VERTEX_MODEL_ID"
+        value = "gemini-3.8-flash"
+      }
+      env {
+        name  = "GOOGLE_GENAI_USE_ENTERPRISE"
+        value = "True"
+      }
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "UPLOADS_BUCKET"
+        value = google_storage_bucket.user_uploads.name
+      }
+      env {
+        name  = "FIREBASE_WEB_API_KEY"
+        value = data.google_firebase_web_app_config.web.api_key
+      }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = data.google_firebase_web_app_config.web.auth_domain
+      }
+      env {
+        name  = "FIREBASE_WEB_APP_ID"
+        value = google_firebase_web_app.web.app_id
+      }
+      env {
+        name  = "GOOGLE_SIGN_IN_ENABLED"
+        value = tostring(var.google_sign_in_enabled)
+      }
+      dynamic "env" {
+        for_each = var.nango_secret_name == null ? [] : [var.nango_secret_name]
+        content {
+          name = "NANGO_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = var.nango_secret_version
+            }
+          }
+        }
+      }
+      env {
+        name  = "NANGO_GITHUB_INTEGRATION_ID"
+        value = var.nango_github_integration_id
+      }
+      env {
+        name  = "NANGO_LINKEDIN_INTEGRATION_ID"
+        value = var.nango_linkedin_integration_id
       }
       startup_probe {
         tcp_socket { port = 8080 }
@@ -119,8 +264,102 @@ resource "google_cloud_run_v2_service" "engine" {
   lifecycle {
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango]
+}
+resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
+  count    = var.engine_image == null ? 0 : 1
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.engine[0].name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+resource "google_compute_global_address" "website" {
+  count        = var.engine_image == null ? 0 : 1
+  name         = "freelance-website-ip"
+  address_type = "EXTERNAL"
+  ip_version   = "IPV4"
+}
+resource "google_compute_region_network_endpoint_group" "website" {
+  count                 = var.engine_image == null ? 0 : 1
+  name                  = "freelance-engine-neg"
+  network_endpoint_type = "SERVERLESS"
+  region                = var.region
+  cloud_run { service = google_cloud_run_v2_service.engine[0].name }
+}
+resource "google_compute_backend_service" "website" {
+  count                 = var.engine_image == null ? 0 : 1
+  name                  = "freelance-engine-backend"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  backend { group = google_compute_region_network_endpoint_group.website[0].id }
+}
+resource "google_compute_url_map" "website" {
+  count           = var.engine_image == null ? 0 : 1
+  name            = "freelance-website-map"
+  default_service = google_compute_backend_service.website[0].id
+  host_rule {
+    hosts        = [var.canonical_domain, "www.${var.canonical_domain}"]
+    path_matcher = "all-paths"
+  }
+  path_matcher {
+    name            = "all-paths"
+    default_service = google_compute_backend_service.website[0].id
+  }
+}
+resource "google_compute_managed_ssl_certificate" "website" {
+  count = var.engine_image == null ? 0 : 1
+  name  = "freelance-website-cert"
+  managed { domains = [var.canonical_domain, "www.${var.canonical_domain}"] }
+}
+resource "google_compute_target_https_proxy" "website" {
+  count            = var.engine_image == null ? 0 : 1
+  name             = "freelance-website-https"
+  url_map          = google_compute_url_map.website[0].id
+  ssl_certificates = [google_compute_managed_ssl_certificate.website[0].id]
+}
+resource "google_compute_global_forwarding_rule" "https" {
+  count                 = var.engine_image == null ? 0 : 1
+  name                  = "freelance-website-https"
+  target                = google_compute_target_https_proxy.website[0].id
+  ip_address            = google_compute_global_address.website[0].id
+  port_range            = "443"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+}
+resource "google_compute_url_map" "http_redirect" {
+  count = var.engine_image == null ? 0 : 1
+  name  = "freelance-http-redirect"
+  default_url_redirect {
+    https_redirect = true
+    strip_query    = false
+  }
+}
+resource "google_compute_target_http_proxy" "http_redirect" {
+  count   = var.engine_image == null ? 0 : 1
+  name    = "freelance-http-redirect"
+  url_map = google_compute_url_map.http_redirect[0].id
+}
+resource "google_compute_global_forwarding_rule" "http_redirect" {
+  count                 = var.engine_image == null ? 0 : 1
+  name                  = "freelance-website-http-redirect"
+  target                = google_compute_target_http_proxy.http_redirect[0].id
+  ip_address            = google_compute_global_address.website[0].id
+  port_range            = "80"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
 }
 output "workload_identity_provider" { value = google_iam_workload_identity_pool_provider.github.name }
 output "deployer_service_account" { value = google_service_account.account["deployer"].email }
 output "engine_url" { value = try(google_cloud_run_v2_service.engine[0].uri, null) }
+output "user_uploads_bucket" { value = google_storage_bucket.user_uploads.name }
+output "firestore_database" { value = google_firestore_database.default.name }
+output "firebase_web_api_key" { value = data.google_firebase_web_app_config.web.api_key }
+output "firebase_auth_domain" { value = data.google_firebase_web_app_config.web.auth_domain }
+output "firebase_web_app_id" { value = google_firebase_web_app.web.app_id }
+output "website_ip_address" { value = try(google_compute_global_address.website[0].address, null) }
+output "website_dns_records" {
+  value = try({
+    apex_a      = google_compute_global_address.website[0].address
+    www_cname   = var.canonical_domain
+    certificate = "Google managed certificate for ${var.canonical_domain} and www.${var.canonical_domain}"
+  }, null)
+}

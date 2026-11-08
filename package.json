@@ -1,0 +1,31 @@
+{
+  "name": "freelance-zone",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@firebase/app": "0.14.9",
+    "@firebase/auth": "1.12.1",
+    "@google/genai": "^1.30.0",
+    "@nangohq/frontend": "^0.72.3",
+    "firebase-admin": "14.5.0",
+    "next": "^16.2.9",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "overrides": {
+    "@firebase/app": "0.14.9",
+    "@firebase/app-compat": "0.5.9"
+  }
+}
