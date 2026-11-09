@@ -4,7 +4,7 @@ import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 
 import { getMembershipAccess } from '@/lib/membership/access';
-import { profileIsComplete, TRIAL_MS } from '@/lib/membership/state';
+import { shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/membership/state';
 
 export const runtime = 'nodejs';
 
@@ -51,9 +51,11 @@ export async function PUT(request: Request) {
       const [saved, membership] = await Promise.all([transaction.get(profileRef), transaction.get(membershipRef)]);
       const merged = { ...saved.data(), ...clean };
       transaction.set(profileRef, { ...clean, ownerUid: user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      if (membership.get('state') === 'preview' && profileIsComplete(merged)) {
+      if (shouldStartFreelancerTrial(merged, membership.data() || {}, saved.data() || {})) {
         const now = Timestamp.now();
-        transaction.update(membershipRef, { state: 'trial', trialStartedAt: now, trialEndsAt: Timestamp.fromMillis(now.toMillis() + TRIAL_MS) });
+        transaction.update(membershipRef, { state: 'trial', freelancerTrialStarted: true, trialStartedAt: now, trialEndsAt: Timestamp.fromMillis(now.toMillis() + TRIAL_MS) });
+      } else if (saved.data()?.profileType !== 'publisher' && membership.get('state') === 'trial') {
+        transaction.update(membershipRef, { freelancerTrialStarted: true });
       }
     });
     return NextResponse.json({ ok: true, access: await getMembershipAccess(user.uid) });

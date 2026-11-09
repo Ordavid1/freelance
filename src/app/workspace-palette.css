@@ -1,0 +1,141 @@
+/* Logo derived chartreuse and ink accents preserve the existing light surfaces. */
+.studio {
+  --purple: #151719;
+  --pink: #ceef00;
+  --logo-lime-bright: #e0ff2a;
+  --logo-lime: #ceef00;
+  --logo-lime-deep: #9db800;
+}
+
+.studio-brand span,
+.soft-label,
+.personal nav button.selected,
+.role-choice .selected,
+.studio-kpis b,
+.activity button,
+.profile-invite button,
+.studio-search > span:first-child,
+.project-category,
+.project-bottom strong,
+.project-bottom b,
+.studio-save,
+.project-expanded .bid-avatar,
+.subscription > b,
+.personal .button-dark {
+  color: #151719;
+}
+
+.studio-brand i {
+  color: var(--logo-lime);
+}
+
+.personal nav button.selected {
+  background: var(--logo-lime);
+}
+
+.hello-avatar {
+  background: #eef7b7;
+  color: #151719;
+}
+
+.role-choice {
+  background: #f1f3e8;
+}
+
+.studio-kpis > div,
+.studio-kpis > div:nth-child(2),
+.studio-kpis > div:nth-child(3) {
+  border-top: 3px solid var(--logo-lime-bright);
+  background: #f7f9ed;
+}
+
+.studio-kpis > div:nth-child(2) {
+  border-top-color: var(--logo-lime);
+}
+
+.studio-kpis > div:nth-child(3) {
+  border-top-color: var(--logo-lime-deep);
+}
+
+.activity i {
+  background: var(--logo-lime);
+}
+
+.studio .category-dot,
+.studio .category-dot.tone-1,
+.studio .category-dot.tone-2,
+.studio .category-dot.tone-3 {
+  background: var(--logo-lime-bright) !important;
+}
+
+.studio .category-dot.tone-1 {
+  background: var(--logo-lime) !important;
+}
+
+.studio .category-dot.tone-2 {
+  background: var(--logo-lime-deep) !important;
+}
+
+.profile-invite > span {
+  color: #151719;
+}
+
+.tag-filter {
+  border-color: var(--logo-lime-deep);
+  background: var(--logo-lime);
+  color: #151719;
+}
+
+.studio-save {
+  color: #151719;
+}
+
+.studio-tags span {
+  background: #f4f7e6;
+  color: #151719;
+}
+
+.project-expanded form {
+  background: #fafbed;
+}
+
+.project-expanded input,
+.project-expanded textarea {
+  border-color: #e3e6d6;
+}
+
+.bid-submit button,
+.personal .button-dark {
+  background: var(--logo-lime);
+  color: #151719;
+}
+
+.bid-avatar {
+  background: #f0f5d5;
+  color: #151719;
+}
+
+.price-track {
+  background: #edf1dd;
+}
+
+.price-track i {
+  background: var(--logo-lime-deep);
+}
+
+.fit-pill {
+  background: #f1f5d9;
+  color: #151719;
+}
+
+.personal .notice {
+  background: #f5f8e8;
+  border-color: #e4eac9;
+  color: #151719;
+}
+
+.studio :focus-visible {
+  outline: 2px solid var(--logo-lime-deep);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--logo-lime-bright);
+}

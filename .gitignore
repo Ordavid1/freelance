@@ -9,6 +9,7 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+__pycache__/
 
 # Local configuration and credentials. Keep only the documented template.
 .env*

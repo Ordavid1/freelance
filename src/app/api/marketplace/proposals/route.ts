@@ -10,7 +10,6 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בהצעות.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   try {
@@ -87,7 +86,6 @@ export async function PATCH(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לבטל הצעה.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const body = await request.json().catch(() => null);
   if (typeof body?.proposalId !== 'string' || !/^[a-f0-9]{64}$/.test(body.proposalId)) return NextResponse.json({ error: 'הצעה לא תקינה.' }, { status: 400 });
   const db = firestore();

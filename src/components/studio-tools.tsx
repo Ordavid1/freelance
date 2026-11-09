@@ -23,4 +23,4 @@ function StudioInboxContent(){
 
 export function BidForm(props: React.ComponentProps<typeof BidFormContent>) { return <MemberGate><BidFormContent {...props} /></MemberGate>; }
 
-export function StudioInbox() { return <MemberGate><StudioInboxContent /></MemberGate>; }
+export function StudioInbox() { return <StudioInboxContent />; }

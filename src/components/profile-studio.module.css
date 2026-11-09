@@ -1,0 +1,119 @@
+.studio {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.studio .platformButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.studio .platformButtons button.platformButton {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #dedfe5;
+  border-radius: 10px;
+  background: #fff;
+  color: #25293a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.studio .platformButtons button.platformButtonConnected {
+  border-color: #a7cfb6;
+  background: #f0f9f3;
+  color: #215d3e;
+}
+
+.platformButton svg { flex: 0 0 auto; }
+.addMark { color: #8d90a0; font-size: 17px; line-height: 1; }
+.connectingText { flex-basis: 100%; font-size: 11px; }
+.studio button:disabled { cursor: wait; opacity: .6; }
+
+.studio .platformButton:focus-visible,
+.studio .sourceCard:focus,
+.studio .sourceActions button:focus-visible,
+.studio .linkForm button:focus-visible {
+  outline: 2px solid #267a52;
+  outline-offset: 3px;
+}
+
+.sourceCards { display: grid; gap: 10px; margin-block: 12px 18px; }
+.studio .sourceHint { display: block; margin-block: 8px; line-height: 1.7; }
+
+.studio .sourceCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid #e0e6e2;
+  border-radius: 12px;
+  background: #fbfdfb;
+  padding: 14px;
+  font-size: 12px;
+}
+
+.sourceCard > svg { flex: 0 0 auto; margin-top: 3px; }
+.sourceDetails { display: grid; flex: 1; min-width: 120px; gap: 5px; }
+.sourceDetails strong { display: flex; align-items: center; gap: 8px; color: #293a32; font-size: 13px; }
+.sourceDetails small { color: #6f7772; font-size: 12px; line-height: 1.6; }
+.sourceDetails a { color: #32634c; font-size: 12px; overflow-wrap: anywhere; }
+.sourceActions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.studio .sourceActions button,
+.studio .linkFormActions button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #dce4de;
+  border-radius: 8px;
+  background: #fff;
+  color: #495a4f;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.studio .linkForm {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px 18px;
+  padding: 16px;
+  border: 1px solid #dce4de;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.linkForm label { font-size: 13px; font-weight: 500; color: #34463b; }
+.studio .linkForm input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cfdad3;
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+  color: #242b27;
+  font-size: 14px;
+}
+
+.linkForm small { font-size: 12px; line-height: 1.6; color: #717b74; }
+.linkForm input[aria-invalid="true"] { border-color: #b34a4a; }
+.linkFormActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.studio .linkFormActions button.approveLink { background: #202438; border-color: #202438; color: #fff; padding-inline: 18px; font-weight: 500; }
+.studio .sourceError { font-size: 12px; color: #a33333; line-height: 1.7; margin: 4px 0; overflow-wrap: anywhere; }
+.studio .sourceError button { color: inherit; min-height: 32px; padding: 3px 8px; text-decoration: underline; font-size: inherit; }
+
+@container (max-width: 480px) {
+  .sourceActions { width: 100%; padding-inline-start: 34px; }
+  .studio .sourceCard { padding: 12px; gap: 10px; }
+  .studio .platformButtons { gap: 6px; }
+  .studio .platformButtons button.platformButton { flex: 1 0 118px; padding-inline: 9px; }
+}

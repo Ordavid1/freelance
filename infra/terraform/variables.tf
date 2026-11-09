@@ -52,3 +52,45 @@ variable "nango_linkedin_integration_id" {
   default     = "linkedin"
   description = "Integration ID configured in the Nango environment for LinkedIn OAuth."
 }
+variable "dribbble_client_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Public client ID from the Dribbble OAuth app."
+}
+variable "dribbble_client_secret_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Existing Secret Manager secret containing the rotated Dribbble OAuth client secret."
+}
+variable "dribbble_client_secret_version" {
+  type        = string
+  default     = "1"
+  description = "Enabled Secret Manager version for the Dribbble OAuth client secret."
+}
+variable "dribbble_redirect_uri" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Registered Dribbble callback URI. Defaults to the canonical app host's callback route."
+}
+
+variable "billing_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable Cardcom checkout and scheduled automatic renewals after sandbox validation."
+}
+variable "cardcom_secrets" {
+  type        = map(object({ project = string, name = string, version = string }))
+  default     = {}
+  description = "Existing Secret Manager references keyed by CARDCOM_TERMINAL_NUMBER, CARDCOM_API_NAME, optional CARDCOM_API_PASSWORD. Values never enter Terraform. Cross-project secrets are supported."
+  validation {
+    condition     = alltrue([for key in keys(var.cardcom_secrets) : contains(["CARDCOM_TERMINAL_NUMBER", "CARDCOM_API_NAME", "CARDCOM_API_PASSWORD"], key)])
+    error_message = "Only the three supported Cardcom credential environment variables are allowed."
+  }
+  validation {
+    condition     = alltrue([for ref in values(var.cardcom_secrets) : can(regex("^[1-9][0-9]*$", ref.version))])
+    error_message = "Cardcom secret versions must be pinned positive version numbers, not latest aliases."
+  }
+}

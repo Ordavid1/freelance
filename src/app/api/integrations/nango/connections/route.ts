@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
-import { integrationId, nangoApiKey, nangoJson } from '@/lib/integrations/nango';
+import { integrationId, nangoApiKey, nangoJson, ownedNangoConnections } from '@/lib/integrations/nango';
 
 export const runtime = 'nodejs';
-
-type Connection = { id?: unknown; provider_config_key?: unknown; providerConfigKey?: unknown; tags?: Record<string, string> };
-type ConnectionList = { connections?: Connection[]; data?: { connections?: Connection[] } };
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -13,14 +10,13 @@ export async function GET() {
   if (!nangoApiKey()) return NextResponse.json({ connections: [] });
 
   try {
-    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid });
-    const result = await nangoJson<ConnectionList>(`/connections?${params.toString()}`);
-    const connections = result.connections ?? result.data?.connections ?? [];
+    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid, limit: '100' });
+    const result = await nangoJson<unknown>(`/connections?${params.toString()}`);
     const providers = (['github', 'linkedin'] as const).flatMap((provider) => {
       const key = integrationId(provider);
       if (!key) return [];
-      const connection = connections.find((item) => item.tags?.end_user_id === user.uid && (item.provider_config_key ?? item.providerConfigKey) === key && typeof item.id === 'string');
-      return connection && typeof connection.id === 'string' ? [{ provider, connectionId: connection.id }] : [];
+      const connection = ownedNangoConnections(result, user.uid, key)[0];
+      return connection ? [{ provider, connectionId: connection.connectionId }] : [];
     });
     return NextResponse.json({ connections: providers }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
@@ -38,10 +34,9 @@ export async function DELETE(request: Request) {
   const key = integrationId(provider);
   if (!key || !nangoApiKey()) return NextResponse.json({ error: 'האינטגרציה עדיין לא הוגדרה.' }, { status: 503 });
   try {
-    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid });
-    const result = await nangoJson<ConnectionList>(`/connections?${params.toString()}`);
-    const connections = result.connections ?? result.data?.connections ?? [];
-    const owned = connections.some((item) => item.id === connectionId && item.tags?.end_user_id === user.uid && (item.provider_config_key ?? item.providerConfigKey) === key);
+    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid, limit: '100' });
+    const result = await nangoJson<unknown>(`/connections?${params.toString()}`);
+    const owned = ownedNangoConnections(result, user.uid, key).some((item) => item.connectionId === connectionId);
     if (!owned) return NextResponse.json({ error: 'החיבור לא שייך לחשבון הזה.' }, { status: 403 });
     const deleteParams = new URLSearchParams({ provider_config_key: key });
     await nangoJson(`/connections/${encodeURIComponent(connectionId)}?${deleteParams.toString()}`, { method: 'DELETE' });

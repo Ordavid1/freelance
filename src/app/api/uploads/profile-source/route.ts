@@ -13,8 +13,15 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות במסמכים.' }, { status: 401 });
   try {
-    const snapshot = await firestore().collection('users').doc(user.uid).collection('profileSources').where('status', '==', 'ready').orderBy('createdAt', 'desc').limit(20).get();
-    const sources = snapshot.docs.map((doc) => ({ id: doc.id, name: doc.get('name'), size: doc.get('size') })).filter((source) => typeof source.name === 'string' && typeof source.size === 'number');
+    // Each account can store five files. Sort this bounded set locally so loading
+    // sources does not depend on a separate status/createdAt composite index.
+    const snapshot = await firestore().collection('users').doc(user.uid).collection('profileSources').where('status', '==', 'ready').limit(20).get();
+    const sources = snapshot.docs.map((doc) => ({
+      id: doc.id, name: doc.get('name'), size: doc.get('size'),
+      createdAt: doc.get('createdAt')?.toMillis?.() ?? 0,
+    })).filter((source) => typeof source.name === 'string' && typeof source.size === 'number')
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(({ id, name, size }) => ({ id, name, size }));
     return NextResponse.json({ sources }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון את המסמכים כרגע.' }, { status: 503 });
@@ -50,8 +57,9 @@ export async function POST(request: Request) {
   try {
     await firestore().runTransaction(async (transaction) => {
       const existing = await transaction.get(sourceRef.parent);
-      const usedBytes = existing.docs.reduce((total, doc) => total + (typeof doc.get('size') === 'number' ? doc.get('size') as number : 0), 0);
-      if (existing.size >= 5) throw new Error('SOURCE_COUNT_LIMIT');
+      const fileSources = existing.docs.filter((doc) => typeof doc.get('objectName') === 'string' && typeof doc.get('size') === 'number');
+      const usedBytes = fileSources.reduce((total, doc) => total + (doc.get('size') as number), 0);
+      if (fileSources.length >= 5) throw new Error('SOURCE_COUNT_LIMIT');
       if (usedBytes + bytes.byteLength > 40 * 1024 * 1024) throw new Error('SOURCE_STORAGE_LIMIT');
       transaction.create(sourceRef, {
         objectName, name: safeName(file.name), contentType: extension === 'pdf' ? 'application/pdf' : 'text/plain',

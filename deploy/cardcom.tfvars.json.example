@@ -1,0 +1,17 @@
+{
+  "project_id": "freelance-514118",
+  "region": "me-west1",
+  "billing_enabled": false,
+  "cardcom_secrets": {
+    "CARDCOM_TERMINAL_NUMBER": {
+      "project": "crypto-coral-328619",
+      "name": "cardcom-terminal-number",
+      "version": "REPLACE_WITH_ENABLED_NUMERIC_VERSION"
+    },
+    "CARDCOM_API_NAME": {
+      "project": "crypto-coral-328619",
+      "name": "cardcom-api-name",
+      "version": "REPLACE_WITH_ENABLED_NUMERIC_VERSION"
+    }
+  }
+}
