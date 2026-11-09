@@ -5,8 +5,18 @@ import { adminAuth } from './firebase-admin';
 export const SESSION_COOKIE = 'fz_session';
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
+export function publicAppOrigin(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  const url = new URL(configured || (process.env.NODE_ENV === 'production' ? 'https://freelance-place.com' : request.url));
+  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') throw new Error('Public app origin must use HTTPS');
+  return url.origin;
+}
+
 export function isSameOrigin(request: Request) {
-  const expected = new URL(request.url).origin;
+  // The public HTTPS origin differs from the internal Cloud Run request URL.
+  // Forwarding headers supplied by a caller never expand the trusted origins.
+  let expected: string;
+  try { expected = publicAppOrigin(request); } catch { return false; }
   const origin = request.headers.get('origin');
   if (origin) return origin === expected;
   const referer = request.headers.get('referer');

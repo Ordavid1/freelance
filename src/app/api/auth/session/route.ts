@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth/firebase-admin';
-import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth/session';
+import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -10,11 +10,6 @@ function sameToken(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function isSameOrigin(request: Request) {
-  const origin = request.headers.get('origin');
-  return !origin || origin === new URL(request.url).origin;
 }
 
 export async function POST(request: Request) {

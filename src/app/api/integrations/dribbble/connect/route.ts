@@ -1,15 +1,15 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
+import { getCurrentUser, publicAppOrigin } from '@/lib/auth/session';
 import { createDribbbleOAuthState, dribbbleConfig, DRIBBBLE_STATE_COOKIE, DRIBBBLE_STATE_TTL_SECONDS } from '@/lib/integrations/dribbble';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', request.url));
+  if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
   const config = dribbbleConfig();
-  if (!config) return NextResponse.redirect(new URL('/profile/import?dribbble=unconfigured', request.url));
+  if (!config) return NextResponse.redirect(new URL('/profile/import?dribbble=unconfigured', publicAppOrigin(request)));
 
   const { state, cookieValue } = createDribbbleOAuthState(user.uid);
   const cookieStore = await cookies();

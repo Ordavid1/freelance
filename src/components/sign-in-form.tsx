@@ -31,7 +31,8 @@ export function SignInForm() {
       throw new Error(data.error || 'ההתחברות נכשלה.');
     }
     await signOut(auth);
-    window.location.assign('/');
+    const next = new URLSearchParams(window.location.search).get('next');
+    window.location.assign(next === '/profile/import' ? next : '/');
   }
 
   async function submit(event: FormEvent) {

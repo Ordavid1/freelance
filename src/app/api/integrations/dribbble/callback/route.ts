@@ -1,14 +1,14 @@
 import { cookies } from 'next/headers';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/session';
+import { getCurrentUser, publicAppOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { dribbbleConfig, DRIBBBLE_STATE_COOKIE, exchangeDribbbleCode, fetchDribbbleImport, validateDribbbleOAuthState } from '@/lib/integrations/dribbble';
 
 export const runtime = 'nodejs';
 
 function resultRedirect(request: Request, status: string) {
-  const target = new URL('/profile/import', request.url);
+  const target = new URL('/profile/import', publicAppOrigin(request));
   target.searchParams.set('dribbble', status);
   return NextResponse.redirect(target);
 }
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   try {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', request.url));
+    if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
     if (!validateDribbbleOAuthState(stateCookie, params.get('state'), user.uid)) return resultRedirect(request, 'state-error');
     if (params.has('error')) return resultRedirect(request, params.get('error') === 'access_denied' ? 'denied' : 'failed');
 
