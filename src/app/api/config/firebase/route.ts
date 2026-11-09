@@ -12,6 +12,6 @@ export async function GET() {
     authDomain: FIREBASE_AUTH_DOMAIN,
     projectId: GOOGLE_CLOUD_PROJECT,
     appId: FIREBASE_WEB_APP_ID,
-    googleSignInEnabled: process.env.GOOGLE_SIGN_IN_ENABLED === 'true',
+    googleSignInEnabled: true,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

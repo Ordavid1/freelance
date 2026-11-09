@@ -37,6 +37,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   if (!value) return null;
   try {
     const token = await adminAuth().verifySessionCookie(value, true);
+    if (token.firebase?.sign_in_provider !== 'google.com') return null;
     return {
       uid: token.uid,
       email: typeof token.email === 'string' ? token.email : null,

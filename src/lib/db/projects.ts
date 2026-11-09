@@ -24,6 +24,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     fit: 'בדקו אם הפרויקט מתאים לכם',
     activity: 'פתוח להצעות',
     proposals: Number(record.proposals) || 0,
+    status: record.status || 'open',
   };
 }
 
