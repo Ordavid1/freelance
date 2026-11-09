@@ -98,3 +98,7 @@ Rollout sequence:
 5. To stop new checkout and automated token debits, plan/apply `billing_enabled=false`. Existing paid-through access and cancellation remain available. Preserve unresolved transaction records for reconciliation.
 
 The first preparation attempt in this billing executor stopped with `GCP_AUTH_UNAVAILABLE` before secret retrieval. No replacement credential file or authenticated gcloud account is present here. This is distinct from the successful authentication reported by the separate verification chat. A credential-free request was also sent directly to the production lookup endpoint to test connectivity. It returned HTTP 400 and ResponseCode 9998; that rejection is not merchant authentication verification. Terraform validation, shell syntax checks and 21 billing/deployment/access tests passed.
+
+## Subscription controls
+
+The workspace tab and membership navigation are labeled `מנוי ותשלומים` (Subscription & payments). Trial reminders link to `/membership#membership-billing`. The join button is visible during the trial with its availability date and remains disabled until expiry and billing availability; active subscriptions show cancellation. Payment history includes an empty state. Publisher accounts keep free publishing and do not see a purchase requirement. Browser checks verified these states, consent gating, mobile/desktop layout and the workspace tab; TypeScript passed. These UI changes remain in the billing worktree until deployment.

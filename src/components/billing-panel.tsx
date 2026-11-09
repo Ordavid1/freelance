@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 type Status = { available: boolean; autoRenew: boolean; status: string; last4: string | null; paidUntil: number | null; payments: { id: string; amountAgorot: number; paidAt: number; documentNumber: number | null; invoicePending: boolean }[] };
 const date = (value: number) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium' }).format(value);
-export function BillingPanel({ eligible = false }: { eligible?: boolean }) {
+export function BillingPanel({ eligible = false, trialEndsAt }: { eligible?: boolean; trialEndsAt?: number | null }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,18 +46,25 @@ export function BillingPanel({ eligible = false }: { eligible?: boolean }) {
       await refresh(); setMessage('החידוש האוטומטי בוטל. הגישה נשארת עד סוף התקופה ששולמה.');
     } catch { setMessage('הביטול לא אושר. נסו שוב או פנו אלינו.'); } finally { setBusy(false); }
   }
-  return <section className="trial-status billing-panel" aria-label="תשלומים וחידוש חברות">
-    <h2>הגשת הצעות לפרויקטים ב־₪19.99 לחודש</h2>
+  const canCheckout = eligible && status?.available === true;
+  let checkoutNote = 'פרטי הכרטיס נמסרים ל־Cardcom. חשבונית תישלח באימייל. אפשר לבטל את החידוש כאן בכל עת.';
+  if (trialEndsAt) checkoutNote = `ההצטרפות למנוי תיפתח בסיום הניסיון, ב־${date(trialEndsAt)}. עד אז הגשת הצעות בחינם וללא חיוב.`;
+  else if (!eligible) checkoutNote = status?.paidUntil && status.paidUntil > Date.now() ? 'אפשר לחדש מנוי לאחר סיום התקופה ששולמה.' : 'אפשר להצטרף לאחר הקמת פרופיל פרילנסר וסיום 14 ימי הניסיון.';
+  else if (!status) checkoutNote = message || 'טוענים את אפשרות התשלום…';
+  else if (!status.available) checkoutNote = 'התשלום אינו זמין כרגע. לא נוצר חיוב.';
+  return <section id="membership-billing" className="trial-status billing-panel" aria-label="תשלומים וחידוש חברות">
+    <h2>מנוי ותשלומים</h2>
+    <h3>הגשת הצעות לפרויקטים ב־₪19.99 לחודש</h3>
     <p>המחיר כולל מע״מ ככל שחל. החברות מתחדשת אוטומטית מדי חודש לאחר הצטרפות מפורשת. אין חיוב בסיום הניסיון ללא הצטרפות.</p>
     {status?.paidUntil && <p>התקופה ששולמה מסתיימת ב־{date(status.paidUntil)}. {status.autoRenew ? 'החיוב הבא במועד זה.' : 'החידוש האוטומטי כבוי.'}</p>}
     {status?.last4 && <p>כרטיס המסתיים ב־<bdi>{status.last4}</bdi></p>}
     {status?.status === 'past_due' && <p role="alert">החידוש נכשל והחיוב האוטומטי הופסק. אפשר להצטרף מחדש לאחר סיום הגישה ששולמה.</p>}
-    {status?.autoRenew ? <><button disabled={busy} onClick={() => void cancel()}>ביטול חידוש אוטומטי</button><small>חיוב שכבר נשלח לסליקה עשוי להסתיים. לבירור או החזר אפשר לפנות דרך <Link href="/terms#updates">פרטי הקשר</Link>.</small></> : eligible && status?.available ? <>
-      <label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)}/> אני מאשר/ת חיוב של ₪19.99 כעת וחידוש אוטומטי חודשי באותו מחיר עד לביטול, לפי <Link href="/terms#payments">תנאי החברות והביטול</Link>.</label>
-      <button disabled={busy || !consent} onClick={() => void checkout()}>{busy ? 'פותחים תשלום…' : 'הצטרפות ותשלום מאובטח ב־Cardcom'}</button>
-      <small>פרטי הכרטיס נמסרים ל־Cardcom. חשבונית תישלח באימייל. אפשר לבטל את החידוש כאן בכל עת.</small>
-    </> : eligible && status && <p>התשלום אינו זמין כרגע. לא נוצר חיוב.</p>}
+    {status?.autoRenew ? <><button disabled={busy} onClick={() => void cancel()}>ביטול חידוש אוטומטי</button><small>חיוב שכבר נשלח לסליקה עשוי להסתיים. לבירור או החזר אפשר לפנות דרך <Link href="/terms#updates">פרטי הקשר</Link>.</small></> : <>
+      {canCheckout && <label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)}/> אני מאשר/ת חיוב של ₪19.99 כעת וחידוש אוטומטי חודשי באותו מחיר עד לביטול, לפי <Link href="/terms#payments">תנאי החברות והביטול</Link>.</label>}
+      <button disabled={busy || !consent || !canCheckout} aria-describedby="membership-checkout-note" onClick={() => void checkout()}>{busy ? 'פותחים תשלום…' : 'הצטרפות ותשלום מאובטח ב־Cardcom'}</button>
+      <p id="membership-checkout-note">{checkoutNote}</p>
+    </>}
     {message && <p role="status">{message}</p>}
-    {!!status?.payments.length && <><h3>היסטוריית תשלומים</h3><ul>{status.payments.map(payment => <li key={payment.id}>{date(payment.paidAt)} · ₪{(payment.amountAgorot / 100).toFixed(2)} · {payment.documentNumber ? `מסמך ${payment.documentNumber} נשלח באימייל` : 'מסמך החשבונית בבדיקה'}</li>)}</ul></>}
+    {status && <><h3>היסטוריית תשלומים</h3>{status.payments.length ? <ul>{status.payments.map(payment => <li key={payment.id}>{date(payment.paidAt)} · ₪{(payment.amountAgorot / 100).toFixed(2)} · {payment.documentNumber ? `מסמך ${payment.documentNumber} נשלח באימייל` : 'מסמך החשבונית בבדיקה'}</li>)}</ul> : <p>עדיין אין תשלומים בחשבון.</p>}</>}
   </section>;
 }
