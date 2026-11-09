@@ -66,4 +66,8 @@ variable "cardcom_secrets" {
     condition     = alltrue([for key in keys(var.cardcom_secrets) : contains(["CARDCOM_TERMINAL_NUMBER", "CARDCOM_API_NAME", "CARDCOM_API_PASSWORD"], key)])
     error_message = "Only the three supported Cardcom credential environment variables are allowed."
   }
+  validation {
+    condition     = alltrue([for ref in values(var.cardcom_secrets) : can(regex("^[1-9][0-9]*$", ref.version))])
+    error_message = "Cardcom secret versions must be pinned positive version numbers, not latest aliases."
+  }
 }

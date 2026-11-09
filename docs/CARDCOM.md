@@ -70,3 +70,31 @@ Local tests cover the adapter and transactional service with an in-memory Firest
 The local cloud environment script now explicitly exports `GCP_PROJECT=freelance-514118`. An exposed older service-account key was identified without displaying its contents; its IAM disable request succeeded, and a fresh authentication attempt using that old key was subsequently rejected with `invalid_grant`. It must not be used for billing validation.
 
 The independently verified replacement credential has not reached this running chat: the configured credential file is absent, both inspected gcloud configurations have no authenticated account, and the current `GCP_SA_KEY_B64` binding is not valid base64 service-account JSON. Apply the verified configuration to this environment before continuing secret inventory, Terraform planning and Cardcom sandbox acceptance. The local override does not update the reusable environment's saved variable binding. No billing infrastructure was deployed and billing remains disabled.
+
+## Production probe and deployment preparation
+
+The user has verified the secrets and authorized a direct production API test without being able to perform a card checkout now. The production probe uses `Transactions/GetTransactionByExternalUniqTran` with a new random, never-used external ID. It reads transaction status only: it does not create a payment page, tokenize a card, issue an invoice or debit a token. An expected no-match response demonstrates endpoint reachability but must not be represented as successful charging or full merchant permission validation.
+
+With working ADC in the current executor, run from the repository root:
+
+```bash
+source /workspace/.local/codex-gcp-env.sh
+NODE_USE_ENV_PROXY=1 node scripts/prepare-cardcom.mjs
+bash scripts/plan-cardcom.sh
+```
+
+The defaults use `crypto-coral-328619`, `cardcom-terminal-number` and `cardcom-api-name` from the attached working implementation. If the verified secrets have different references, pass `--secret-project`, `--terminal-secret` and `--api-name-secret`. Supply `--password-secret` only if needed. Secrets are fetched into memory and never printed or written to the output. Google SDK failures are replaced with fixed error codes to prevent credential leaks.
+
+The preparation command resolves `latest` metadata into enabled, pinned numeric versions, probes the production endpoint, reads the existing Cloud Run image and Nango/Google sign-in configuration, and writes `deploy/cardcom.generated.tfvars.json` (gitignored, mode 0600, exclusive creation). The generated file contains only references and public configuration, with billing disabled. `deploy/cardcom.tfvars.json.example` is a references template, not a verified live configuration.
+
+`plan-cardcom.sh` initializes the existing production GCS backend without changing bucket settings, validates the config and creates a saved `infra/terraform/cardcom-preparation.tfplan`. It does not apply anything. Review that plan for scoped secret access, billing environment variables, Scheduler identity and the two Firestore indexes, preserving existing infrastructure.
+
+Rollout sequence:
+
+1. Release the reviewed application image through the existing release process while billing remains disabled.
+2. Rerun preparation to capture that current image and runtime configuration. Plan and apply the reviewed disabled configuration; wait for both indexes to become ready.
+3. Perform the authenticated read-only production probe. A real checkout, invoice email and renewal remain unverified until a consenting cardholder completes checkout; the lookup cannot replace that verification.
+4. When activating, produce a separate Terraform plan using the generated var-file plus `-var=billing_enabled=true`. This enables checkout and the OIDC-authenticated renewal Scheduler job together. It does not itself create subscriptions or charge existing users. Apply only the reviewed plan.
+5. To stop new checkout and automated token debits, plan/apply `billing_enabled=false`. Existing paid-through access and cancellation remain available. Preserve unresolved transaction records for reconciliation.
+
+The first preparation attempt in this billing executor stopped with `GCP_AUTH_UNAVAILABLE` before secret retrieval. No replacement credential file or authenticated gcloud account is present here. This is distinct from the successful authentication reported by the separate verification chat. A credential-free request was also sent directly to the production lookup endpoint to test connectivity. It returned HTTP 400 and ResponseCode 9998; that rejection is not merchant authentication verification. Terraform validation, shell syntax checks and 21 billing/deployment/access tests passed.
