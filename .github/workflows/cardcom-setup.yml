@@ -30,6 +30,12 @@ jobs:
               result[project]={'secretsAccessible':r['accessible']}
               if r['accessible']:
                   result[project]['cardcomSecrets']=[s['name'] for s in r['data'] if 'cardcom' in s['name'].lower()]
+          checks=[]
+          for project in ['freelance-514118','crypto-coral-328619']:
+              for secret in ['cardcom-terminal-number','cardcom-api-name','CARDCOM_TERMINAL_NUMBER','CARDCOM_API_NAME']:
+                  p=subprocess.run(['gcloud','secrets','versions','access','latest','--secret='+secret,'--project='+project,'--quiet'],capture_output=True,text=True)
+                  checks.append({'project':project,'name':secret,'readable':p.returncode==0,'reason':next((code for code in ['PERMISSION_DENIED','NOT_FOUND','SERVICE_DISABLED'] if code in p.stderr),None)})
+          result['exactSecretAccess']=checks
           r=read(['run','services','describe','freelance-engine','--project=freelance-514118','--region=me-west1'])
           result['runtimeAccessible']=r['accessible']
           if r['accessible']:
