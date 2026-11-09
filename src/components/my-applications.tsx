@@ -26,12 +26,12 @@ export function MyApplications({ revision = 0 }: { revision?: number }) {
     finally { setBusy(null); }
   }
   return <section className="my-applications" aria-label="הפרויקטים שהגשתי אליהם הצעה">
-    <div className="feed-intro"><div><span className="soft-label">הפעילות שלך</span><h1>ההצעות שלי</h1><p>הפרויקטים שהגשת אליהם הצעה, והשיחות עם המפרסמים.</p></div></div>
+    <header className="applications-heading"><h2>הנה הפרוייקטים שהצעת עליהם</h2><p>ההצעות ששלחת והשיחות עם המפרסמים, במקום אחד.</p></header>
     {error && <p className="error-text" role="alert">{error}</p>}
     {loading ? <p role="status">טוענים את ההצעות שלך…</p> : !error && !items.length ? <div className="studio-project empty-state"><strong>כאן יופיע החיבור הבא שלך</strong>אחרי שליחת הצעה לפרויקט, אפשר לעקוב אחריה ולנהל את השיחה כאן.</div> : items.map(item => <article className="studio-project application-card" key={item.id}>
       <span className="application-status">{item.status === 'withdrawn' ? 'ההצעה בוטלה' : 'ההצעה נשלחה'}</span>
       <h2><Link href={`/projects/${encodeURIComponent(item.projectSlug)}`}>{item.projectTitle}</Link></h2>
-      <p className="application-message">{item.message}</p>
+      <h4 className="application-offer-label">ההצעה ששלחת</h4><p className="application-message">{item.message}</p>
       <p><strong>{new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(item.amount)}</strong> · {item.pricingType === 'hourly' ? 'לשעה' : 'מחיר קבוע'} · {item.delivery}</p>
       <div className="application-actions"><Link className="button-outline" href={`/messages?conversation=${encodeURIComponent(item.conversationId)}`}>הודעה למפרסם/ת</Link>{item.status === 'submitted' && <button disabled={busy === item.id} onClick={() => void withdraw(item.id)}>{busy === item.id ? 'מבטלים…' : 'ביטול ההצעה'}</button>}</div>
     </article>)}
