@@ -1,5 +1,7 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { profileResponseSchema, profileSystemInstruction, PROFILE_PROMPT_VERSION, validateProfileDraft } from '@/lib/profile-generation';
 import { NextResponse } from 'next/server';
-import { generateWithVertex, isVertexConfigured, safePublicUrl } from '@/lib/ai';
+import { generateWithVertex, isVertexConfigured, safePublicUrl, type VertexDiagnostics } from '@/lib/ai';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { userUploadsBucket } from '@/lib/db/storage';
@@ -9,12 +11,11 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  if (!await getCurrentUser()) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
   if (Number(request.headers.get('content-length') || 0) > 45 * 1024 * 1024) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
   const form = await request.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: 'לא הצלחנו לקרוא את הקבצים.' }, { status: 400 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
   const uploaded = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
   if (uploaded.length) return NextResponse.json({ error: 'יש לשמור את המסמכים במקורות הפרופיל לפני עיבוד.' }, { status: 400 });
   const rawSourceIds = String(form.get('sourceIds') || '[]');
@@ -46,11 +47,13 @@ export async function POST(request: Request) {
   const fileParts: {mimeType:string;data:string}[] = [...storedFiles];
   const rawUrls = String(form.get('urls') || '').split('\n').map((u) => u.trim()).filter(Boolean);
   const rawSocialSources = String(form.get('socialSources') || '[]');
-  let socialSources: { provider: 'github' | 'linkedin'; sourceText: string }[] = [];
+  if (rawSocialSources.length > 50_000) return NextResponse.json({ error: 'נתוני המקורות גדולים מדי.' }, { status: 413 });
+  let socialSources: { provider: 'github' | 'linkedin' | 'dribbble'; sourceText: string }[] = [];
   try {
     const parsed: unknown = JSON.parse(rawSocialSources);
-    if (!Array.isArray(parsed) || parsed.length > 2 || parsed.some((item) => !item || !['github', 'linkedin'].includes(item.provider) || typeof item.sourceText !== 'string' || item.sourceText.length > 14_000)) throw new Error('Invalid social sources');
+    if (!Array.isArray(parsed) || parsed.length > 3 || parsed.some((item) => !item || !['github', 'linkedin', 'dribbble'].includes(item.provider) || typeof item.sourceText !== 'string' || item.sourceText.length > 14_000)) throw new Error('Invalid social sources');
     socialSources = parsed;
+    if (new Set(socialSources.map(s => s.provider)).size !== socialSources.length) throw new Error('Duplicate social provider');
   } catch {
     if (rawSocialSources !== '[]') return NextResponse.json({ error: 'נתוני הפרופיל החברתי לא תקינים. נסו לייבא אותם שוב.' }, { status: 400 });
   }
@@ -61,13 +64,44 @@ export async function POST(request: Request) {
     if (process.env.NODE_ENV === 'production') return NextResponse.json({ error: 'Vertex AI לא הוגדר בסביבה הזו.' }, { status: 503 });
     return NextResponse.json({ demo: true, name: '', headline: '', bio: '', skills: [], facts: [], sources: rawUrls });
   }
+  const urls = [...new Set(rawUrls.map(url => { const parsed = new URL(url); parsed.hash = ''; return parsed.href; }))];
+  const sourceManifest = [
+    ...sourceIds.map((id, index) => ({ id: `document:${id}`, attachment: index + 1 })),
+    ...urls.map(url => ({ id: url, url })),
+    ...socialSources.map(item => ({ id: item.provider, excerpt: item.sourceText })),
+  ];
+  const allowedSources = new Set(sourceManifest.map(source => source.id));
+  const requestId = randomUUID();
+  const traceId = request.headers.get('x-cloud-trace-context')?.split('/')[0];
+  const trace = traceId && /^[a-f0-9]{32}$/.test(traceId) ? `projects/${process.env.GOOGLE_CLOUD_PROJECT}/traces/${traceId}` : undefined;
+  const startedAt = Date.now();
+  const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  let diagnostics: VertexDiagnostics | undefined;
+  const log = (status: string, output?: unknown) => console.info(JSON.stringify({
+    severity: status === 'success' ? 'INFO' : 'WARNING', 'logging.googleapis.com/trace': trace,
+    event: 'profile_generation', requestId, status, promptVersion: PROFILE_PROMPT_VERSION,
+    model: process.env.VERTEX_MODEL_ID || 'gemini-3.8-flash', durationMs: Date.now() - startedAt,
+    input: { documents: sourceIds.length, attachmentBytes: fileParts.map(file => Buffer.byteLength(file.data, 'base64')), urls: urls.length, socialProviders: socialSources.map(s => s.provider), sha256: hash({ sourceManifest, files: fileParts }) },
+    outputSha256: output ? hash(output) : undefined,
+    vertex: diagnostics ? { ...diagnostics, urls: diagnostics.urls.map(item => ({ urlSha256: hash(item.url), status: item.status })) } : undefined,
+  }));
   try {
-    const sourceInstruction = rawUrls.length ? `נתח/י גם את הכתובות הציבוריות דרך URL Context: ${rawUrls.join(', ')}.` : '';
-    const socialInstruction = socialSources.length ? `הנתונים הבאים הגיעו מחשבונות שהמשתמש חיבר ואישר. שלב/י אותם עם המסמכים. ציין/י עובדות רק כשיש להן מקור מפורש.\n${socialSources.map((item) => `[${item.provider}]\n${item.sourceText}`).join('\n\n')}` : '';
-    const result = await generateWithVertex(`צור/י טיוטת פרופיל פרילנסר בעברית מתוך המסמכים המצורפים. השתמש/י רק בעובדות מפורשות, אל תמציא/י שנות ניסיון או לקוחות, והחזר/י JSON בלבד: {"name":string,"headline":string,"bio":string,"skills":string[],"portfolio":string,"experience":string,"education":string,"facts":[{"text":string,"source":string}]}. ${sourceInstruction}\n${socialInstruction}`, { files: fileParts, urls: rawUrls }) as { name?: unknown; headline?: unknown; bio?: unknown; skills?: unknown; facts?: unknown; portfolio?: unknown; experience?: unknown; education?: unknown };
-    if (typeof result?.headline !== 'string' || typeof result?.bio !== 'string' || !Array.isArray(result?.skills) || !result.skills.every(x => typeof x === 'string') || !Array.isArray(result?.facts) || !result.facts.every((fact) => fact && typeof fact.text === 'string' && typeof fact.source === 'string')) throw new Error('Invalid draft shape');
-    const allowedSources = new Set([...(filePart ? ['מסמכים ששמורים בחשבון'] : []), ...rawUrls, ...socialSources.map((item) => item.provider)]);
-    const facts = result.facts.filter((fact) => allowedSources.has(fact.source)).slice(0, 30).map((fact) => ({ text: fact.text.slice(0, 600), source: fact.source }));
-    return NextResponse.json({ portfolio: typeof result.portfolio === "string" ? result.portfolio.slice(0,4000) : "", experience: typeof result.experience === "string" ? result.experience.slice(0,4000) : "", education: typeof result.education === "string" ? result.education.slice(0,4000) : "", demo: false, name: typeof result.name === 'string' ? result.name.slice(0, 100) : '', headline: result.headline.slice(0, 140), bio: result.bio.slice(0, 1500), skills: result.skills.slice(0, 20).map(s => s.slice(0, 60)), facts, sources: [...allowedSources] });
-  } catch { return NextResponse.json({ error: 'לא הצלחנו לעבד את המקורות ב־Vertex AI. בדקו הרשאות וחיבור ל־GCP ונסו שוב.' }, { status: 502 }); }
+    const result = await generateWithVertex(`Source manifest (attachment numbers match the attached files in order):\n${JSON.stringify(sourceManifest)}\nExtract supported professional facts and synthesize the profile according to the system instructions. Cite each fact with a source id from this manifest.`, {
+      files: fileParts, urls, systemInstruction: profileSystemInstruction,
+      responseJsonSchema: profileResponseSchema([...allowedSources]), maxOutputTokens: 16384,
+      onDiagnostics: value => { diagnostics = value; },
+    });
+    const draft = validateProfileDraft(result, allowedSources);
+    const retrieved = new Set((diagnostics?.urls || []).filter(item => item.status === 'URL_RETRIEVAL_STATUS_SUCCESS').map(item => { try { const url = new URL(item.url); url.hash = ''; return url.href; } catch { return ''; } }));
+    const unavailableUrls = urls.filter(url => !retrieved.has(url));
+    if (urls.length && unavailableUrls.length === urls.length && !fileParts.length && !socialSources.length) throw new Error('No requested URL was retrieved');
+    draft.facts = draft.facts.filter(fact => !unavailableUrls.includes(fact.source));
+    const response = { ...draft, demo: false, sources: [...allowedSources], generationId: requestId,
+      warnings: unavailableUrls.length ? ['חלק מהקישורים לא נקראו בהצלחה. בדקו את הטיוטה והוסיפו מסמך אם חסר מידע.'] : [] };
+    log('success', response);
+    return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store', 'X-Profile-Generation-Id': requestId } });
+  } catch {
+    log('failed');
+    return NextResponse.json({ error: 'לא הצלחנו ליצור טיוטה מאומתת מהמקורות. נסו שוב או הוסיפו מסמך.', generationId: requestId }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+  }
 }

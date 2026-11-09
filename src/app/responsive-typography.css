@@ -1,0 +1,332 @@
+/* Fluidly scale authored interface typography: unchanged at 1440px, up to 20% larger on wide displays. */
+@media screen and (min-width: 1440px) {
+  :root .avatar-check {
+    font-size: clamp(8px, calc(6.2px + 0.125vw), 9.6px);
+  }
+  :root .card-footer small,
+  :root .quick-stats small,
+  :root .quick-stats a,
+  :root .rail-foot,
+  :root .bubble small,
+  :root .load-more .demo-pill,
+  :root .personal footer,
+  :root .fit-pill {
+    font-size: clamp(9px, calc(6.975px + 0.1406vw), 10.8px);
+  }
+  :root .nav-count,
+  :root .mini-profile small,
+  :root .membership-nudge>small,
+  :root .filter-button b,
+  :root .category-chip,
+  :root .project-facts small,
+  :root .opportunity,
+  :root .opportunity>div strong,
+  :root .card-footer strong,
+  :root .text-action,
+  :root .load-more,
+  :root .rail-head,
+  :root .profile-progress>p,
+  :root .rail-link,
+  :root .tip-card>span,
+  :root .tip-card p,
+  :root .tip-card>a,
+  :root .membership-card p,
+  :root .membership-card>a,
+  :root .client-history p,
+  :root .demo-pill,
+  :root .thread small,
+  :root .chat-context small,
+  :root .saved-count,
+  :root .clear-filter,
+  :root .fact-row span,
+  :root .fact-row button,
+  :root .studio-feed-label>span,
+  :root .project-category small,
+  :root .studio-tags span,
+  :root .bid-submit small,
+  :root .bid-comparison>p,
+  :root .bid-comparison>small,
+  :root .bid-row>small,
+  :root .bid-history small,
+  :root .back-to-chat span,
+  :root .profile-template h2 small,
+  :root .recommended-person small,
+  :root .personal > .trial-status small {
+    font-size: clamp(10px, calc(7.75px + 0.1563vw), 12px);
+  }
+  :root .studio-kpis span {
+    font-size: clamp(10.8px, calc(8.37px + 0.1688vw), 12.96px);
+  }
+  :root .top-search kbd,
+  :root .sidebar-label,
+  :root .membership-nudge,
+  :root .membership-nudge strong small,
+  :root .welcome-strip,
+  :root .eyebrow,
+  :root .client-avatar,
+  :root .load-more button,
+  :root .detail-meta small,
+  :root .form-help,
+  :root .tag,
+  :root .cancel-link,
+  :root .proposal-form label,
+  :root .proposal-form textarea,
+  :root .proposal-form input,
+  :root .proposal-form select,
+  :root .draft-divider,
+  :root .source-list,
+  :root .filter-panel,
+  :root .filter-panel select,
+  :root .signin-divider,
+  :root .reset-password,
+  :root .project-closed-badge,
+  :root .activity small,
+  :root .studio-search>span:last-child,
+  :root .project-bottom>span,
+  :root .project-bottom b,
+  :root .bid-row,
+  :root .feed-end,
+  :root .personal .notice,
+  :root .profile-drop small,
+  :root .source-workbench>small,
+  :root .profile-drop input,
+  :root .source-consent,
+  :root .profile-template p,
+  :root .profile-template .studio-tags button,
+  :root .recommended>p,
+  :root .recommended-person button,
+  :root .social-import-card>a,
+  :root .personal > .trial-status a,
+  :root .personal > .trial-status button:not(.trial-dismiss) {
+    font-size: clamp(11px, calc(8.525px + 0.1719vw), 13.2px);
+  }
+  :root .consent-check {
+    font-size: clamp(11px, calc(8.525px + 0.1719vw), 13.2px) !important;
+  }
+  :root .profile-invite button,
+  :root .profile-invite p {
+    font-size: clamp(11.808px, calc(9.1512px + 0.1845vw), 14.1696px);
+  }
+  :root .role-switch,
+  :root .mini-profile strong,
+  :root .more,
+  :root .button,
+  :root .tab,
+  :root .filter-button,
+  :root .project-description,
+  :root .project-facts strong,
+  :root .profile-progress>strong,
+  :root .membership-card>div>strong,
+  :root .detail-aside p,
+  :root .client-history strong,
+  :root .button-outline,
+  :root .notice,
+  :root .thread strong,
+  :root .bubble,
+  :root .membership-plan p,
+  :root .included-list,
+  :root .billing-row,
+  :root .import-intro p,
+  :root .error-text,
+  :root .draft-fields label,
+  :root .draft-fields input,
+  :root .draft-fields textarea,
+  :root .feed-search input,
+  :root .auth-control,
+  :root .signin-panel form label,
+  :root .signin-notice,
+  :root .project-filters label,
+  :root .role-choice button,
+  :root .activity button,
+  :root .soft-label,
+  :root .project-category,
+  :root .project-expanded p,
+  :root .project-expanded small,
+  :root .project-expanded label,
+  :root .project-expanded input,
+  :root .project-expanded textarea,
+  :root .bid-submit button,
+  :root .bid-row b,
+  :root .subscription p,
+  :root .subscription li,
+  :root .history-heading button,
+  :root .bid-history>strong,
+  :root .conversation-item span,
+  :root .conversation-item small,
+  :root .studio-inbox>p,
+  :root .personal .social-sources button,
+  :root .source-url,
+  :root .profile-template>label,
+  :root .source-url input,
+  :root .profile-template textarea,
+  :root .tag-entry input,
+  :root .source-file,
+  :root .tag-filter,
+  :root .panel-view .role-choice button {
+    font-size: clamp(12px, calc(9.3px + 0.1875vw), 14.4px);
+  }
+  :root .personal nav button {
+    font-size: clamp(12.24px, calc(9.486px + 0.1913vw), 14.688px);
+  }
+  :root .personal > .trial-status,
+  :root .personal > [role="status"],
+  :root .personal > [role="alert"] {
+    font-size: clamp(12.96px, calc(10.044px + 0.2025vw), 15.552px);
+  }
+  :root .top-search,
+  :root .nav-item,
+  :root .avatar-small,
+  :root .page-description,
+  :root .detail-meta strong,
+  :root .form-panel label,
+  :root .form-panel input,
+  :root .form-panel textarea,
+  :root .form-panel select,
+  :root .chat-context strong,
+  :root .price small,
+  :root .form-panel>p,
+  :root .closed-project-note,
+  :root .discovery-eyebrow,
+  :root .legal-page code,
+  :root .activity p,
+  :root .studio-search input,
+  :root .expand-project>p,
+  :root .back-to-chat,
+  :root .studio-inbox .bubble,
+  :root .profile-studio>p,
+  :root .source-workbench h3,
+  :root .profile-template h3,
+  :root .recommended-person strong {
+    font-size: clamp(13px, calc(10.075px + 0.2031vw), 15.6px);
+  }
+  :root .legal-inline-notice {
+    font-size: clamp(13px, calc(10.075px + 0.2031vw), 15.6px) !important;
+  }
+  :root .panel-view > p {
+    font-size: clamp(13.68px, calc(10.602px + 0.2137vw), 16.416px);
+  }
+  :root .tip-card>strong,
+  :root .detail-main p,
+  :root .detail-aside h3,
+  :root .thread-list h2,
+  :root .billing-box h3,
+  :root .trial-status p,
+  :root .discovery-projects p,
+  :root .discovery-table caption,
+  :root .legal-eyebrow,
+  :root .legal-date,
+  :root .legal-page table,
+  :root .legal-footer,
+  :root .panel-view>p,
+  :root .feed-intro p,
+  :root .project-expanded h3,
+  :root .bid-comparison h3,
+  :root .profile-drop strong {
+    font-size: clamp(14px, calc(10.85px + 0.2188vw), 16.8px);
+  }
+  :root body,
+  :root .membership-plan h2,
+  :root .legal-toc li,
+  :root .panel-view h2,
+  :root .personal .form-panel h2 {
+    font-size: clamp(15px, calc(11.625px + 0.2344vw), 18px);
+  }
+  :root .profile-invite h2 {
+    font-size: clamp(15.12px, calc(11.718px + 0.2362vw), 18.144px);
+  }
+  :root .stat-symbol,
+  :root .legal-page,
+  :root .studio-feed-label h2 {
+    font-size: clamp(16px, calc(12.4px + 0.25vw), 19.2px);
+  }
+  :root .welcome-mark,
+  :root .project-title-link h3 {
+    font-size: clamp(17px, calc(13.175px + 0.2656vw), 20.4px);
+  }
+  :root .personal > .trial-status h2 {
+    font-size: clamp(17.28px, calc(13.392px + 0.27vw), 20.736px);
+  }
+  :root .brand,
+  :root .nav-icon,
+  :root .membership-nudge strong,
+  :root .detail-main h2,
+  :root .import-intro h2,
+  :root .feed-search button,
+  :root .project-bottom strong,
+  :root .social-import-card>button {
+    font-size: clamp(18px, calc(13.95px + 0.2813vw), 21.6px);
+  }
+  :root .brand-mark,
+  :root .icon-button,
+  :root .feed-search>span {
+    font-size: clamp(19px, calc(14.725px + 0.2969vw), 22.8px);
+  }
+  :root .save-button,
+  :root .profile-avatar,
+  :root .success-mark,
+  :root .trial-status h2,
+  :root .discovery-header>span,
+  :root .discovery-lead,
+  :root .legal-toc h2,
+  :root .hello-avatar span {
+    font-size: clamp(20px, calc(15.5px + 0.3125vw), 24px);
+  }
+  :root .quick-stats strong,
+  :root .form-panel>h2 {
+    font-size: clamp(21px, calc(16.275px + 0.3281vw), 25.2px);
+  }
+  :root .top-search>span:first-child,
+  :root .trial-status .trial-dismiss,
+  :root .expand-project h2,
+  :root .tag-entry button,
+  :root .profile-invite > span {
+    font-size: clamp(22px, calc(17.05px + 0.3438vw), 26.4px);
+  }
+  :root .legal-section h2,
+  :root .studio-save {
+    font-size: clamp(23px, calc(17.825px + 0.3594vw), 27.6px);
+  }
+  :root .upload-glyph,
+  :root .studio-brand,
+  :root .studio-search>span:first-child {
+    font-size: clamp(24px, calc(18.6px + 0.375vw), 28.8px);
+  }
+  :root .discovery-content h2,
+  :root .hello-avatar {
+    font-size: clamp(25px, calc(19.375px + 0.3906vw), 30px);
+  }
+  :root .panel-view h1 {
+    font-size: clamp(26px, calc(20.15px + 0.4063vw), 31.2px);
+  }
+  :root .panel-view .personal-title {
+    font-size: clamp(27.36px, calc(21.204px + 0.4275vw), 32.832px);
+  }
+  :root .studio-kpis b {
+    font-size: clamp(28px, calc(21.7px + 0.4375vw), 33.6px);
+  }
+  :root .profile-invite>span {
+    font-size: clamp(30px, calc(23.25px + 0.4688vw), 36px);
+  }
+  :root .tip-scribble,
+  :root .price,
+  :root .feed-intro h1,
+  :root .profile-drop>span {
+    font-size: clamp(32px, calc(24.8px + 0.5vw), 38.4px);
+  }
+  :root .page-heading h1 {
+    font-size: clamp(34px, calc(26.35px + 0.5313vw), 40.8px);
+  }
+  :root .subscription>b {
+    font-size: clamp(38px, calc(29.45px + 0.5938vw), 45.6px);
+  }
+  :root .discovery-content h1,
+  :root .legal-header h1 {
+    font-size: clamp(48px, calc(37.2px + 0.75vw), 57.6px);
+  }
+  :root .happy-spark {
+    font-size: clamp(65px, calc(50.375px + 1.0156vw), 78px);
+  }
+  :root .signin-copy h1 {
+    font-size: clamp(72px, calc(55.8px + 1.125vw), 86.4px);
+  }
+}

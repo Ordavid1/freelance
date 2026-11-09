@@ -51,6 +51,14 @@ resource "google_secret_manager_secret_iam_member" "runtime_nango" {
   member     = "serviceAccount:${google_service_account.account["runtime"].email}"
   depends_on = [google_project_service.api]
 }
+resource "google_secret_manager_secret_iam_member" "runtime_dribbble" {
+  count      = var.dribbble_client_secret_name == null ? 0 : 1
+  project    = var.project_id
+  secret_id  = var.dribbble_client_secret_name
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.account["runtime"].email}"
+  depends_on = [google_project_service.api]
+}
 resource "google_secret_manager_secret_iam_member" "runtime_cardcom" {
   for_each   = var.cardcom_secrets
   project    = each.value.project
@@ -335,6 +343,26 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.nango_linkedin_integration_id
       }
       env {
+        name  = "DRIBBBLE_CLIENT_ID"
+        value = var.dribbble_client_id == null ? "" : var.dribbble_client_id
+      }
+      env {
+        name  = "DRIBBBLE_REDIRECT_URI"
+        value = coalesce(var.dribbble_redirect_uri, "https://${var.canonical_domain}/api/integrations/dribbble/callback")
+      }
+      dynamic "env" {
+        for_each = var.dribbble_client_secret_name == null ? [] : [var.dribbble_client_secret_name]
+        content {
+          name = "DRIBBBLE_CLIENT_SECRET"
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = var.dribbble_client_secret_version
+            }
+          }
+        }
+      }
+      env {
         name  = "BILLING_ENABLED"
         value = tostring(var.billing_enabled)
       }
@@ -366,7 +394,7 @@ resource "google_cloud_run_v2_service" "engine" {
     }
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_cardcom]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom]
 }
 resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
   count    = var.engine_image == null ? 0 : 1

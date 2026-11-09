@@ -68,6 +68,14 @@ export async function prepare(config, { auth = new GoogleAuth({ scopes: ['https:
   for (const [name, key] of [['NANGO_GITHUB_INTEGRATION_ID', 'nango_github_integration_id'], ['NANGO_LINKEDIN_INTEGRATION_ID', 'nango_linkedin_integration_id']]) {
     if (env[name]?.value) vars[key] = env[name].value;
   }
+  const dribbble = env.DRIBBBLE_CLIENT_SECRET?.valueSource?.secretKeyRef;
+  if (dribbble) {
+    vars.dribbble_client_secret_name = dribbble.secret.split('/').at(-1);
+    vars.dribbble_client_secret_version = dribbble.version;
+  }
+  for (const [name, key] of [['DRIBBBLE_CLIENT_ID', 'dribbble_client_id'], ['DRIBBBLE_REDIRECT_URI', 'dribbble_redirect_uri']]) {
+    if (env[name]?.value) vars[key] = env[name].value;
+  }
   await save(config.output, JSON.stringify(vars, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
   report('Deployment configuration written with pinned secret references and billing disabled. Existing output files are never overwritten.');
   return { probe, vars };

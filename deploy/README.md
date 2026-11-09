@@ -25,11 +25,13 @@ Terraform manages runtime/build/deployment identities, IAM, APIs, Artifact Regis
 
 Cloud Run domain mapping is not available in `me-west1`. The external load balancer is configured for both `freelance-place.com` and `www.freelance-place.com`. After applying the first image, read `website_ip_address` and `website_dns_records` from Terraform outputs. In Squarespace, replace only the existing Squarespace website records with apex `A @ → website_ip_address` and `CNAME www → freelance-place.com`; retain `_domainconnect` and email records. The managed TLS certificate stays pending until DNS resolves to the load-balancer IP.
 
-The current checkout has no first image or Cloud Run service, so no IP exists and no Squarespace record should be changed yet. The DNS page was inspected and currently has Squarespace defaults at `@` and `www`; its separate email-security records must remain intact.
+The Cloud Run service and load balancer are already live. Recheck the current Terraform output and DNS resolution before any future DNS change; preserve the existing email and domain-connection records.
 
 ## First release requirements
 
-Before publishing a release, finish OAuth setup: configure Google Identity Platform with the owner's OAuth client, and configure Nango GitHub/LinkedIn integrations and `NANGO_API_KEY` in Secret Manager. Do not put OAuth secrets in Terraform variables, Git, the browser, or chat. Verify the canonical host in Google Identity Platform's authorized domains.
+GitHub and LinkedIn OAuth client IDs and Secret Manager references are recorded in `deploy/production.env`. Configure or rotate an integration with `python3 scripts/configure-nango-oauth.py --provider github --apply` or `python3 scripts/configure-nango-oauth.py --provider linkedin --apply`; omit `--apply` to check missing-field status. This operator command is separate from image deployment. Provider client secrets stay in Secret Manager and Nango and are not mounted into Cloud Run. See [social profile setup](../docs/nango-social-profile.md) for callbacks and scopes.
+
+The current Cloud Run service reads Nango API key version 1, which selects Nango `dev`. GitHub and LinkedIn are configured in that environment. Before treating Nango connections as production, create a production Nango API key, store it in a dedicated Secret Manager secret, configure both `github` and `linkedin` integrations in Nango `prod`, then update and verify the Cloud Run secret reference. Dribbble is configured for direct OAuth with a Secret Manager client secret and the deployed callback URI; verify the registration still matches `https://freelance-place.com/api/integrations/dribbble/callback` before testing. Dribbble uses only the `public` scope. Do not put OAuth secrets in Terraform variables, Git, the browser, or chat. Verify the canonical host in Google Identity Platform's authorized domains.
 
 1. Run `npm ci`, `npm run typecheck`, and `npm run build`; build the container with `deploy/engine.Dockerfile`.
 2. Build an immutable image with `scripts/deploy-engine.sh` (its first run prints the Terraform initialization command).

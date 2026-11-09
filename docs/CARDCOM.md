@@ -102,3 +102,7 @@ The first preparation attempt in this billing executor stopped with `GCP_AUTH_UN
 ## Subscription controls
 
 The workspace tab and membership navigation are labeled `מנוי ותשלומים` (Subscription & payments). Trial reminders link to `/membership#membership-billing`. The join button is visible during the trial with its availability date and remains disabled until expiry and billing availability; active subscriptions show cancellation. Payment history includes an empty state. Publisher accounts keep free publishing and do not see a purchase requirement. Browser checks verified these states, consent gating, mobile/desktop layout and the workspace tab; TypeScript passed. These UI changes remain in the billing worktree until deployment.
+
+## Main integration validation
+
+Merged with the current main branch, preserving the newer Google sign-in, Dribbble/Nango configuration, profile generation, project closure and feed filters. Membership gates apply only to new freelancer proposals; closing an owned project remains free. The preparation script also preserves Dribbble OAuth runtime references. The combined code passed 45 JavaScript tests, six Python tests, the production build, Terraform validation and Chromium checks for subscription controls, free publishing, existing project filters and mobile layout. Pushing this source triggers the existing image deployment workflow; it does not apply Terraform or enable Cardcom billing.

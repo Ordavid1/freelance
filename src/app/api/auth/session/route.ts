@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth/firebase-admin';
-import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth/session';
+import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -10,11 +10,6 @@ function sameToken(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function isSameOrigin(request: Request) {
-  const origin = request.headers.get('origin');
-  return !origin || origin === new URL(request.url).origin;
 }
 
 export async function POST(request: Request) {
@@ -35,6 +30,7 @@ export async function POST(request: Request) {
 
   try {
     const decoded = await adminAuth().verifyIdToken(body.idToken, true);
+    if (decoded.firebase?.sign_in_provider !== 'google.com') return NextResponse.json({ error: 'יש להתחבר באמצעות Google.' }, { status: 401 });
     if (!decoded.email_verified || Date.now() / 1000 - decoded.auth_time > 5 * 60) {
       return NextResponse.json({ error: 'Verify your email and sign in again.' }, { status: 401 });
     }
@@ -54,6 +50,7 @@ export async function GET() {
   if (!value) return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
   try {
     const token = await adminAuth().verifySessionCookie(value, true);
+    if (token.firebase?.sign_in_provider !== 'google.com') return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
     return NextResponse.json({ user: {
       uid: token.uid,
       email: typeof token.email === 'string' ? token.email : null,

@@ -9,5 +9,5 @@ export async function getClientAuth() {
   const publicConfig = await response.json();
   const app = getApps().length ? getApp() : initializeApp(publicConfig);
   const auth = getAuth(app);
-  return { auth, persistence: inMemoryPersistence, googleSignInEnabled: publicConfig.googleSignInEnabled === true };
+  return { auth, persistence: inMemoryPersistence, googleSignInEnabled: true };
 }

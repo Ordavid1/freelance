@@ -6,7 +6,7 @@ test('preparation makes only a read-only Cardcom call and writes pinned referenc
  const secrets={'cardcom-terminal-number':'12345','cardcom-api-name':'DO_NOT_PRINT_THIS_API_NAME'};
  const client={getAccessToken:async()=>({token:'DO_NOT_PRINT_THIS_TOKEN'}),request:async({url})=>{
    requests.push(url);
-   if(url.startsWith('https://run.googleapis.com/'))return {data:{template:{containers:[{image:'me-west1-docker.pkg.dev/freelance-514118/freelance/engine@sha256:test',env:[{name:'GOOGLE_SIGN_IN_ENABLED',value:'true'},{name:'NANGO_API_KEY',valueSource:{secretKeyRef:{secret:'NANGO_API_KEY',version:'7'}}}]}]}}};
+   if(url.startsWith('https://run.googleapis.com/'))return {data:{template:{containers:[{image:'me-west1-docker.pkg.dev/freelance-514118/freelance/engine@sha256:test',env:[{name:'GOOGLE_SIGN_IN_ENABLED',value:'true'},{name:'DRIBBBLE_CLIENT_ID',value:'public-id'},{name:'DRIBBBLE_REDIRECT_URI',value:'https://example.com/callback'},{name:'DRIBBBLE_CLIENT_SECRET',valueSource:{secretKeyRef:{secret:'DRIBBBLE_CLIENT_SECRET',version:'3'}}},{name:'NANGO_API_KEY',valueSource:{secretKeyRef:{secret:'NANGO_API_KEY',version:'7'}}}]}]}}};
    const name=Object.keys(secrets).find(name=>url.includes('/secrets/'+name+'/'));
    if(url.endsWith(':access'))return {data:{payload:{data:Buffer.from(secrets[name]).toString('base64')}}};
    return {data:{name:`projects/crypto-coral-328619/secrets/${name}/versions/4`,state:'ENABLED'}};
@@ -17,7 +17,7 @@ test('preparation makes only a read-only Cardcom call and writes pinned referenc
  },save:async(path,text,opts)=>{assert.equal(opts.flag,'wx');output=text;},report:line=>logs.push(line)});
  assert.equal(probeBody.TerminalNumber,12345);assert.equal(probeBody.ApiName,secrets['cardcom-api-name']);
  assert.equal(result.vars.billing_enabled,false);assert.equal(result.vars.cardcom_secrets.CARDCOM_API_NAME.version,'4');
- assert.equal(result.vars.nango_secret_version,'7');assert.equal(result.vars.google_sign_in_enabled,true);
+ assert.equal(result.vars.dribbble_client_id,'public-id');assert.equal(result.vars.dribbble_client_secret_version,'3');assert.equal(result.vars.dribbble_redirect_uri,'https://example.com/callback');assert.equal(result.vars.nango_secret_version,'7');assert.equal(result.vars.google_sign_in_enabled,true);
  assert.equal(output.includes(secrets['cardcom-api-name']),false);assert.equal(logs.join('').includes(secrets['cardcom-api-name']),false);
  assert.equal(logs.join('').includes('DO_NOT_PRINT_THIS_TOKEN'),false);assert.equal(logs.join('').includes('ignored raw response'),false);
  assert.ok(requests.every(url=>url.startsWith('https://secretmanager.googleapis.com/')||url.startsWith('https://run.googleapis.com/')));
