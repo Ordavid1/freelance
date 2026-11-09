@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { PlatformIcon, SourceCheck } from './profile-source-icons';
 import styles from './profile-studio.module.css';
+import '@/app/profile-entry-editor.css';
 
 const platforms = ['Behance', 'Website'] as const;
 type LinkPlatform = typeof platforms[number];
@@ -15,6 +16,29 @@ type StoredSource = { id: string; name: string; size: number };
 const blank: Profile = { name: '', headline: '', bio: '', skills: [], portfolio: '', experience: '', education: '' };
 const providerLabels: Record<SocialProvider, string> = { github: 'GitHub', linkedin: 'LinkedIn' };
 const DRIBBBLE_DRAFT_KEY = 'fz-dribbble-oauth-draft';
+
+function splitEntries(value: string) {
+  return value.split(/\r?\n/).map((entry) => entry.trim().replace(/^[•▪*-]\s*/, '')).filter(Boolean);
+}
+
+function ProfileEntryEditor({ title, value, onChange, placeholder }: { title: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  const [draft, setDraft] = useState('');
+  const entries = splitEntries(value);
+  const update = (index: number, text: string) => onChange(entries.map((entry, i) => i === index ? text : entry).join('\n'));
+  const remove = (index: number) => onChange(entries.filter((_, i) => i !== index).join('\n'));
+  return <section className="profile-entry-group" aria-label={title}>
+    <div className="profile-entry-heading">{title}<small>{entries.length} פריטים</small></div>
+    <div className="profile-entry-list">{entries.length ? entries.map((entry, index) => <div className="profile-entry-pill" key={`${index}-${entry.slice(0, 24)}`}>
+      <span className="profile-entry-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+      <textarea aria-label={`${title}, פריט ${index + 1}`} rows={1} value={entry} onChange={(event) => update(index, event.target.value)} placeholder={placeholder}/>
+      <button className="profile-entry-remove" type="button" onClick={() => remove(index)} aria-label={`הסרת פריט ${index + 1}`}>×</button>
+    </div>) : <div className="profile-entry-empty">עדיין אין פריטים. אפשר להוסיף כאן מידע או ליצור טיוטה מהמקורות.</div>}</div>
+    <form className="profile-entry-add" onSubmit={(event) => { event.preventDefault(); const text = draft.trim(); if (text) { onChange([...entries, text].join('\n')); setDraft(''); } }}>
+      <input value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={`הוספת פריט ל${title}`} placeholder={`הוספת ${title.toLowerCase()}…`}/>
+      <button type="submit" disabled={!draft.trim()} aria-label={`הוספת פריט ל${title}`}>＋</button>
+    </form>
+  </section>;
+}
 
 export function ProfileStudio({ userId }: { userId: string }) {
   const [files, setFiles] = useState<StoredSource[]>([]);
@@ -317,8 +341,8 @@ export function ProfileStudio({ userId }: { userId: string }) {
       <h2>המקורות שלך</h2>
       <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: רק בלחיצה על ״יצירת פרופיל בעזרת AI״ נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>
       <label className="profile-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void addFiles(Array.from(event.dataTransfer.files)); }}>
-        <span>↥</span><strong>גררו לכאן את העבודה שלכם</strong><small>קורות חיים, תיק עבודות או מסמך מקצועי</small>
-        <input type="file" multiple accept=".pdf,.txt,.md" disabled={uploading} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.currentTarget.value = ''; }}/>
+        <span>↥</span><strong>גררו לכאן את העבודה שלכם</strong>
+        <input className={styles.fileInput} aria-label="בחירת מסמכי פרופיל" type="file" multiple accept=".pdf,.txt,.md" disabled={uploading} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.currentTarget.value = ''; }}/>
         <small>עד 5 קבצים · 8MB לקובץ · PDF / TXT / MD</small>
       </label>
       {files.map((file) => <div className="source-file" key={file.id}>{file.name}<button type="button" onClick={() => void deleteFile(file.id)} aria-label={`מחיקת ${file.name}`}>×</button></div>)}
@@ -371,7 +395,10 @@ export function ProfileStudio({ userId }: { userId: string }) {
     <p role="status">{notice}</p>
     <div className="profile-template">
       <h2>הפרופיל שלך <small>הכול ניתן לעריכה</small></h2>
-      {([['name', 'שם'], ['headline', 'Tagline · במשפט אחד'], ['bio', 'Summary · הסיפור שלך'], ['portfolio', 'תיק עבודות וקישורי מדיה'], ['experience', 'ניסיון תעסוקתי'], ['education', 'השכלה וקורסים']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={key === 'name' || key === 'headline' ? 1 : 3} value={profile[key]} onChange={(event) => setProfile({ ...profile, [key]: event.target.value })} placeholder="המידע מהמקורות יופיע כאן. אפשר גם לכתוב בעצמך."/></label>)}
+      {([['name', 'שם'], ['headline', 'Tagline · במשפט אחד'], ['bio', 'Summary · הסיפור שלך']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={key === 'name' || key === 'headline' ? 1 : 3} value={profile[key]} onChange={(event) => setProfile({ ...profile, [key]: event.target.value })} placeholder="המידע מהמקורות יופיע כאן. אפשר גם לכתוב בעצמך."/></label>)}
+      <ProfileEntryEditor title="תיק עבודות וקישורי מדיה" value={profile.portfolio} onChange={(portfolio) => setProfile({ ...profile, portfolio })} placeholder="תיאור עבודה, קישור או הישג"/>
+      <ProfileEntryEditor title="ניסיון תעסוקתי" value={profile.experience} onChange={(experience) => setProfile({ ...profile, experience })} placeholder="תפקיד, ארגון, תקופה ותחומי אחריות"/>
+      <ProfileEntryEditor title="השכלה וקורסים" value={profile.education} onChange={(education) => setProfile({ ...profile, education })} placeholder="תואר, קורס או הכשרה · מוסד · תקופה"/>
       <h3>תגיות מקצועיות</h3><p>התגיות עוזרות למצוא פרויקטים ולהציג אותך ללקוחות מתאימים.</p>
       <div className="studio-tags">{profile.skills.map((skill, index) => <button type="button" key={`${skill}-${index}`} onClick={() => setProfile({ ...profile, skills: profile.skills.filter((_, i) => i !== index) })} aria-label={`הסרת ${skill}`}>{skill} ×</button>)}</div>
       <form className="tag-entry" onSubmit={(event) => { event.preventDefault(); if (tag.trim() && !profile.skills.includes(tag.trim())) setProfile({ ...profile, skills: [...profile.skills, tag.trim()] }); setTag(''); }}><input aria-label="תגית חדשה" value={tag} onChange={(event) => setTag(event.target.value)} placeholder="הוספת כישור"/><button>＋</button></form>
