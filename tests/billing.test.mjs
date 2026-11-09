@@ -151,3 +151,51 @@ test('revoked trial enrollment consent cannot be reactivated by a late setup cal
  await service.cancelSubscription('u');const transport=fakeFetch(()=>({...result(),Operation:'CreateTokenOnly'}));await service.confirmPayment(id,'u');
  assert.equal(rows.get('billingSubscriptions/u').autoRenew,false);assert.equal(rows.get('billingSubscriptions/u').token,null);transport.mock.restore();
 });
+function subscribed(extra={}){rows.set('billingSubscriptions/u',{autoRenew:true,status:'trialing',token:'old-token',expiry:'0130',last4:'3838',terminal:123,name:'Test',email:'test@example.com',nextChargeAt:Timestamp.fromMillis(Date.now()+86400000),...extra});}
+test('card replacement keeps the current card until Cardcom verifies the new one',async()=>{
+ setup();subscribed();let payload;
+ const create=fakeFetch(body=>{payload=body;return {ResponseCode:0,LowProfileId:lp,Url:'https://secure.cardcom.solutions/replace'};});
+ const session=await service.startCardUpdate({uid:'u',name:'Test',email:'test@example.com'});create.mock.restore();
+ assert.equal(payload.Operation,'CreateTokenOnly');assert.equal(payload.AdvancedDefinition.JValidateType,5);assert.equal(payload.Document,undefined);
+ assert.equal(rows.get('billingSubscriptions/u').token,'old-token');
+ // An abandoned or declined form never removes the saved card.
+ const declined=fakeFetch(()=>({ResponseCode:5119}));await assert.rejects(service.confirmPayment(session.orderId,'u'));declined.mock.restore();
+ assert.equal(rows.get('billingSubscriptions/u').token,'old-token');
+ const again=fakeFetch(()=>{throw new Error('pending form must be reused');});assert.equal((await service.startCardUpdate({uid:'u'})).orderId,session.orderId);again.mock.restore();
+ rows.set('billingOrders/'+session.orderId,{...rows.get('billingOrders/'+session.orderId),lowProfileId:lp});
+ const verified=fakeFetch(()=>({...result(),ReturnValue:session.orderId,Operation:'CreateTokenOnly',TokenInfo:{Token:'new-token',TokenExDateMonth:4,TokenExDateYear:2031},TranzactionInfo:{Last4CardDigitsString:'4242'}}));
+ assert.equal((await service.confirmPayment(session.orderId,'u')).cardUpdated,true);
+ assert.equal((await service.confirmPayment(session.orderId,'u')).cardUpdated,true);verified.mock.restore();
+ const sub=rows.get('billingSubscriptions/u');assert.equal(sub.token,'new-token');assert.equal(sub.last4,'4242');assert.equal(sub.cardUpdateOrderId,null);assert.equal(sub.status,'trialing');
+ const status=await service.billingStatus('u');assert.equal(status.cardExpiry,'04/31');assert.equal(JSON.stringify(status).includes('new-token'),false);
+});
+test('card replacement is refused without an active card and discarded after cancellation',async()=>{
+ setup();await assert.rejects(service.startCardUpdate({uid:'u'}),{code:'NO_ACTIVE_CARD'});
+ subscribed({renewalPending:true});await assert.rejects(service.startCardUpdate({uid:'u'}),{code:'RENEWAL_IN_PROGRESS'});
+ subscribed();const create=fakeFetch(()=>({ResponseCode:0,LowProfileId:lp,Url:'https://secure.cardcom.solutions/replace'}));
+ const session=await service.startCardUpdate({uid:'u'});create.mock.restore();await service.cancelSubscription('u');
+ const verified=fakeFetch(()=>({...result(),ReturnValue:session.orderId,Operation:'CreateTokenOnly'}));
+ assert.equal((await service.confirmPayment(session.orderId,'u')).cardUpdated,false);verified.mock.restore();
+ assert.equal(rows.get('billingSubscriptions/u').token,null);assert.equal(rows.get('billingOrders/'+session.orderId).status,'card_discarded');
+});
+test('invoice links are minted only for the owners paid orders with a known document type',async()=>{
+ setup();subscribed();
+ rows.set('billingOrders/mine',{uid:'u',status:'paid',terminal:123,amountAgorot:1999,paidAt:Timestamp.now(),documentNumber:77,documentType:'TaxInvoiceAndReceipt'});
+ rows.set('billingOrders/untyped',{uid:'u',status:'paid',terminal:123,amountAgorot:1999,paidAt:Timestamp.now(),documentNumber:78});
+ rows.set('billingOrders/theirs',{uid:'other',status:'paid',terminal:123,documentNumber:79,documentType:'Receipt'});
+ let request;const transport=fakeFetch((body,url)=>{request={body,url};return {ResponseCode:0,DocUrl:'https://secure.cardcom.solutions/doc/abc'};});
+ assert.equal(await service.invoiceUrl('u','mine'),'https://secure.cardcom.solutions/doc/abc');
+ assert.ok(request.url.endsWith('/Documents/CreateDocumentUrl'));assert.equal(request.body.DocumentType,'TaxInvoiceAndReceipt');assert.equal(request.body.DocumentNumber,77);assert.equal(request.body.ApiPassword,'fake');
+ await assert.rejects(service.invoiceUrl('u','theirs'),{code:'ORDER_NOT_FOUND'});
+ await assert.rejects(service.invoiceUrl('u','untyped'),{code:'INVOICE_UNAVAILABLE'});
+ await assert.rejects(service.invoiceUrl('u','../x'),{code:'INVALID_ORDER'});
+ transport.mock.restore();const evil=fakeFetch(()=>({ResponseCode:0,DocUrl:'https://cardcom.solutions.evil.com/doc'}));
+ await assert.rejects(service.invoiceUrl('u','mine'),{code:'INVOICE_UNAVAILABLE'});evil.mock.restore();
+ const status=await service.billingStatus('u');const byId=Object.fromEntries(status.payments.map(p=>[p.id,p]));
+ assert.equal(byId.mine.invoiceAvailable,true);assert.equal(byId.untyped.invoiceAvailable,false);assert.equal(byId.theirs,undefined);
+});
+test('paid checkout stores the issued document type for later invoice links',()=>{
+ const order={id,lowProfileId:lp,terminal:123,amountAgorot:1999};
+ assert.equal(verifyPayment({...result(),DocumentInfo:{ResponseCode:0,DocumentNumber:90,DocumentType:'TaxInvoiceAndReceipt'}},order).documentType,'TaxInvoiceAndReceipt');
+ assert.equal(verifyPayment({...result(),DocumentInfo:{ResponseCode:0,DocumentNumber:90,DocumentType:'Error'}},order).documentType,null);
+});
