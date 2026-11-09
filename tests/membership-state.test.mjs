@@ -25,3 +25,11 @@ test('publisher setup only needs a name, freelancer setup needs meaningful match
   assert.equal(profileIsComplete({ name: 'Or', headline: ' ', skills: ['React'] }), false);
   assert.equal(profileIsComplete({ name: 'Or', bio: 'Developer', skills: ['React'] }), true);
 });
+test('verified paid access expires at the boundary without resetting the trial', () => {
+  const record = { state: 'trial', trialStartedAt: 100, trialEndsAt: 200, paidUntil: 1000 };
+  assert.equal(accessFromRecord(record, 999).state, 'paid');
+  assert.equal(accessFromRecord(record, 999).canUseMarketplace, true);
+  assert.equal(accessFromRecord(record, 1000).state, 'expired');
+  assert.equal(accessFromRecord(record, 1000).canStartTrial, false);
+  assert.equal(accessFromRecord({ ...record, paidUntil: Infinity }, 999).canUseMarketplace, false);
+});

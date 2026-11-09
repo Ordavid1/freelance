@@ -23,13 +23,13 @@ export async function getMembershipAccess(uid: string) {
     snapshot = await ref.get();
   }
   const data = snapshot.data()!;
-  return accessFromRecord({ state: data.state, trialStartedAt: data.trialStartedAt?.toMillis?.() ?? null, trialEndsAt: data.trialEndsAt?.toMillis?.() ?? null });
+  return accessFromRecord({ state: data.state, paidUntil: data.paidUntil?.toMillis?.() ?? null, trialStartedAt: data.trialStartedAt?.toMillis?.() ?? null, trialEndsAt: data.trialEndsAt?.toMillis?.() ?? null });
 }
 export async function requireMarketplaceAccess(uid: string) {
   try {
     const access = await getMembershipAccess(uid);
     if (access.canUseMarketplace) return null;
-    return NextResponse.json({ code: access.state === 'preview' ? 'PROFILE_REQUIRED' : 'MEMBERSHIP_REQUIRED', error: access.state === 'preview' ? 'הקימו פרופיל בקלות וקבלו 14 ימים של פעילות מלאה בחינם.' : 'תקופת הניסיון הסתיימה. החברות היא ₪19.99 לחודש. התשלום עדיין אינו זמין.', access }, { status: 402, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ code: access.state === 'preview' ? 'PROFILE_REQUIRED' : 'MEMBERSHIP_REQUIRED', error: access.state === 'preview' ? 'הקימו פרופיל בקלות וקבלו 14 ימים של פעילות מלאה בחינם.' : 'תקופת הניסיון הסתיימה. החברות היא ₪19.99 לחודש. אפשר להצטרף בעמוד החברות.', access }, { status: 402, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לבדוק את מצב החברות כרגע. נסו שוב.' }, { status: 503 });
   }

@@ -52,3 +52,18 @@ variable "nango_linkedin_integration_id" {
   default     = "linkedin"
   description = "Integration ID configured in the Nango environment for LinkedIn OAuth."
 }
+
+variable "billing_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable Cardcom checkout and scheduled automatic renewals after sandbox validation."
+}
+variable "cardcom_secrets" {
+  type        = map(object({ project = string, name = string, version = string }))
+  default     = {}
+  description = "Existing Secret Manager references keyed by CARDCOM_TERMINAL_NUMBER, CARDCOM_API_NAME, optional CARDCOM_API_PASSWORD. Values never enter Terraform. Cross-project secrets are supported."
+  validation {
+    condition     = alltrue([for key in keys(var.cardcom_secrets) : contains(["CARDCOM_TERMINAL_NUMBER", "CARDCOM_API_NAME", "CARDCOM_API_PASSWORD"], key)])
+    error_message = "Only the three supported Cardcom credential environment variables are allowed."
+  }
+}

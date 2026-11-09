@@ -1,6 +1,6 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
@@ -50,6 +50,73 @@ resource "google_secret_manager_secret_iam_member" "runtime_nango" {
   role       = "roles/secretmanager.secretAccessor"
   member     = "serviceAccount:${google_service_account.account["runtime"].email}"
   depends_on = [google_project_service.api]
+}
+resource "google_secret_manager_secret_iam_member" "runtime_cardcom" {
+  for_each   = var.cardcom_secrets
+  project    = each.value.project
+  secret_id  = each.value.name
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.account["runtime"].email}"
+  depends_on = [google_project_service.api]
+}
+resource "google_service_account" "billing_scheduler" {
+  account_id   = "freelance-billing-scheduler"
+  display_name = "Freelance Cardcom renewal scheduler"
+  depends_on   = [google_project_service.api]
+}
+resource "google_cloud_scheduler_job" "billing" {
+  count            = var.billing_enabled && var.engine_image != null ? 1 : 0
+  name             = "freelance-membership-renewal"
+  region           = var.region
+  schedule         = "*/15 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "180s"
+  http_target {
+    uri         = "https://${var.canonical_domain}/api/billing/renew"
+    http_method = "POST"
+    oidc_token {
+      service_account_email = google_service_account.billing_scheduler.email
+      audience              = "https://${var.canonical_domain}/api/billing/renew"
+    }
+  }
+  retry_config {
+    retry_count          = 2
+    min_backoff_duration = "120s"
+    max_backoff_duration = "300s"
+  }
+  depends_on = [google_project_service.api, google_cloud_run_v2_service.engine]
+}
+resource "google_firestore_index" "billing_due" {
+  project     = var.project_id
+  database    = google_firestore_database.default.name
+  collection  = "billingSubscriptions"
+  query_scope = "COLLECTION"
+  fields {
+    field_path = "autoRenew"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "nextChargeAt"
+    order      = "ASCENDING"
+  }
+}
+resource "google_firestore_index" "billing_history" {
+  project     = var.project_id
+  database    = google_firestore_database.default.name
+  collection  = "billingOrders"
+  query_scope = "COLLECTION"
+  fields {
+    field_path = "uid"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "status"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "paidAt"
+    order      = "DESCENDING"
+  }
 }
 resource "google_artifact_registry_repository" "images" {
   location      = var.region
@@ -267,15 +334,39 @@ resource "google_cloud_run_v2_service" "engine" {
         name  = "NANGO_LINKEDIN_INTEGRATION_ID"
         value = var.nango_linkedin_integration_id
       }
+      env {
+        name  = "BILLING_ENABLED"
+        value = tostring(var.billing_enabled)
+      }
+      env {
+        name  = "BILLING_SCHEDULER_EMAIL"
+        value = google_service_account.billing_scheduler.email
+      }
+      dynamic "env" {
+        for_each = var.cardcom_secrets
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = "projects/${env.value.project}/secrets/${env.value.name}"
+              version = env.value.version
+            }
+          }
+        }
+      }
       startup_probe {
         tcp_socket { port = 8080 }
       }
     }
   }
   lifecycle {
+    precondition {
+      condition     = !var.billing_enabled || alltrue([for key in ["CARDCOM_TERMINAL_NUMBER", "CARDCOM_API_NAME"] : contains(keys(var.cardcom_secrets), key)])
+      error_message = "Enabled billing requires terminal number and API name secret references."
+    }
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_cardcom]
 }
 resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
   count    = var.engine_image == null ? 0 : 1

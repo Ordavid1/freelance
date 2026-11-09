@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { BillingPanel } from './billing-panel';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { MembershipAccess } from '@/lib/membership/state';
 
@@ -36,11 +37,12 @@ export function TrialStatus({ onSetup, full = false }: { onSetup?: () => void; f
   if (state === 'signed-out') return full ? <section className="trial-status"><h2>14 ימים להתחיל משהו טוב.</h2><p>מקימים פרופיל בקלות ומקבלים פעילות מלאה בחינם לשבועיים. לאחר מכן ₪19.99 לחודש.</p><Link href="/signin">כניסה והקמת פרופיל</Link></section> : null;
   if (state === 'error' || !access) return <p role="alert">לא ניתן לטעון את מצב החברות. נסו לרענן את העמוד.</p>;
   if (access.state === 'legacy') return full ? <section className="trial-status"><h2>הגישה שלך פעילה.</h2><p>החשבון שלך ממשיך לפעול בתנאים הקיימים. אין חיוב פעיל.</p><p>מחיר החברות החדשה: ₪19.99 לחודש.</p></section> : null;
-  return <section className={`trial-status trial-${access.state}`} aria-label="מצב החברות">
+  if (access.state === 'paid') return <><section className="trial-status"><h2>החברות שלך פעילה.</h2><p>גישה מלאה עד {formatDate(access.paidUntil!)}.</p>{!full && <Link href="/membership">ניהול החברות והתשלומים</Link>}</section>{full && <BillingPanel/>}</>;
+  return <><section className={`trial-status trial-${access.state}`} aria-label="מצב החברות">
     {!full && access.state === 'preview' && <button type="button" className="trial-dismiss" aria-label="הסתרת התזכורת" onClick={() => setDismissed(true)}>×</button>}
     <h2>{access.state === 'preview' ? 'פרופיל קטן. הזדמנויות גדולות.' : access.state === 'trial' ? 'השבועיים שלך כבר כאן.' : 'תקופת הניסיון הסתיימה.'}</h2>
-    {access.state === 'preview' ? <><p>הקמת הפרופיל קלה: מחברים מקור קיים או משלימים כמה פרטים. למחפשי פרילנסר מספיק לאשר שם או שם עסק.</p><p><strong>14 ימי פעילות מלאה בחינם</strong> מתחילים אחרי שמירת הפרופיל. לאחר מכן ₪19.99 לחודש.</p>{onSetup ? <button type="button" onClick={onSetup}>נקים את הפרופיל שלי</button> : <Link href="/profile/import">נקים את הפרופיל שלי</Link>}<small>בינתיים אפשר לעיין בפרויקטים ללא התחייבות.</small></> : access.state === 'trial' ? <><p>יש לך גישה מלאה עד {formatDate(access.trialEndsAt!)}.</p>{full && <p>הניסיון התחיל ב־{formatDate(access.trialStartedAt!)}.</p>}<p>לאחר מכן ₪19.99 לחודש. אין חיוב אוטומטי.</p></> : <><p>אפשר להמשיך לעיין בפרויקטים ולערוך את הפרופיל. לפעילות מלאה נדרשת חברות ב־₪19.99 לחודש.</p><p>אפשרות התשלום עדיין אינה זמינה. נציג כאן את ההצטרפות כשהיא תהיה מוכנה.</p></>}
-  </section>;
+    {access.state === 'preview' ? <><p>הקמת הפרופיל קלה: מחברים מקור קיים או משלימים כמה פרטים. למחפשי פרילנסר מספיק לאשר שם או שם עסק.</p><p><strong>14 ימי פעילות מלאה בחינם</strong> מתחילים אחרי שמירת הפרופיל. לאחר מכן ₪19.99 לחודש.</p>{onSetup ? <button type="button" onClick={onSetup}>נקים את הפרופיל שלי</button> : <Link href="/profile/import">נקים את הפרופיל שלי</Link>}<small>בינתיים אפשר לעיין בפרויקטים ללא התחייבות.</small></> : access.state === 'trial' ? <><p>יש לך גישה מלאה עד {formatDate(access.trialEndsAt!)}.</p>{full && <p>הניסיון התחיל ב־{formatDate(access.trialStartedAt!)}.</p>}<p>לאחר מכן ₪19.99 לחודש. אין חיוב אוטומטי.</p></> : <><p>אפשר להמשיך לעיין בפרויקטים ולערוך את הפרופיל. לפעילות מלאה נדרשת חברות ב־₪19.99 לחודש.</p><Link href="/membership">הצטרפות וניהול חברות</Link></>}
+  </section>{full && <BillingPanel eligible={access.state === 'expired'}/>}</>;
 }
 export function MemberGate({ children }: { children: ReactNode }) {
   const { access, state } = useMembership();
