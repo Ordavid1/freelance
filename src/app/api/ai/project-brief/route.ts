@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ demo: true, title: 'טיוטת הדגמה', description: `${body.sentence.trim()}\n\nנרצה לעבוד יחד על הגדרת התכולה והתוצרים.`, skills: ['כישורים לדוגמה'] });
   }
   try {
-    const result = await generateWithVertex(`נסח/י טיוטת פרויקט ברורה בעברית לפי הטקסט הבא. שמור/י על עובדות שנמסרו בלבד, ואל תמציא/י תקציב או תאריך. החזר/י JSON בלבד במבנה {"title":string,"description":string,"skills":string[]}. קלט: ${body.sentence}`) as { title?: unknown; description?: unknown; skills?: unknown };
+    const result = await generateWithVertex(`נסח/י טיוטת פרויקט ברורה בעברית לפי הטקסט הבא. שמור/י על עובדות שנמסרו בלבד, ואל תמציא/י תקציב או תאריך. ארגן/י את התיאור לפסקת פתיחה קצרה ולסעיפים נפרדים עם כותרות בשורה משלהן: תכולת הפרויקט, תוצרים, דרישות, ולוחות זמנים רק אם נמסרו. הפרד/י סעיפים בשורה ריקה והשתמש/י בשורות רשימה עם מקף לכל משימה או דרישה. כל משפט יציג נקודה ברורה אחת. אל תוסיף/י סעיפים ללא מידע. החזר/י JSON בלבד במבנה {"title":string,"description":string,"skills":string[]}. קלט: ${body.sentence}`) as { title?: unknown; description?: unknown; skills?: unknown };
     if (typeof result?.title !== 'string' || typeof result?.description !== 'string' || !Array.isArray(result?.skills) || !result.skills.every((x) => typeof x === 'string')) throw new Error('Invalid draft shape');
     return NextResponse.json({ demo: false, title: result.title.slice(0, 120), description: result.description.slice(0, 5000), skills: result.skills.slice(0, 12) });
   } catch { return NextResponse.json({ error: 'לא הצלחנו ליצור טיוטה ב־Vertex AI. בדקו הרשאות וחיבור ל־GCP ונסו שוב.' }, { status: 502 }); }
