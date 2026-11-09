@@ -64,3 +64,9 @@ Local tests cover the adapter and transactional service with an in-memory Firest
 - Terraform formatting and provider-backed validation passed (no plan/apply).
 - Chromium checks with mocked account/billing responses passed at mobile and desktop sizes: explicit consent gating, cancellation feedback and no horizontal overflow. Actual API checks rejected signed-out requests and malformed callbacks, and disabled renewal returned 503.
 - No live checkout, token debit, invoice delivery, Google IAM grants, Scheduler job execution, or production deployment was performed. These require repaired GCP authentication and sandbox credentials.
+
+## Authentication follow-up
+
+The local cloud environment script now explicitly exports `GCP_PROJECT=freelance-514118`. An exposed older service-account key was identified without displaying its contents; its IAM disable request succeeded, and a fresh authentication attempt using that old key was subsequently rejected with `invalid_grant`. It must not be used for billing validation.
+
+The independently verified replacement credential has not reached this running chat: the configured credential file is absent, both inspected gcloud configurations have no authenticated account, and the current `GCP_SA_KEY_B64` binding is not valid base64 service-account JSON. Apply the verified configuration to this environment before continuing secret inventory, Terraform planning and Cardcom sandbox acceptance. The local override does not update the reusable environment's saved variable binding. No billing infrastructure was deployed and billing remains disabled.
