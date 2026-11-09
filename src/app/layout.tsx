@@ -5,6 +5,7 @@ import { StructuredData } from '@/components/discovery/structured-data';
 import './globals.css';
 import './discovery.css';
 import './legal.css';
+import './responsive-typography.css';
 import { LegalFooter } from '@/components/legal-document';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
