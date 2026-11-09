@@ -15,11 +15,11 @@ export function cardcomConfig(env: NodeJS.ProcessEnv = process.env): CardcomConf
 }
 export type GatewayResult = Record<string, unknown>;
 export function object(value: unknown): GatewayResult { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as GatewayResult : {}; }
-export async function cardcomPost(config: CardcomConfig, path: 'LowProfile/Create' | 'LowProfile/GetLpResult' | 'Transactions/Transaction' | 'Transactions/GetTransactionByExternalUniqTran', payload: GatewayResult, transport: typeof fetch = fetch) {
+export async function cardcomPost(config: CardcomConfig, path: 'LowProfile/Create' | 'LowProfile/GetLpResult' | 'Transactions/Transaction' | 'Transactions/GetTransactionByExternalUniqTran' | 'Documents/CreateDocumentUrl', payload: GatewayResult, transport: typeof fetch = fetch) {
   try {
     const response = await transport(`https://secure.cardcom.solutions/api/v11/${path}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', redirect: 'error',
-      signal: AbortSignal.timeout(25000), body: JSON.stringify({ ...payload, TerminalNumber: config.terminal, ApiName: config.apiName, ...(path.startsWith('Transactions/') && config.apiPassword ? { ApiPassword: config.apiPassword } : {}) }),
+      signal: AbortSignal.timeout(25000), body: JSON.stringify({ ...payload, TerminalNumber: config.terminal, ApiName: config.apiName, ...((path.startsWith('Transactions/') || path.startsWith('Documents/')) && config.apiPassword ? { ApiPassword: config.apiPassword } : {}) }),
     });
     if (!response.ok) throw new Error();
     return object(await response.json());
@@ -55,6 +55,7 @@ export function verifyPayment(result: GatewayResult, order: { id: string; lowPro
     expiry: tokenExpiry(object(result.TokenInfo)),
     last4: String(transaction.Last4CardDigitsString ?? transaction.Last4CardDigits ?? '').padStart(4, '0').slice(-4),
     documentNumber: success(document.ResponseCode) && Number.isSafeInteger(document.DocumentNumber) ? Number(document.DocumentNumber) : null,
+    documentType: success(document.ResponseCode) ? documentType(document.DocumentType) : null,
     invoicePending: !success(document.ResponseCode),
   };
 }
@@ -87,4 +88,17 @@ export function verifyTrialSetup(result: GatewayResult, order: { id: string; low
   const transaction = object(result.TranzactionInfo);
   const suffix = transaction.Last4CardDigitsString ?? token.Last4CardDigitsString ?? transaction.Last4CardDigits;
   return { token: token.Token, expiry, last4: suffix == null ? null : String(suffix).padStart(4, '0').slice(-4) };
+}
+
+// Issued document types we can link to. Anything else (errors, refunds) is never shown as an invoice.
+const LINKABLE_DOCUMENTS = new Set(['TaxInvoiceAndReceipt', 'Receipt', 'TaxInvoice', 'ReceiptForTaxInvoice']);
+export function documentType(value: unknown) { return typeof value === 'string' && LINKABLE_DOCUMENTS.has(value) ? value : null; }
+// Cardcom hosts invoice documents; only redirect to its own HTTPS hosts.
+export function documentUrl(value: unknown) {
+  if (typeof value !== 'string') throw new BillingError('INVOICE_UNAVAILABLE', 404);
+  let url: URL;
+  try { url = new URL(value); } catch { throw new BillingError('INVOICE_UNAVAILABLE', 404); }
+  const host = url.hostname;
+  if (url.protocol !== 'https:' || url.username || url.password || !['cardcom.solutions', 'cardcom.co.il'].some(domain => host === domain || host.endsWith(`.${domain}`))) throw new BillingError('INVOICE_UNAVAILABLE', 404);
+  return url.href;
 }
