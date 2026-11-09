@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
-import { integrationId, nangoJson, safeText, type SocialProvider } from '@/lib/integrations/nango';
+import { integrationId, nangoJson, ownedNangoConnections, safeText, type SocialProvider } from '@/lib/integrations/nango';
 
 export const runtime = 'nodejs';
-
-type NangoConnection = { id: string; provider_config_key?: string; tags?: Record<string, string> };
-type ConnectionList = { connections?: NangoConnection[]; data?: { connections?: NangoConnection[] } };
 
 function value(data: Record<string, unknown>, key: string, fallback = ''): string {
   return safeText(data[key], 4000) || fallback;
@@ -26,10 +23,9 @@ export async function POST(request: Request) {
   if (!key) return NextResponse.json({ error: 'האינטגרציה עדיין לא הוגדרה.' }, { status: 503 });
 
   try {
-    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid });
-    const list = await nangoJson<ConnectionList>(`/connections?${params.toString()}`);
-    const connections = list.connections ?? list.data?.connections ?? [];
-    const owned = connections.some((connection) => connection.id === connectionId && connection.tags?.end_user_id === user.uid && (!connection.provider_config_key || connection.provider_config_key === key));
+    const params = new URLSearchParams({ 'tags[end_user_id]': user.uid, limit: '100' });
+    const list = await nangoJson<unknown>(`/connections?${params.toString()}`);
+    const owned = ownedNangoConnections(list, user.uid, key).some((connection) => connection.connectionId === connectionId);
     if (!owned) return NextResponse.json({ error: 'לא נמצא חיבור מאושר לחשבון הזה. חברו את החשבון שוב.' }, { status: 403 });
 
     if (provider === 'github') {

@@ -1,4 +1,10 @@
-/* The workspace fills the browser. The project feed owns the desktop scroll. */
+/* Each desktop column owns its scroll so long forms stay inside the viewport. */
+.personal > .trial-status a,
+.personal > .trial-status button:not(.trial-dismiss) {
+  background: var(--purple, #7353bd);
+  color: #fff;
+}
+
 @media (min-width: 761px) {
   .studio {
     box-sizing: border-box;
@@ -24,7 +30,7 @@
     min-height: 0;
     max-height: none;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .studio-brand {
@@ -87,7 +93,14 @@
   .personal .panel-view {
     flex: 1 1 auto;
     min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scroll-padding-block: 16px;
     padding-top: clamp(9px, 1.3vh, 16px);
+    padding-inline-end: 6px;
+    padding-bottom: 20px;
     animation: none;
   }
 
@@ -179,7 +192,7 @@
   }
 }
 
-/* Tight 14-inch laptop heights keep the welcome panel usable without its own scroll. */
+/* Tight laptop heights preserve space for the scrollable personal panel. */
 @media (min-width: 761px) and (max-height: 760px) {
   .studio {
     gap: 16px;

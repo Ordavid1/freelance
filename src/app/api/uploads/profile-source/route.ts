@@ -13,8 +13,15 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות במסמכים.' }, { status: 401 });
   try {
-    const snapshot = await firestore().collection('users').doc(user.uid).collection('profileSources').where('status', '==', 'ready').orderBy('createdAt', 'desc').limit(20).get();
-    const sources = snapshot.docs.map((doc) => ({ id: doc.id, name: doc.get('name'), size: doc.get('size') })).filter((source) => typeof source.name === 'string' && typeof source.size === 'number');
+    // Each account can store five files. Sort this bounded set locally so loading
+    // sources does not depend on a separate status/createdAt composite index.
+    const snapshot = await firestore().collection('users').doc(user.uid).collection('profileSources').where('status', '==', 'ready').limit(20).get();
+    const sources = snapshot.docs.map((doc) => ({
+      id: doc.id, name: doc.get('name'), size: doc.get('size'),
+      createdAt: doc.get('createdAt')?.toMillis?.() ?? 0,
+    })).filter((source) => typeof source.name === 'string' && typeof source.size === 'number')
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(({ id, name, size }) => ({ id, name, size }));
     return NextResponse.json({ sources }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון את המסמכים כרגע.' }, { status: 503 });
