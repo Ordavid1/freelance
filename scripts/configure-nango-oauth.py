@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check or configure LinkedIn in the environment selected by the deployed Nango key.
+"""Check or configure GitHub or LinkedIn in the environment selected by the deployed Nango key.
 
 Secrets are read through gcloud and sent to Nango in memory, never printed or
 written to a file. Run with --apply to update the integration; default is read-only.
@@ -11,6 +11,7 @@ import ssl
 import subprocess
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 
 def settings():
@@ -35,10 +36,10 @@ def read_secret(config, name, version):
     return value
 
 
-def nango_request(api_key, method, payload=None):
+def nango_request(api_key, method, payload=None, integration_id='linkedin'):
     headers = {'Authorization': 'Bearer ' + api_key, 'Content-Type': 'application/json'}
     request = urllib.request.Request(
-        'https://api.nango.dev/integrations/linkedin',
+        'https://api.nango.dev/integrations/' + quote(integration_id, safe=''),
         data=json.dumps(payload).encode() if payload is not None else None,
         headers=headers, method=method,
     )
@@ -58,26 +59,44 @@ def nango_request(api_key, method, payload=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--apply', action='store_true', help='copy the configured LinkedIn credentials into Nango')
+    parser.add_argument('--provider', choices=('github', 'linkedin'), default='linkedin',
+                        help='Nango integration to check or configure (default: linkedin)')
+    parser.add_argument('--apply', action='store_true', help='copy the configured provider credentials into Nango')
     args = parser.parse_args()
     config = settings()
+    provider = args.provider
+    labels = {'github': 'GitHub', 'linkedin': 'LinkedIn'}
+    credentials = {
+        'github': {
+            'client_id': config['GITHUB_CLIENT_ID'],
+            'secret_name': config['GITHUB_CLIENT_SECRET_NAME'],
+            'secret_version': config['GITHUB_CLIENT_SECRET_VERSION'],
+            'scopes': 'read:user',
+        },
+        'linkedin': {
+            'client_id': config['LINKEDIN_CLIENT_ID'],
+            'secret_name': config['LINKEDIN_CLIENT_SECRET_NAME'],
+            'secret_version': config['LINKEDIN_CLIENT_SECRET_VERSION'],
+            'scopes': 'openid,profile',
+        },
+    }[provider]
     api_key = read_secret(config, config['NANGO_API_KEY_SECRET_NAME'], config['NANGO_API_KEY_SECRET_VERSION'])
-    integration = nango_request(api_key, 'GET')
-    if integration.get('provider') != 'linkedin':
-        raise RuntimeError('Refusing to update a non-LinkedIn integration')
+    integration = nango_request(api_key, 'GET', integration_id=provider)
+    if integration.get('provider') != provider:
+        raise RuntimeError('Refusing to update a non-' + labels[provider] + ' integration')
     if args.apply:
-        secret = read_secret(config, config['LINKEDIN_CLIENT_SECRET_NAME'], config['LINKEDIN_CLIENT_SECRET_VERSION'])
+        secret = read_secret(config, credentials['secret_name'], credentials['secret_version'])
         nango_request(api_key, 'PATCH', {'credentials': {
-            'type': 'OAUTH2', 'client_id': config['LINKEDIN_CLIENT_ID'],
-            'client_secret': secret, 'scopes': 'openid,profile',
-        }})
-        integration = nango_request(api_key, 'GET')
+            'type': 'OAUTH2', 'client_id': credentials['client_id'],
+            'client_secret': secret, 'scopes': credentials['scopes'],
+        }}, integration_id=provider)
+        integration = nango_request(api_key, 'GET', integration_id=provider)
     missing = integration.get('missing_fields', [])
     print(json.dumps({'integration': integration.get('unique_key'),
                       'provider': integration.get('provider'), 'missing_fields': missing,
                       'updated_at': integration.get('updated_at'), 'applied': args.apply}))
     if missing:
-        raise RuntimeError('LinkedIn still requires developer-app configuration')
+        raise RuntimeError(labels[provider] + ' still requires developer-app configuration')
 
 
 if __name__ == '__main__':
