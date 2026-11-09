@@ -29,6 +29,8 @@ The current checkout has no first image or Cloud Run service, so no IP exists an
 
 ## First release requirements
 
+LinkedIn's OAuth client ID and Secret Manager references are recorded in `deploy/production.env`. Configure or rotate the Nango integration with `python3 scripts/configure-nango-linkedin.py --apply`; run the command without `--apply` to check its missing-field status. This is an operator setup command, separate from image deployment. The LinkedIn client secret stays in Secret Manager and Nango and is not mounted into Cloud Run. See [social profile setup](../docs/nango-social-profile.md) for provider callbacks and scopes.
+
 Before publishing a release, finish OAuth setup: configure Google Identity Platform with the owner's OAuth client; configure Nango GitHub/LinkedIn integrations and `NANGO_API_KEY` in Secret Manager; and configure the Dribbble app with the deployed callback URI, client ID, and a rotated client secret in Secret Manager. Dribbble uses only the `public` scope and is handled directly by the app. Do not put OAuth secrets in Terraform variables, Git, the browser, or chat. Verify the canonical host in Google Identity Platform's authorized domains.
 
 1. Run `npm ci`, `npm run typecheck`, and `npm run build`; build the container with `deploy/engine.Dockerfile`.
