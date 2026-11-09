@@ -37,15 +37,22 @@ test('calendar month clamps leap years and retains UTC time',()=>{
 });
 // Transaction double serializes commits, stages writes and rejects reads after writes.
 const rows = new Map(); let tail=Promise.resolve();
+let historyRequests=0, historyError=null;
+function historyQuery(filters=[]) {
+ return {where:(key,op,value)=>historyQuery([...filters,[key,value]]),orderBy:()=>historyQuery(filters),limit:()=>historyQuery(filters),get:async()=>{
+  historyRequests++;if(historyError)throw historyError;
+  return {docs:[...rows.keys()].filter(key=>key.startsWith('billingOrders/')&&filters.every(([field,value])=>rows.get(key)[field]===value)).map(key=>snapshot(key))};
+ }};
+}
 const snapshot=(key)=>({exists:rows.has(key),data:()=>rows.get(key),id:key.split('/')[1]});
 const ref=(key)=>({key,id:key.split('/')[1],get:async()=>snapshot(key),update:async value=>rows.set(key,{...rows.get(key),...value})});
-const db={collection:name=>({doc:id=>ref(`${name}/${id}`)}),runTransaction:fn=>{
+const db={collection:name=>({doc:id=>ref(`${name}/${id}`),where:(key,op,value)=>historyQuery([[key,value]])}),runTransaction:fn=>{
  const run=tail.then(async()=>{const writes=[];const tx={get:async r=>{assert.equal(writes.length,0,'Firestore requires reads before writes');return snapshot(r.key);},create:(r,v)=>writes.push(()=>{assert.ok(!rows.has(r.key));rows.set(r.key,v);}),set:(r,v,options)=>writes.push(()=>rows.set(r.key,options?.merge?{...rows.get(r.key),...v}:v)),update:(r,v)=>writes.push(()=>rows.set(r.key,{...rows.get(r.key),...v}))};const value=await fn(tx);for(const write of writes)write();return value;});tail=run.catch(()=>{});return run;
 }};
 await mock.module('../src/lib/db/firestore.ts',{namedExports:{firestore:()=>db}});
 await mock.module('../src/lib/membership/access.ts',{namedExports:{getMembershipAccess:async()=>({state:'expired'})}});
 const service=await import('../src/lib/billing/service.ts');
-function setup(){ rows.clear(); Object.assign(process.env,{BILLING_ENABLED:'true',CARDCOM_TERMINAL_NUMBER:'123',CARDCOM_API_NAME:'fake',CARDCOM_API_PASSWORD:'fake',NEXT_PUBLIC_SITE_URL:'https://example.com'}); }
+function setup(){ rows.clear();historyRequests=0;historyError=null; Object.assign(process.env,{BILLING_ENABLED:'true',CARDCOM_TERMINAL_NUMBER:'123',CARDCOM_API_NAME:'fake',CARDCOM_API_PASSWORD:'fake',NEXT_PUBLIC_SITE_URL:'https://example.com'}); }
 const fakeFetch=fn=>mock.method(globalThis,'fetch',async(_url,options)=>Response.json(await fn(JSON.parse(options.body),_url)));
 test('duplicate confirmation/webhook grants exactly one month and rejects another user',async()=>{
  setup(); rows.set(`billingOrders/${id}`,{uid:'u',status:'pending',lowProfileId:lp,terminal:123,amountAgorot:1999,name:'Test',email:'test@example.com'});rows.set('billingSubscriptions/u',{pendingOrderId:id});
@@ -96,4 +103,23 @@ test('checkout rejects missing consent and reuses the same pending hosted sessio
 });
 test('malformed renewal responses stay unresolved for safe reconciliation',async()=>{
  setup();due();const transport=fakeFetch(()=>({}));await assert.rejects(()=>service.renewSubscription('u'),{code:'RENEWAL_UNVERIFIED'});assert.equal(rows.get('billingSubscriptions/u').renewalPending,true);assert.equal(rows.get('billingSubscriptions/u').autoRenew,true);assert.equal(rows.has('memberships/u'),false);transport.mock.restore();
+});
+
+test('new account status loads with billing disabled without needing the history index',async()=>{
+ setup();process.env.BILLING_ENABLED='false';historyError=Object.assign(new Error('requires an index'),{code:9});
+ const status=await service.billingStatus('new-user');
+ assert.equal(status.available,false);assert.equal(status.autoRenew,false);assert.deepEqual(status.payments,[]);assert.equal(status.historyAvailable,true);assert.equal(historyRequests,0);
+});
+test('missing history index never prevents active subscription controls from loading',async()=>{
+ setup();due();historyError=Object.assign(new Error('requires an index: private diagnostic'),{code:9});
+ const warning=mock.method(console,'warn',()=>{});
+ const status=await service.billingStatus('u');
+ assert.equal(status.autoRenew,true);assert.equal(status.status,'active');assert.equal(status.historyAvailable,false);assert.deepEqual(status.payments,[]);
+ assert.deepEqual(warning.mock.calls[0].arguments,['billing_history_unavailable']);warning.mock.restore();
+});
+test('payment history returns only the current members paid records and no payment credentials',async()=>{
+ setup();due();rows.set('billingOrders/a',{uid:'u',status:'paid',amountAgorot:1999,paidAt:Timestamp.now(),documentNumber:10,token:'private-token'});
+ rows.set('billingOrders/b',{uid:'other',status:'paid',amountAgorot:1999,paidAt:Timestamp.now()});
+ rows.set('billingOrders/c',{uid:'u',status:'pending'});
+ const status=await service.billingStatus('u');assert.equal(status.historyAvailable,true);assert.equal(status.payments.length,1);assert.equal(status.payments[0].documentNumber,10);assert.equal(JSON.stringify(status).includes('private-token'),false);
 });

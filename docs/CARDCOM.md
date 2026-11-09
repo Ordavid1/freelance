@@ -106,3 +106,9 @@ The workspace tab and membership navigation are labeled `מנוי ותשלומי
 ## Main integration validation
 
 Merged with the current main branch, preserving the newer Google sign-in, Dribbble/Nango configuration, profile generation, project closure and feed filters. Membership gates apply only to new freelancer proposals; closing an owned project remains free. The preparation script also preserves Dribbble OAuth runtime references. The combined code passed 45 JavaScript tests, six Python tests, the production build, Terraform validation and Chromium checks for subscription controls, free publishing, existing project filters and mobile layout. Pushing this source triggers the existing image deployment workflow; it does not apply Terraform or enable Cardcom billing.
+
+## Billing status and button regression fix
+
+Billing status no longer queries payment history for a fresh account. For existing subscriptions, a failed history query (including a missing/building composite index) is reported separately as `historyAvailable=false`; subscription state and cancellation remain available. A real status failure has an explicit retry control rather than indefinite loading. Successful cancellation stays confirmed even if its subsequent status refresh fails. Server diagnostics for history failures contain only a fixed event name.
+
+Payment controls use a scoped CSS module with the site's chartreuse and dark-ink palette. This overrides the generic sidebar button background reset; disabled controls keep a visible lime tone and use a not-allowed cursor, while an in-flight action uses the wait cursor. Regression checks passed for new-account status, missing history indexes, safe account-scoped history, 503/retry recovery, actual button colors, and desktop/mobile layouts. All 50 JavaScript tests and the production build passed.

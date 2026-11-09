@@ -92,9 +92,24 @@ export async function billingStatus(uid: string) {
   let available = true; try { cardcomConfig(); } catch { available = false; }
   const db = firestore();
   const sub = (await db.collection('billingSubscriptions').doc(uid).get()).data();
-  const history = await db.collection('billingOrders').where('uid', '==', uid).where('status', '==', 'paid').orderBy('paidAt', 'desc').limit(50).get();
+  let historyAvailable = true;
+  let payments: { id: string; amountAgorot: number; paidAt: number; documentNumber: number | null; invoicePending: boolean }[] = [];
+  // Fresh accounts have no billing ledger. A history index still building must
+  // not prevent status or cancellation from loading for existing subscribers.
+  if (sub) {
+    try {
+      const history = await db.collection('billingOrders').where('uid', '==', uid).where('status', '==', 'paid').orderBy('paidAt', 'desc').limit(50).get();
+      payments = history.docs.map(doc => {
+        const d = doc.data();
+        return { id: doc.id, amountAgorot: d.amountAgorot, paidAt: d.paidAt.toMillis(), documentNumber: d.documentNumber ?? null, invoicePending: d.invoicePending === true };
+      });
+    } catch {
+      historyAvailable = false;
+      console.warn('billing_history_unavailable');
+    }
+  }
   return { available, priceAgorot: PRICE_AGOROT, autoRenew: sub?.autoRenew === true, status: sub?.status ?? 'none', last4: sub?.last4 ?? null, paidUntil: sub?.paidUntil?.toMillis() ?? null,
-    payments: history.docs.filter(doc => doc.data().status === 'paid').map(doc => { const d = doc.data(); return { id: doc.id, amountAgorot: d.amountAgorot, paidAt: d.paidAt.toMillis(), documentNumber: d.documentNumber ?? null, invoicePending: d.invoicePending === true }; }).sort((a,b) => b.paidAt-a.paidAt) };
+    historyAvailable, payments };
 }
 export async function renewSubscription(uid: string) {
   const config = cardcomConfig(); const db = firestore();
