@@ -23,7 +23,6 @@ export function ProfileStudio() {
   const [profile, setProfile] = useState<Profile>(blank);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
-  const [consent, setConsent] = useState(false);
   const [tag, setTag] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -35,20 +34,19 @@ export function ProfileStudio() {
       try {
         const saved = sessionStorage.getItem(DRIBBBLE_DRAFT_KEY);
         if (saved) {
-          const draft = JSON.parse(saved) as { links?: unknown; profile?: unknown; tag?: unknown; consent?: unknown };
+          const draft = JSON.parse(saved) as { links?: unknown; profile?: unknown; tag?: unknown };
           if (draft.links && typeof draft.links === 'object' && !Array.isArray(draft.links)) setLinks(draft.links as Record<string, string>);
           if (draft.profile && typeof draft.profile === 'object' && !Array.isArray(draft.profile)) {
             setProfile({ ...blank, ...(draft.profile as Partial<Profile>) });
             restoredProfile = true;
           }
           if (typeof draft.tag === 'string') setTag(draft.tag);
-          if (typeof draft.consent === 'boolean') setConsent(draft.consent);
         }
       } catch { /* Ignore invalid temporary editor state. */ }
       finally { sessionStorage.removeItem(DRIBBBLE_DRAFT_KEY); }
     }
     const resultMessages: Record<string, string> = {
-      connected: 'פרופיל Dribbble והעבודות הציבוריות נטענו. לחצו Generate כדי לשלב אותם בפרופיל.',
+      connected: 'פרופיל Dribbble והעבודות הציבוריות נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.',
       denied: 'חיבור Dribbble בוטל. אפשר לנסות שוב בכל עת.',
       failed: 'לא הצלחנו לייבא את Dribbble. בדקו את הגדרות החיבור ונסו שוב.',
       unconfigured: 'חיבור Dribbble עדיין לא הוגדר בסביבת השרת.',
@@ -159,7 +157,7 @@ export function ProfileStudio() {
               const imported = await importResponse.json();
               if (!importResponse.ok) throw new Error(imported.error || 'החיבור הצליח, אבל ייבוא המידע נכשל.');
               setSocialSources((current) => ({ ...current, [provider]: { ...imported, connectionId: event.payload.connectionId } }));
-              setNotice(`פרטי ${providerLabels[provider]} נטענו. לחצו Generate כדי לשלב אותם בפרופיל.`);
+              setNotice(`פרטי ${providerLabels[provider]} נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.`);
             } catch (error) {
               setNotice(error instanceof Error ? error.message : `ייבוא ${providerLabels[provider]} נכשל.`);
             } finally {
@@ -177,7 +175,7 @@ export function ProfileStudio() {
 
   function connectDribbble() {
     try {
-      sessionStorage.setItem(DRIBBBLE_DRAFT_KEY, JSON.stringify({ links, profile, tag, consent }));
+      sessionStorage.setItem(DRIBBBLE_DRAFT_KEY, JSON.stringify({ links, profile, tag }));
     } catch { /* OAuth can continue when browser storage is unavailable. */ }
     setConnecting('dribbble');
     setNotice('מעבירים אותך ל־Dribbble לאישור קריאת פרטי הפרופיל והעבודות הציבוריות.');
@@ -247,7 +245,7 @@ export function ProfileStudio() {
     <p>קל להקים פרופיל: מחברים אתר או מוסיפים מסמך, ואנחנו עוזרים למלא את הפרטים. אפשר גם למלא לבד.</p>
     <div className="source-workbench">
       <h2>המקורות שלך</h2>
-      <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: לאחר האישור נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>
+      <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: רק בלחיצה על ״יצירת פרופיל בעזרת AI״ נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>
       <label className="profile-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void addFiles(Array.from(event.dataTransfer.files)); }}>
         <span>↥</span><strong>גררו לכאן את העבודה שלכם</strong><small>קורות חיים, תיק עבודות או מסמך מקצועי</small>
         <input type="file" multiple accept=".pdf,.txt,.md" disabled={uploading} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.currentTarget.value = ''; }}/>
@@ -282,8 +280,8 @@ export function ProfileStudio() {
       </article>}
       <small>GitHub ו־LinkedIn יתחברו בחלון מאובטח. אפשר להסיר את הייבוא בכל עת לפני יצירת הפרופיל.</small>
       <small>Dribbble מייבא פרופיל ועבודות שפורסמו בלבד. הסרת המידע מכאן אינה מבטלת את הרשאת Dribbble. <a href="https://dribbble.com/account/applications" target="_blank" rel="noreferrer">ניהול הרשאות ב־Dribbble ↗</a></small>
-      <label className="source-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/>מאשר/ת לשלוח את המסמכים, הקישורים והמידע המיובא שנבחרו ל־Google Vertex AI ליצירת טיוטה, כמפורט במדיניות הפרטיות.</label>
-      <button type="button" className="generate-profile" disabled={busy || !consent || !hasSources} onClick={generate}>{busy ? 'יוצרים את הפרופיל…' : '✦ Generate'}</button>
+      <p className="legal-inline-notice">לחיצה על ״יצירת פרופיל בעזרת AI״ מבקשת לשלוח את המסמכים, הקישורים והמידע המיובא שמופיעים כאן ל־Google Vertex AI לצורך יצירת הטיוטה. אפשר למלא ולשמור פרופיל ידנית בלי להשתמש ב־AI. <Link href="/privacy#uploads">פרטי העיבוד</Link> · <Link href="/terms#ai">תנאי השימוש בכלי AI</Link>.</p>
+      <button type="button" className="generate-profile" disabled={busy || !hasSources} onClick={generate}>{busy ? 'יוצרים את הפרופיל…' : '✦ יצירת פרופיל בעזרת AI'}</button>
     </div>
     <p role="status">{notice}</p>
     <div className="profile-template">

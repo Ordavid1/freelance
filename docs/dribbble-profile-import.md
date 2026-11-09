@@ -9,7 +9,7 @@ Register a Dribbble OAuth application and use the callback for the environment w
 - Production: `https://freelance-place.com/api/integrations/dribbble/callback`
 - Local development: `http://localhost:3000/api/integrations/dribbble/callback`
 
-Use a separate Dribbble OAuth app for local development and production so each app can keep its exact callback URI. The existing Dribbble app currently points to Nango; update its callback to the production URI before enabling the production flow. This external Dribbble setting must be changed by an account owner.
+Use a separate Dribbble OAuth app for local development and production so each app can keep its exact callback URI. The Dribbble app callback was verified saved to the production URI on 2026-11-09. It must match `DRIBBBLE_REDIRECT_URI` in the runtime.
 
 Request only the `public` scope. Do not request `upload`; the importer reads the authenticated user's profile and published shots and never creates or edits Dribbble content.
 
@@ -33,6 +33,6 @@ Generate a fresh Dribbble client secret before use. Enter secrets directly into 
 - The app fetches the Dribbble profile and up to 20 published shots, strips markup, caps imported text, and stores only the normalized snapshot under that user's Firestore profile sources.
 - The access token is discarded after the import and is never stored. To refresh the snapshot, the user authorizes Dribbble again.
 - Removing the import deletes the saved snapshot from Freelance Place. It does not revoke the app's grant at Dribbble; the user can revoke that grant in [Dribbble application settings](https://dribbble.com/account/applications).
-- The snapshot is sent to Vertex AI only when the user checks the existing profile-generation consent box and selects Generate.
+- The snapshot is sent to Vertex AI only when the user selects Create profile with AI after the processing notice. There is no separate checkbox.
 
-Updating the Dribbble app callback, creating/rotating its credentials, adding a Secret Manager version, applying Terraform, and deploying the app are operator actions and are not performed by this implementation.
+Production setup on 2026-11-09: the callback is registered in Dribbble, `DRIBBBLE_CLIENT_SECRET` version 1 exists in Secret Manager, and Cloud Run is configured with the client ID, callback URI, and secret reference. No credential values belong in this document. Terraform inputs for future applies must retain these settings; the secret value is managed outside Terraform.
