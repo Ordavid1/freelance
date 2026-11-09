@@ -1,4 +1,3 @@
-import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
@@ -13,7 +12,6 @@ export async function GET(request: Request) {
     if (new URL(request.url).searchParams.get('mine') === '1') {
       const user = await getCurrentUser();
       if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בפרויקטים שלך.' }, { status: 401 });
-      const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
       const snapshot = await firestore().collection('projects').where('ownerUid', '==', user.uid).limit(100).get();
       const items = snapshot.docs.map((doc) => toPublicProject(doc.id, doc.data())).sort((a, b) => a.title.localeCompare(b.title));
       return NextResponse.json({ items }, { headers: { 'Cache-Control': 'no-store' } });
@@ -29,7 +27,6 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לפרסם פרויקט.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   if (Number(request.headers.get('content-length') || 0) > 24_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.title !== 'string' || body.title.trim().length < 5 || body.title.length > 120 || typeof body.description !== 'string' || body.description.trim().length < 20 || body.description.length > 5000) {

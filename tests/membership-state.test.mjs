@@ -33,3 +33,13 @@ test('verified paid access expires at the boundary without resetting the trial',
   assert.equal(accessFromRecord(record, 1000).canStartTrial, false);
   assert.equal(accessFromRecord({ ...record, paidUntil: Infinity }, 999).canUseMarketplace, false);
 });
+test('publisher profiles never start a freelancer trial; completing a freelancer profile does', async () => {
+  const { shouldStartFreelancerTrial } = await import('../src/lib/membership/state.ts');
+  const publisher = { profileType: 'publisher', name: 'Studio' };
+  const freelancer = { profileType: 'freelancer', name: 'Or', headline: 'Developer', skills: ['React'] };
+  assert.equal(shouldStartFreelancerTrial(publisher, { state: 'preview' }), false);
+  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'preview' }, publisher), true);
+  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'trial', freelancerTrialStarted: true }, publisher), false);
+  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'expired', freelancerTrialStarted: true }, publisher), false);
+  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'trial' }, publisher), true);
+});

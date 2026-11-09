@@ -10,7 +10,6 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בהצעות.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   try {

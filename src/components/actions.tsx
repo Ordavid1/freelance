@@ -23,4 +23,4 @@ function ProjectComposerContent() {
 
 export function ProposalAction(props: React.ComponentProps<typeof ProposalActionContent>) { return <MemberGate><ProposalActionContent {...props} /></MemberGate>; }
 
-export function ProjectComposer() { return <MemberGate><ProjectComposerContent /></MemberGate>; }
+export function ProjectComposer() { return <ProjectComposerContent />; }

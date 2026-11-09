@@ -16,7 +16,7 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
   if (consent !== true) throw new BillingError('CONSENT_REQUIRED', 400);
   const access = await getMembershipAccess(user.uid);
   // No early debit, no charge to grandfathered accounts, no stacked subscriptions.
-  if (access.state !== 'expired') throw new BillingError('NOT_ELIGIBLE', 409);
+  if (access.profileType === 'publisher' || access.state !== 'expired') throw new BillingError('NOT_ELIGIBLE', 409);
   const profile = (await firestore().collection('profiles').doc(user.uid).get()).data();
   const name = typeof profile?.name === 'string' ? profile.name.trim() : user.name?.trim();
   if (!name || name.length > 50 || !user.email || user.email.length > 50) throw new BillingError('BILLING_IDENTITY_REQUIRED', 400);

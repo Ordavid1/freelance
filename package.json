@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "test:seo": "node --test tests/seo.test.mjs",
-    "test:billing": "node --experimental-transform-types --experimental-test-module-mocks --test tests/billing.test.mjs tests/membership-state.test.mjs"
+    "test:billing": "node --experimental-transform-types --experimental-test-module-mocks --test tests/billing.test.mjs tests/membership-state.test.mjs tests/membership-policy.test.mjs"
   },
   "dependencies": {
     "@firebase/app": "0.14.9",

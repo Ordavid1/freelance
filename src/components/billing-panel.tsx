@@ -47,7 +47,7 @@ export function BillingPanel({ eligible = false }: { eligible?: boolean }) {
     } catch { setMessage('הביטול לא אושר. נסו שוב או פנו אלינו.'); } finally { setBusy(false); }
   }
   return <section className="trial-status billing-panel" aria-label="תשלומים וחידוש חברות">
-    <h2>חברות ב־₪19.99 לחודש</h2>
+    <h2>הגשת הצעות לפרויקטים ב־₪19.99 לחודש</h2>
     <p>המחיר כולל מע״מ ככל שחל. החברות מתחדשת אוטומטית מדי חודש לאחר הצטרפות מפורשת. אין חיוב בסיום הניסיון ללא הצטרפות.</p>
     {status?.paidUntil && <p>התקופה ששולמה מסתיימת ב־{date(status.paidUntil)}. {status.autoRenew ? 'החיוב הבא במועד זה.' : 'החידוש האוטומטי כבוי.'}</p>}
     {status?.last4 && <p>כרטיס המסתיים ב־<bdi>{status.last4}</bdi></p>}
