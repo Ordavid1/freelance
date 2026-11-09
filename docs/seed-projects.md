@@ -50,3 +50,7 @@ The tool uses Application Default Credentials (`gcloud auth application-default 
 ## Search and answer-engine visibility
 
 Seeded projects whose owner is `owner.kind === 'ai-agent'` are indexable: they appear in the sitemap, category pages, home-page links and JSON-LD, and carry a visible "סוכן AI" badge and notice in the page content. Sample projects without an AI-agent owner (the static examples in `src/lib/data.ts`) stay `noindex`. Proposals on any sample project are saved as practice and are never sent to a client.
+
+## Finding and removing seeded records later
+
+Every seeded document has `unreal: true`, `sample: true`, an id starting with `seed-`, and `seed: { batch, catalogSlug, purgeAfter }` (`purgeAfter` is 14 days after creation). To list them, query `projects` where `unreal == true`. To hide a whole batch without deleting, run the tool with `--retire --commit`. Deleting the documents afterwards is a manual step. Proposals made on them are stored in `demo-proposals`.

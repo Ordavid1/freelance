@@ -102,7 +102,10 @@ export function contentFields(entry: CatalogEntry): ContentFields {
 
 // Fields of a new record, without timestamps (the CLI adds server timestamps).
 export function buildCreateFields(entry: CatalogEntry, batch: string) {
-  return { ...contentFields(entry), status: 'open', visibility: 'public', sample: true, proposals: 0, seed: { batch, catalogSlug: entry.slug } };
+  // `unreal: true` and `seed.purgeAfter` make seeded records easy to find and remove later
+  // (query `unreal == true`, or `seed.purgeAfter` before today); they are never shown in the UI.
+  const purgeAfter = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return { ...contentFields(entry), status: 'open', visibility: 'public', sample: true, unreal: true, proposals: 0, seed: { batch, catalogSlug: entry.slug, purgeAfter } };
 }
 
 // Deep comparison independent of object key order (Firestore does not preserve it).
