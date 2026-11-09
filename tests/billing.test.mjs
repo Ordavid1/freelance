@@ -50,9 +50,10 @@ const db={collection:name=>({doc:id=>ref(`${name}/${id}`),where:(key,op,value)=>
  const run=tail.then(async()=>{const writes=[];const tx={get:async r=>{assert.equal(writes.length,0,'Firestore requires reads before writes');return snapshot(r.key);},create:(r,v)=>writes.push(()=>{assert.ok(!rows.has(r.key));rows.set(r.key,v);}),set:(r,v,options)=>writes.push(()=>rows.set(r.key,options?.merge?{...rows.get(r.key),...v}:v)),update:(r,v)=>writes.push(()=>rows.set(r.key,{...rows.get(r.key),...v}))};const value=await fn(tx);for(const write of writes)write();return value;});tail=run.catch(()=>{});return run;
 }};
 await mock.module('../src/lib/db/firestore.ts',{namedExports:{firestore:()=>db}});
-await mock.module('../src/lib/membership/access.ts',{namedExports:{getMembershipAccess:async()=>({state:'expired'})}});
+let accessRecord={state:'expired'};
+await mock.module('../src/lib/membership/access.ts',{namedExports:{getMembershipAccess:async()=>accessRecord}});
 const service=await import('../src/lib/billing/service.ts');
-function setup(){ rows.clear();historyRequests=0;historyError=null; Object.assign(process.env,{BILLING_ENABLED:'true',CARDCOM_TERMINAL_NUMBER:'123',CARDCOM_API_NAME:'fake',CARDCOM_API_PASSWORD:'fake',NEXT_PUBLIC_SITE_URL:'https://example.com'}); }
+function setup(){ accessRecord={state:'expired'}; rows.clear();historyRequests=0;historyError=null; Object.assign(process.env,{BILLING_ENABLED:'true',CARDCOM_TERMINAL_NUMBER:'123',CARDCOM_API_NAME:'fake',CARDCOM_API_PASSWORD:'fake',NEXT_PUBLIC_SITE_URL:'https://example.com'}); }
 const fakeFetch=fn=>mock.method(globalThis,'fetch',async(_url,options)=>Response.json(await fn(JSON.parse(options.body),_url)));
 test('duplicate confirmation/webhook grants exactly one month and rejects another user',async()=>{
  setup(); rows.set(`billingOrders/${id}`,{uid:'u',status:'pending',lowProfileId:lp,terminal:123,amountAgorot:1999,name:'Test',email:'test@example.com'});rows.set('billingSubscriptions/u',{pendingOrderId:id});
@@ -122,4 +123,31 @@ test('payment history returns only the current members paid records and no payme
  rows.set('billingOrders/b',{uid:'other',status:'paid',amountAgorot:1999,paidAt:Timestamp.now()});
  rows.set('billingOrders/c',{uid:'u',status:'pending'});
  const status=await service.billingStatus('u');assert.equal(status.historyAvailable,true);assert.equal(status.payments.length,1);assert.equal(status.payments[0].documentNumber,10);assert.equal(JSON.stringify(status).includes('private-token'),false);
+});
+
+test('trial signup opens token-only card validation without a captured charge or invoice',async()=>{
+ setup();accessRecord={state:'trial',trialEndsAt:Date.now()+86400000,profileType:'freelancer'};
+ let payload;const transport=fakeFetch(body=>{payload=body;return {ResponseCode:0,LowProfileId:lp,Url:'https://secure.cardcom.solutions/test-checkout'};});
+ const session=await service.startCheckout({uid:'u',name:'Test',email:'test@example.com'},true);
+ assert.equal(payload.Operation,'CreateTokenOnly');assert.equal(payload.Amount,1);assert.equal(payload.AdvancedDefinition.JValidateType,5);assert.equal(payload.Document,undefined);
+ const order=rows.get('billingOrders/'+session.orderId);assert.equal(order.kind,'setup');assert.equal(order.trialEndsAt,accessRecord.trialEndsAt);transport.mock.restore();
+});
+test('trial card setup is idempotent, preserves free access and only debits after trial end',async()=>{
+ setup();const trialEnd=Date.now()+86400000;
+ rows.set('billingOrders/'+id,{uid:'u',status:'pending',kind:'setup',trialEndsAt:trialEnd,lowProfileId:lp,terminal:123,name:'Test',email:'test@example.com',consentVersion:'v2',consentAt:Timestamp.now()});
+ rows.set('billingSubscriptions/u',{pendingOrderId:id});let debits=0;
+ const transport=fakeFetch((body,url)=>{
+  if(url.endsWith('/GetLpResult'))return {...result(),Operation:'CreateTokenOnly',TranzactionInfo:null};
+  debits++;assert.equal(body.Amount,19.99);return result().TranzactionInfo;
+ });
+ const confirmation=await service.confirmPayment(id,'u');assert.equal(confirmation.setup,true);assert.equal(confirmation.paid,false);
+ assert.equal(rows.get('billingSubscriptions/u').status,'trialing');assert.equal(rows.get('billingSubscriptions/u').nextChargeAt.toMillis(),trialEnd);
+ assert.equal(rows.has('memberships/u'),false);await service.confirmPayment(id,'u');await service.renewSubscription('u');assert.equal(debits,0);
+ const clock=mock.method(Date,'now',()=>trialEnd+1);
+ try{await service.renewSubscription('u');assert.equal(debits,1);assert.equal(rows.get('billingSubscriptions/u').status,'active');assert.ok(rows.get('memberships/u').paidUntil.toMillis()>trialEnd);}finally{clock.mock.restore();transport.mock.restore();}
+});
+test('revoked trial enrollment consent cannot be reactivated by a late setup callback',async()=>{
+ setup();rows.set('billingOrders/'+id,{uid:'u',status:'pending',kind:'setup',trialEndsAt:Date.now()+86400000,lowProfileId:lp,terminal:123,name:'Test',email:'test@example.com',consentVersion:'v2',consentAt:Timestamp.now()});rows.set('billingSubscriptions/u',{pendingOrderId:id});
+ await service.cancelSubscription('u');const transport=fakeFetch(()=>({...result(),Operation:'CreateTokenOnly'}));await service.confirmPayment(id,'u');
+ assert.equal(rows.get('billingSubscriptions/u').autoRenew,false);assert.equal(rows.get('billingSubscriptions/u').token,null);transport.mock.restore();
 });

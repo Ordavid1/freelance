@@ -79,7 +79,7 @@ variable "dribbble_redirect_uri" {
 variable "billing_enabled" {
   type        = bool
   default     = false
-  description = "Enable Cardcom checkout and scheduled automatic renewals after sandbox validation."
+  description = "Enable production Cardcom checkout and scheduled automatic renewals. Trial signup saves a card; its first monthly debit is due after the trial."
 }
 variable "cardcom_secrets" {
   type        = map(object({ project = string, name = string, version = string }))

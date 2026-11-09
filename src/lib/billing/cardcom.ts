@@ -33,15 +33,15 @@ export function hostedUrl(value: unknown) {
   if (url.protocol !== 'https:' || url.username || url.password || !(url.hostname === 'cardcom.solutions' || url.hostname.endsWith('.cardcom.solutions'))) throw new BillingError('INVALID_GATEWAY_RESPONSE');
   return url.href;
 }
-export function checkoutPayload(config: CardcomConfig, orderId: string, name: string, email: string) {
+export function checkoutPayload(config: CardcomConfig, orderId: string, name: string, email: string, setupOnly = false) {
   const returnUrl = `${config.siteUrl}/membership?order=${encodeURIComponent(orderId)}`;
   return {
-    Operation: 'ChargeAndCreateToken', Amount: PRICE_AGOROT / 100, ISOCoinId: 1, Language: 'he', ReturnValue: orderId, ProductName: PRODUCT,
+    Operation: setupOnly ? 'CreateTokenOnly' : 'ChargeAndCreateToken', Amount: setupOnly ? 1 : PRICE_AGOROT / 100, ISOCoinId: 1, Language: 'he', ReturnValue: orderId, ProductName: PRODUCT,
     SuccessRedirectUrl: returnUrl, FailedRedirectUrl: returnUrl, CancelRedirectUrl: returnUrl,
     WebHookUrl: `${config.siteUrl}/api/billing/webhook?order=${encodeURIComponent(orderId)}`,
-    AdvancedDefinition: { MinNumOfPayments: 1, MaxNumOfPayments: 1 },
-    Document: { DocumentTypeToCreate: 'Auto', Name: name, Email: email, IsSendByEmail: true, Language: 'he',
-      Products: [{ Description: PRODUCT, Quantity: 1, UnitCost: PRICE_AGOROT / 100 }] },
+    AdvancedDefinition: { MinNumOfPayments: 1, MaxNumOfPayments: 1, ...(setupOnly ? { JValidateType: 5 } : {}) },
+    ...(setupOnly ? {} : { Document: { DocumentTypeToCreate: 'Auto', Name: name, Email: email, IsSendByEmail: true, Language: 'he',
+      Products: [{ Description: PRODUCT, Quantity: 1, UnitCost: PRICE_AGOROT / 100 }] } }),
   };
 }
 export function verifyPayment(result: GatewayResult, order: { id: string; lowProfileId: string; terminal: number; amountAgorot: number }) {
@@ -76,4 +76,15 @@ export function tokenExpiry(info: GatewayResult) {
 export function verifyRenewal(result: GatewayResult, terminal: number) {
   if (!success(result.ResponseCode) || Number(result.TerminalNumber) !== terminal || Number(result.CoinId) !== 1 || typeof result.Amount !== 'number' || Math.abs(result.Amount * 100 - PRICE_AGOROT) > 0.00001 || !Number.isSafeInteger(result.TranzactionId) || Number(result.TranzactionId) <= 0 || result.IsRefund === true) throw new BillingError('RENEWAL_UNVERIFIED', 409);
   return String(result.TranzactionId);
+}
+
+export function verifyTrialSetup(result: GatewayResult, order: { id: string; lowProfileId: string; terminal: number }) {
+  if (!success(result.ResponseCode)) throw new BillingError('PAYMENT_INCOMPLETE', 409);
+  if (result.ReturnValue !== order.id || String(result.LowProfileId).toLowerCase() !== order.lowProfileId.toLowerCase() || Number(result.TerminalNumber) !== order.terminal || result.Operation !== 'CreateTokenOnly') throw new BillingError('PAYMENT_MISMATCH', 409);
+  const token = object(result.TokenInfo);
+  const expiry = tokenExpiry(token);
+  if (typeof token.Token !== 'string' || !token.Token || !expiry) throw new BillingError('TOKEN_MISSING');
+  const transaction = object(result.TranzactionInfo);
+  const suffix = transaction.Last4CardDigitsString ?? token.Last4CardDigitsString ?? transaction.Last4CardDigits;
+  return { token: token.Token, expiry, last4: suffix == null ? null : String(suffix).padStart(4, '0').slice(-4) };
 }

@@ -4,8 +4,8 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { AuthenticatedUser } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { getMembershipAccess } from '@/lib/membership/access';
-import { BillingError, PRICE_AGOROT, PRODUCT, cardcomConfig, cardcomPost, checkoutPayload, hostedUrl, nextMonth, success, verifyPayment, verifyRenewal } from './cardcom';
-const CONSENT_VERSION = '2026-11-09-monthly-v1';
+import { BillingError, PRICE_AGOROT, PRODUCT, cardcomConfig, cardcomPost, checkoutPayload, hostedUrl, nextMonth, success, verifyPayment, verifyRenewal, verifyTrialSetup } from './cardcom';
+const CONSENT_VERSION = '2026-11-09-monthly-v2';
 const idPattern = /^[a-f0-9-]{36}$/i;
 export function orderId(value: unknown): string {
   if (typeof value !== 'string' || !idPattern.test(value)) throw new BillingError('INVALID_ORDER', 400);
@@ -15,8 +15,10 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
   const config = cardcomConfig();
   if (consent !== true) throw new BillingError('CONSENT_REQUIRED', 400);
   const access = await getMembershipAccess(user.uid);
-  // No early debit, no charge to grandfathered accounts, no stacked subscriptions.
-  if (access.profileType === 'publisher' || access.state !== 'expired') throw new BillingError('NOT_ELIGIBLE', 409);
+  // Trial signups vault a card; the first debit is scheduled after the free trial.
+  if (access.profileType === 'publisher' || !['trial', 'expired'].includes(access.state)) throw new BillingError('NOT_ELIGIBLE', 409);
+  const setupOnly = access.state === 'trial';
+  if (setupOnly && (!access.trialEndsAt || access.trialEndsAt <= Date.now())) throw new BillingError('NOT_ELIGIBLE', 409);
   const profile = (await firestore().collection('profiles').doc(user.uid).get()).data();
   const name = typeof profile?.name === 'string' ? profile.name.trim() : user.name?.trim();
   if (!name || name.length > 50 || !user.email || user.email.length > 50) throw new BillingError('BILLING_IDENTITY_REQUIRED', 400);
@@ -37,13 +39,13 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
       }
       if (data?.status === 'creating' && Date.now() - data.createdAt.toMillis() < 60000) throw new BillingError('CHECKOUT_BUSY', 409);
     }
-    tx.create(ref, { uid: user.uid, status: 'creating', amountAgorot: PRICE_AGOROT, terminal: config.terminal, createdAt: Timestamp.now(), consentVersion: CONSENT_VERSION, consentAt: Timestamp.now(), name, email: user.email });
+    tx.create(ref, { uid: user.uid, status: 'creating', kind: setupOnly ? 'setup' : 'payment', ...(setupOnly ? { trialEndsAt: access.trialEndsAt } : {}), amountAgorot: PRICE_AGOROT, terminal: config.terminal, createdAt: Timestamp.now(), consentVersion: CONSENT_VERSION, consentAt: Timestamp.now(), name, email: user.email });
     tx.set(subscription, { pendingOrderId: ref.id, pendingCancelled: false }, { merge: true });
     return null;
   });
   if (existing) return existing;
   try {
-    const result = await cardcomPost(config, 'LowProfile/Create', checkoutPayload(config, ref.id, name, user.email));
+    const result = await cardcomPost(config, 'LowProfile/Create', checkoutPayload(config, ref.id, name, user.email, setupOnly));
     if (!success(result.ResponseCode) || typeof result.LowProfileId !== 'string' || !idPattern.test(result.LowProfileId)) throw new BillingError('CHECKOUT_FAILED');
     const redirectUrl = hostedUrl(result.Url);
     await ref.update({ status: 'pending', lowProfileId: result.LowProfileId, redirectUrl });
@@ -56,10 +58,25 @@ export async function confirmPayment(id: string, uid?: string) {
   const snapshot = await ref.get(); const order = snapshot.data();
   if (!order || (uid && order.uid !== uid)) throw new BillingError('ORDER_NOT_FOUND', 404);
   if (order.status === 'paid') return { paid: true };
+  if (order.status === 'setup_complete') return { paid: false, setup: true, nextChargeAt: order.trialEndsAt };
   if (order.status !== 'pending') throw new BillingError('PAYMENT_INCOMPLETE', 409);
   const config = cardcomConfig();
   if (config.terminal !== order.terminal) throw new BillingError('TERMINAL_CHANGED');
   const result = await cardcomPost(config, 'LowProfile/GetLpResult', { LowProfileId: order.lowProfileId });
+  if (order.kind === 'setup') {
+    const card = verifyTrialSetup(result, { id: ref.id, lowProfileId: order.lowProfileId, terminal: order.terminal });
+    await db.runTransaction(async tx => {
+      const current = await tx.get(ref);
+      if (current.data()?.status === 'setup_complete') return;
+      const subRef = db.collection('billingSubscriptions').doc(order.uid);
+      const sub = (await tx.get(subRef)).data();
+      if (sub?.pendingOrderId !== ref.id) throw new BillingError('ORDER_SUPERSEDED', 409);
+      const cancelled = sub.pendingCancelled === true;
+      tx.update(ref, { status: 'setup_complete', completedAt: Timestamp.now(), last4: card.last4 });
+      tx.set(subRef, { autoRenew: !cancelled, status: cancelled ? 'cancelled' : 'trialing', token: cancelled ? null : card.token, expiry: cancelled ? null : card.expiry, terminal: config.terminal, name: order.name, email: order.email, last4: card.last4, nextChargeAt: Timestamp.fromMillis(order.trialEndsAt), pendingOrderId: null, consentVersion: order.consentVersion, consentAt: order.consentAt });
+    });
+    return { paid: false, setup: true, nextChargeAt: order.trialEndsAt };
+  }
   const payment = verifyPayment(result, { id: ref.id, lowProfileId: order.lowProfileId, terminal: order.terminal, amountAgorot: order.amountAgorot });
   if (!payment.token || !payment.expiry) throw new BillingError('TOKEN_MISSING');
   await db.runTransaction(async tx => {
@@ -108,7 +125,7 @@ export async function billingStatus(uid: string) {
       console.warn('billing_history_unavailable');
     }
   }
-  return { available, priceAgorot: PRICE_AGOROT, autoRenew: sub?.autoRenew === true, status: sub?.status ?? 'none', last4: sub?.last4 ?? null, paidUntil: sub?.paidUntil?.toMillis() ?? null,
+  return { available, priceAgorot: PRICE_AGOROT, autoRenew: sub?.autoRenew === true, status: sub?.status ?? 'none', last4: sub?.last4 ?? null, paidUntil: sub?.paidUntil?.toMillis() ?? null, nextChargeAt: sub?.nextChargeAt?.toMillis() ?? null,
     historyAvailable, payments };
 }
 export async function renewSubscription(uid: string) {
@@ -157,7 +174,7 @@ export async function renewSubscription(uid: string) {
     const paidUntil = Timestamp.fromMillis(nextMonth(Math.max(attempt.due, Date.now())));
     tx.create(claim, { uid, orderId: attempt.id, createdAt: Timestamp.now() });
     tx.update(orderRef, { status: 'paid', paidAt: Timestamp.now(), transactionId, documentNumber: typeof result.DocumentNumber === 'number' ? result.DocumentNumber : null, invoicePending: !result.DocumentNumber });
-    tx.update(subRef, { paidUntil, nextChargeAt: paidUntil, renewalPending: false, leaseUntil: Timestamp.fromMillis(0) });
+    tx.update(subRef, { status: sub.autoRenew ? 'active' : 'cancelled', paidUntil, nextChargeAt: paidUntil, renewalPending: false, leaseUntil: Timestamp.fromMillis(0) });
     tx.set(db.collection('memberships').doc(uid), { paidUntil }, { merge: true });
   });
 }

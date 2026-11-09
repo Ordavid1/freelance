@@ -4,6 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 root="$PWD"
 config="${1:-deploy/cardcom.generated.tfvars.json}"
+mode="${2:-prepare}"
+[[ "$mode" == prepare || "$mode" == activate ]] || { echo "Mode must be prepare or activate." >&2; exit 1; }
 [[ "$config" = /* ]] || config="$root/$config"
 [[ -f "$config" ]] || { echo 'Generate the references-only Cardcom config first.' >&2; exit 1; }
 python3 - "$config" <<'PY'
@@ -20,4 +22,8 @@ for field in ['CARDCOM_TERMINAL_NUMBER','CARDCOM_API_NAME']:
 PY
 terraform -chdir=infra/terraform init -input=false -reconfigure -backend-config=backend.hcl
 terraform -chdir=infra/terraform validate
-terraform -chdir=infra/terraform plan -input=false -var-file="$config" -out=cardcom-preparation.tfplan
+if [[ "$mode" == activate ]]; then
+  terraform -chdir=infra/terraform plan -input=false -var-file="$config" -var=billing_enabled=true -out=cardcom-activation.tfplan
+else
+  terraform -chdir=infra/terraform plan -input=false -var-file="$config" -out=cardcom-preparation.tfplan
+fi
