@@ -101,7 +101,9 @@ test('created records are honest samples with no owner', () => {
   assert.equal(record.status, 'open');
   assert.equal(record.visibility, 'public');
   assert.equal(record.proposals, 0);
-  assert.deepEqual(record.seed, { batch, catalogSlug: entries[0].slug });
+  assert.equal(record.unreal, true);
+  assert.match(record.seed.purgeAfter, /^\d{4}-\d{2}-\d{2}$/);
+  assert.deepEqual({ ...record.seed, purgeAfter: undefined }, { batch, catalogSlug: entries[0].slug, purgeAfter: undefined });
   assert.equal('ownerUid' in record, false);
   assert.deepEqual(record.owner, { kind: 'ai-agent', name: entries[0].clientName, persona: entries[0].persona });
 });
