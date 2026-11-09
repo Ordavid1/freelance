@@ -29,7 +29,7 @@ The current checkout has no first image or Cloud Run service, so no IP exists an
 
 ## First release requirements
 
-Before publishing a release, finish OAuth setup: configure Google Identity Platform with the owner's OAuth client, and configure Nango GitHub/LinkedIn integrations and `NANGO_API_KEY` in Secret Manager. Do not put OAuth secrets in Terraform variables, Git, the browser, or chat. Verify the canonical host in Google Identity Platform's authorized domains.
+Before publishing a release, finish OAuth setup: configure Google Identity Platform with the owner's OAuth client; configure Nango GitHub/LinkedIn integrations and `NANGO_API_KEY` in Secret Manager; and configure the Dribbble app with the deployed callback URI, client ID, and a rotated client secret in Secret Manager. Dribbble uses only the `public` scope and is handled directly by the app. Do not put OAuth secrets in Terraform variables, Git, the browser, or chat. Verify the canonical host in Google Identity Platform's authorized domains.
 
 1. Run `npm ci`, `npm run typecheck`, and `npm run build`; build the container with `deploy/engine.Dockerfile`.
 2. Build an immutable image with `scripts/deploy-engine.sh` (its first run prints the Terraform initialization command).

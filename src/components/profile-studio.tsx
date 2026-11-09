@@ -3,20 +3,23 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const platforms = ['Dribbble', 'Behance', 'Website'] as const;
+const platforms = ['Behance', 'Website'] as const;
 type SocialProvider = 'github' | 'linkedin';
 type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
+type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
 type StoredSource = { id: string; name: string; size: number };
 const blank: Profile = { name: '', headline: '', bio: '', skills: [], portfolio: '', experience: '', education: '' };
 const providerLabels: Record<SocialProvider, string> = { github: 'GitHub', linkedin: 'LinkedIn' };
+const DRIBBBLE_DRAFT_KEY = 'fz-dribbble-oauth-draft';
 
 export function ProfileStudio() {
   const [files, setFiles] = useState<StoredSource[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [source, setSource] = useState<string | null>(null);
   const [socialSources, setSocialSources] = useState<Partial<Record<SocialProvider, SocialSource>>>({});
-  const [connecting, setConnecting] = useState<SocialProvider | null>(null);
+  const [connecting, setConnecting] = useState<SocialProvider | 'dribbble' | null>(null);
+  const [dribbbleSource, setDribbbleSource] = useState<DribbbleSource | null>(null);
   const [profile, setProfile] = useState<Profile>(blank);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -25,12 +28,49 @@ export function ProfileStudio() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const dribbbleResult = query.get('dribbble');
+    let restoredProfile = false;
+    if (dribbbleResult) {
+      try {
+        const saved = sessionStorage.getItem(DRIBBBLE_DRAFT_KEY);
+        if (saved) {
+          const draft = JSON.parse(saved) as { links?: unknown; profile?: unknown; tag?: unknown; consent?: unknown };
+          if (draft.links && typeof draft.links === 'object' && !Array.isArray(draft.links)) setLinks(draft.links as Record<string, string>);
+          if (draft.profile && typeof draft.profile === 'object' && !Array.isArray(draft.profile)) {
+            setProfile({ ...blank, ...(draft.profile as Partial<Profile>) });
+            restoredProfile = true;
+          }
+          if (typeof draft.tag === 'string') setTag(draft.tag);
+          if (typeof draft.consent === 'boolean') setConsent(draft.consent);
+        }
+      } catch { /* Ignore invalid temporary editor state. */ }
+      finally { sessionStorage.removeItem(DRIBBBLE_DRAFT_KEY); }
+    }
+    const resultMessages: Record<string, string> = {
+      connected: 'פרופיל Dribbble והעבודות הציבוריות נטענו. לחצו Generate כדי לשלב אותם בפרופיל.',
+      denied: 'חיבור Dribbble בוטל. אפשר לנסות שוב בכל עת.',
+      failed: 'לא הצלחנו לייבא את Dribbble. בדקו את הגדרות החיבור ונסו שוב.',
+      unconfigured: 'חיבור Dribbble עדיין לא הוגדר בסביבת השרת.',
+      'state-error': 'בקשת החיבור ל־Dribbble פגה או לא התאימה. התחילו את החיבור מחדש.',
+    };
+    if (dribbbleResult && resultMessages[dribbbleResult]) {
+      setNotice(resultMessages[dribbbleResult]);
+      query.delete('dribbble');
+      const suffix = query.toString();
+      window.history.replaceState({}, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}${window.location.hash}`);
+    }
     refreshFiles();
-    fetch('/api/marketplace/profile', { cache: 'no-store' }).then(async (response) => {
+    if (!restoredProfile) fetch('/api/marketplace/profile', { cache: 'no-store' }).then(async (response) => {
       if (response.ok) {
         const data = await response.json();
         if (data.profile) setProfile({ ...blank, ...data.profile });
       }
+    }).catch(() => {});
+    fetch('/api/integrations/dribbble', { cache: 'no-store' }).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json() as { import?: DribbbleSource | null };
+      setDribbbleSource(data.import || null);
     }).catch(() => {});
     fetch('/api/integrations/nango/connections', { cache: 'no-store' }).then(async (response) => {
       if (!response.ok) return;
@@ -135,6 +175,15 @@ export function ProfileStudio() {
     }
   }
 
+  function connectDribbble() {
+    try {
+      sessionStorage.setItem(DRIBBBLE_DRAFT_KEY, JSON.stringify({ links, profile, tag, consent }));
+    } catch { /* OAuth can continue when browser storage is unavailable. */ }
+    setConnecting('dribbble');
+    setNotice('מעבירים אותך ל־Dribbble לאישור קריאת פרטי הפרופיל והעבודות הציבוריות.');
+    window.location.assign('/api/integrations/dribbble/connect');
+  }
+
   async function disconnectSocial(provider: SocialProvider) {
     const connection = socialSources[provider];
     if (!connection) return;
@@ -144,6 +193,13 @@ export function ProfileStudio() {
     setNotice(`חיבור ${providerLabels[provider]} נותק. אפשר לבטל הרשאה גם בהגדרות הספק; מידע שכבר נשמר בפרופיל לא נמחק.`);
   }
 
+  async function removeDribbbleImport() {
+    const response = await fetch('/api/integrations/dribbble', { method: 'DELETE' }).catch(() => null);
+    if (!response?.ok) { setNotice('לא הצלחנו להסיר את ייבוא Dribbble. נסו שוב.'); return; }
+    setDribbbleSource(null);
+    setNotice('המידע שיובא מ־Dribbble הוסר. לביטול הרשאת האפליקציה, בקרו בהגדרות החשבון ב־Dribbble.');
+  }
+
   async function generate() {
     setBusy(true);
     setNotice('');
@@ -151,7 +207,11 @@ export function ProfileStudio() {
       const form = new FormData();
       form.set('sourceIds', JSON.stringify(files.map((file) => file.id)));
       form.set('urls', Object.values(links).filter(Boolean).join('\n'));
-      form.set('socialSources', JSON.stringify(Object.values(socialSources).filter((item): item is SocialSource => Boolean(item)).map(({ provider, sourceText }) => ({ provider, sourceText }))));
+      const importedSources: { provider: SocialProvider | 'dribbble'; sourceText: string }[] = Object.values(socialSources)
+        .filter((item): item is SocialSource => Boolean(item))
+        .map(({ provider, sourceText }) => ({ provider, sourceText }));
+      if (dribbbleSource) importedSources.push({ provider: 'dribbble', sourceText: dribbbleSource.sourceText });
+      form.set('socialSources', JSON.stringify(importedSources));
       const response = await fetch('/api/ai/profile', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
@@ -180,7 +240,7 @@ export function ProfileStudio() {
     }
   }
 
-  const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0;
+  const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0 || Boolean(dribbbleSource);
 
   return <section className="profile-studio">
     <h1>הסיפור המקצועי שלך.</h1>
@@ -201,6 +261,9 @@ export function ProfileStudio() {
         {(['linkedin', 'github'] as const).map((provider) => <button type="button" key={provider} className={socialSources[provider] ? 'linked' : ''} disabled={connecting !== null} onClick={() => connectSocial(provider)}>
           {connecting === provider ? 'מתחברים…' : `${providerLabels[provider]}${socialSources[provider] ? ' ✓' : ' ＋'}`}
         </button>)}
+        <button type="button" className={dribbbleSource ? 'linked' : ''} disabled={connecting !== null} onClick={connectDribbble}>
+          {connecting === 'dribbble' ? 'מתחברים…' : `Dribbble${dribbbleSource ? ' ✓' : ' ＋'}`}
+        </button>
         {platforms.map((platform) => <button type="button" key={platform} className={links[platform] ? 'linked' : ''} onClick={() => setSource(source === platform ? null : platform)}>{platform}{links[platform] ? ' ✓' : ' ＋'}</button>)}
       </div>
       {source && <label className="source-url">קישור ציבורי ל־{source}<input type="url" dir="ltr" placeholder="https://" value={links[source] || ''} onChange={(event) => setLinks({ ...links, [source]: event.target.value })}/></label>}
@@ -212,7 +275,13 @@ export function ProfileStudio() {
           <button type="button" onClick={() => void disconnectSocial(provider)} aria-label={`ניתוק ${providerLabels[provider]}`}>ניתוק</button>
         </article>;
       })}
+      {dribbbleSource && <article className="source-file social-import-card" key="dribbble">
+        <span><strong>Dribbble יובא</strong><small>{dribbbleSource.profile.name || dribbbleSource.url || 'פרטי הפרופיל והעבודות ייכללו ביצירה'}</small></span>
+        {dribbbleSource.url && <a href={dribbbleSource.url} target="_blank" rel="noreferrer">פתיחה ↗</a>}
+        <button type="button" onClick={() => void removeDribbbleImport()} aria-label="הסרת ייבוא Dribbble">הסרת ייבוא</button>
+      </article>}
       <small>GitHub ו־LinkedIn יתחברו בחלון מאובטח. אפשר להסיר את הייבוא בכל עת לפני יצירת הפרופיל.</small>
+      <small>Dribbble מייבא פרופיל ועבודות שפורסמו בלבד. הסרת המידע מכאן אינה מבטלת את הרשאת Dribbble. <a href="https://dribbble.com/account/applications" target="_blank" rel="noreferrer">ניהול הרשאות ב־Dribbble ↗</a></small>
       <label className="source-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/>מאשר/ת לשלוח את המסמכים, הקישורים והמידע המיובא שנבחרו ל־Google Vertex AI ליצירת טיוטה, כמפורט במדיניות הפרטיות.</label>
       <button type="button" className="generate-profile" disabled={busy || !consent || !hasSources} onClick={generate}>{busy ? 'יוצרים את הפרופיל…' : '✦ Generate'}</button>
     </div>

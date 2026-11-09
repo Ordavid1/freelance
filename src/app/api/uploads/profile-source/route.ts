@@ -50,8 +50,9 @@ export async function POST(request: Request) {
   try {
     await firestore().runTransaction(async (transaction) => {
       const existing = await transaction.get(sourceRef.parent);
-      const usedBytes = existing.docs.reduce((total, doc) => total + (typeof doc.get('size') === 'number' ? doc.get('size') as number : 0), 0);
-      if (existing.size >= 5) throw new Error('SOURCE_COUNT_LIMIT');
+      const fileSources = existing.docs.filter((doc) => typeof doc.get('objectName') === 'string' && typeof doc.get('size') === 'number');
+      const usedBytes = fileSources.reduce((total, doc) => total + (doc.get('size') as number), 0);
+      if (fileSources.length >= 5) throw new Error('SOURCE_COUNT_LIMIT');
       if (usedBytes + bytes.byteLength > 40 * 1024 * 1024) throw new Error('SOURCE_STORAGE_LIMIT');
       transaction.create(sourceRef, {
         objectName, name: safeName(file.name), contentType: extension === 'pdf' ? 'application/pdf' : 'text/plain',

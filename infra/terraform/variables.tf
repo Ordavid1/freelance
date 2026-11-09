@@ -52,3 +52,26 @@ variable "nango_linkedin_integration_id" {
   default     = "linkedin"
   description = "Integration ID configured in the Nango environment for LinkedIn OAuth."
 }
+variable "dribbble_client_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Public client ID from the Dribbble OAuth app."
+}
+variable "dribbble_client_secret_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Existing Secret Manager secret containing the rotated Dribbble OAuth client secret."
+}
+variable "dribbble_client_secret_version" {
+  type        = string
+  default     = "1"
+  description = "Enabled Secret Manager version for the Dribbble OAuth client secret."
+}
+variable "dribbble_redirect_uri" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Registered Dribbble callback URI. Defaults to the canonical app host's callback route."
+}
