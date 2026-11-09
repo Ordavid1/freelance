@@ -4,8 +4,18 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
+import { getProject } from '@/lib/data';
 
 export const runtime = 'nodejs';
+
+function timestampMillis(value: unknown): number {
+  if (value && typeof value === 'object' && 'toMillis' in value && typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Date.parse(value) || 0;
+  return 0;
+}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -13,15 +23,41 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   try {
-    let snapshot;
     if (projectSlug) {
       const project = await firestore().collection('projects').doc(projectSlug).get();
       if (!project.exists || project.get('ownerUid') !== user.uid) return NextResponse.json({ error: 'הפרויקט לא נמצא.' }, { status: 404 });
-      snapshot = await firestore().collection('proposals').where('projectSlug', '==', projectSlug).limit(100).get();
-    } else {
-      snapshot = await firestore().collection('proposals').where('freelancerUid', '==', user.uid).limit(100).get();
+      const snapshot = await firestore().collection('proposals').where('projectSlug', '==', projectSlug).limit(100).get();
+      const proposals = snapshot.docs.map((doc) => ({ id: doc.id, conversationId: doc.id, ...doc.data() }));
+      return NextResponse.json({ proposals }, { headers: { 'Cache-Control': 'no-store' } });
     }
-    const proposals = snapshot.docs.map((doc) => ({ id: doc.id, conversationId: doc.id, ...doc.data() }));
+
+    const [sentSnapshot, demoSnapshot] = await Promise.all([
+      firestore().collection('proposals').where('freelancerUid', '==', user.uid).limit(100).get(),
+      firestore().collection('demo-proposals').where('freelancerUid', '==', user.uid).limit(100).get(),
+    ]);
+    const proposals = [...sentSnapshot.docs, ...demoSnapshot.docs]
+      .map((doc) => {
+        const record = doc.data();
+        const isDemo = record.isDemo === true;
+        return {
+          id: doc.id,
+          conversationId: isDemo ? '' : doc.id,
+          projectSlug: typeof record.projectSlug === 'string' ? record.projectSlug : '',
+          projectTitle: typeof record.projectTitle === 'string' ? record.projectTitle : '',
+          message: typeof record.message === 'string' ? record.message : typeof record.text === 'string' ? record.text : '',
+          freelancerName: typeof record.freelancerName === 'string' ? record.freelancerName : '',
+          amount: typeof record.amount === 'number' ? record.amount : 0,
+          currency: typeof record.currency === 'string' ? record.currency : 'ILS',
+          pricingType: typeof record.pricingType === 'string' ? record.pricingType : 'fixed',
+          delivery: typeof record.delivery === 'string' ? record.delivery : '',
+          status: isDemo ? 'test' : typeof record.status === 'string' ? record.status : 'submitted',
+          isDemo,
+          createdAt: timestampMillis(record.createdAt),
+        };
+      })
+      .filter((proposal) => proposal.message.trim().length > 0)
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, 100);
     return NextResponse.json({ proposals }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון הצעות כרגע.' }, { status: 503 });
@@ -45,6 +81,29 @@ export async function POST(request: Request) {
   }
 
   const db = firestore();
+  const demoProject = typeof projectSlug === 'string' ? getProject(projectSlug) : undefined;
+  if (demoProject?.sample) {
+    try {
+      const demoProposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
+      await db.collection('demo-proposals').doc(demoProposalId).set({
+        projectSlug,
+        projectTitle: demoProject.title,
+        freelancerUid: user.uid,
+        message: message.trim(),
+        amount,
+        currency: 'ILS',
+        pricingType,
+        delivery: delivery.trim(),
+        status: 'test',
+        isDemo: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return NextResponse.json({ ok: true, demo: true }, { status: 201 });
+    } catch {
+      return NextResponse.json({ error: 'לא הצלחנו לשמור את הצעת הבדיקה.' }, { status: 503 });
+    }
+  }
+
   const projectRef = db.collection('projects').doc(projectSlug);
   const proposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
   const proposalRef = db.collection('proposals').doc(proposalId);
