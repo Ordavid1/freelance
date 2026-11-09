@@ -1,0 +1,71 @@
+.panel {
+  --billing-lime: var(--logo-lime, #ceef00);
+  --billing-ink: #151719;
+  background: #f7f9ed;
+  border-inline-start-color: var(--billing-lime);
+  color: var(--billing-ink);
+}
+
+.panel button.primary,
+.panel button.secondary {
+  min-height: 46px;
+  max-width: 100%;
+  padding: 12px 18px;
+  border: 1px solid var(--billing-ink);
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.panel button.primary {
+  background: var(--billing-lime);
+  color: var(--billing-ink);
+  box-shadow: 0 2px 0 var(--billing-ink);
+}
+
+.panel button.primary:hover:not(:disabled) {
+  background: var(--logo-lime-bright, #e0ff2a);
+}
+
+.panel button.primary:disabled {
+  background: #e2eea3;
+  border-color: #a4b45a;
+  color: #454a29;
+  opacity: 1;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.panel button.secondary {
+  background: transparent;
+  color: var(--billing-ink);
+  box-shadow: none;
+}
+
+.panel button.secondary:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.panel button.primary[aria-busy='true'],
+.panel button.secondary[aria-busy='true'] {
+  cursor: wait;
+}
+
+.panel button:focus-visible {
+  outline: 2px solid var(--billing-ink);
+  outline-offset: 3px;
+}
+
+.panel label a,
+.panel small a {
+  display: inline;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
