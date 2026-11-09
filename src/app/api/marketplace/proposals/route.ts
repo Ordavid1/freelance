@@ -64,6 +64,28 @@ export async function GET(request: Request) {
   }
 }
 
+async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: string, input: { projectSlug: string; projectTitle: string; message: string; amount: number; pricingType: unknown; delivery: string }) {
+  try {
+    const demoProposalId = createHash('sha256').update(`${input.projectSlug}:${uid}`).digest('hex');
+    await db.collection('demo-proposals').doc(demoProposalId).set({
+      projectSlug: input.projectSlug,
+      projectTitle: input.projectTitle,
+      freelancerUid: uid,
+      message: input.message,
+      amount: input.amount,
+      currency: 'ILS',
+      pricingType: input.pricingType,
+      delivery: input.delivery,
+      status: 'test',
+      isDemo: true,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return NextResponse.json({ ok: true, demo: true }, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: 'לא הצלחנו לשמור את הצעת הבדיקה.' }, { status: 503 });
+  }
+}
+
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
@@ -81,28 +103,21 @@ export async function POST(request: Request) {
   }
 
   const db = firestore();
-  const demoProject = typeof projectSlug === 'string' ? getProject(projectSlug) : undefined;
-  if (demoProject?.sample) {
+  // A sample project (static or persisted in Firestore) has no client: its bids stay private to the freelancer.
+  const staticProject = getProject(projectSlug);
+  let sampleTitle: string | null = staticProject?.sample ? staticProject.title : null;
+  if (sampleTitle === null && !staticProject) {
     try {
-      const demoProposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
-      await db.collection('demo-proposals').doc(demoProposalId).set({
-        projectSlug,
-        projectTitle: demoProject.title,
-        freelancerUid: user.uid,
-        message: message.trim(),
-        amount,
-        currency: 'ILS',
-        pricingType,
-        delivery: delivery.trim(),
-        status: 'test',
-        isDemo: true,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-      return NextResponse.json({ ok: true, demo: true }, { status: 201 });
+      const existingProject = await db.collection('projects').doc(projectSlug).get();
+      if (existingProject.exists && existingProject.get('sample') === true) {
+        const storedTitle = existingProject.get('title');
+        sampleTitle = typeof storedTitle === 'string' ? storedTitle : '';
+      }
     } catch {
-      return NextResponse.json({ error: 'לא הצלחנו לשמור את הצעת הבדיקה.' }, { status: 503 });
+      return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
     }
   }
+  if (sampleTitle !== null) return savePracticeProposal(db, user.uid, { projectSlug, projectTitle: sampleTitle, message: message.trim(), amount, pricingType, delivery: delivery.trim() });
 
   const projectRef = db.collection('projects').doc(projectSlug);
   const proposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
@@ -113,6 +128,7 @@ export async function POST(request: Request) {
     await db.runTransaction(async (transaction) => {
       const [project, existing] = await Promise.all([transaction.get(projectRef), transaction.get(proposalRef)]);
       if (!project.exists || project.get('status') !== 'open') throw new Error('PROJECT_CLOSED');
+      if (project.get('sample') === true) throw new Error('SAMPLE_PROJECT');
       if (project.get('ownerUid') === user.uid) throw new Error('OWN_PROJECT');
       if (existing.exists) throw new Error('DUPLICATE_PROPOSAL');
       const proposal = {
@@ -136,6 +152,7 @@ export async function POST(request: Request) {
     const reason = error instanceof Error ? error.message : '';
     if (reason === 'DUPLICATE_PROPOSAL') return NextResponse.json({ error: 'כבר שלחתם הצעה לפרויקט הזה.' }, { status: 409 });
     if (reason === 'OWN_PROJECT') return NextResponse.json({ error: 'אי אפשר להציע הצעה לפרויקט שפרסמתם.' }, { status: 403 });
+    if (reason === 'SAMPLE_PROJECT') return NextResponse.json({ error: 'אי אפשר לשלוח הצעה ללקוח/ה בפרויקט השראה.' }, { status: 409 });
     if (reason === 'PROJECT_CLOSED') return NextResponse.json({ error: 'הפרויקט כבר אינו פתוח להצעות.' }, { status: 409 });
     return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
   }

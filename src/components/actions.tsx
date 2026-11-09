@@ -3,12 +3,13 @@ import { MemberGate } from './trial-status';
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { SAMPLE_PROPOSAL_UNAVAILABLE } from '@/lib/projects/presentation';
 
 function ProposalActionContent({ title, projectSlug }: { title: string; projectSlug?: string }) {
   const [open, setOpen] = useState(false); const [sent, setSent] = useState(false); const [message,setMessage]=useState('');const [amount,setAmount]=useState('');const [delivery,setDelivery]=useState('');const [pricingType,setPricingType]=useState('fixed');const [error,setError]=useState('');const [busy,setBusy]=useState(false);
   async function send(){setBusy(true);setError('');try{const response=await fetch('/api/marketplace/proposals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectSlug,message,amount:Number(amount),delivery,pricingType})});const data=await response.json();if(!response.ok)throw new Error(data.error);setSent(true)}catch(cause){setError(cause instanceof Error?cause.message:'שליחת ההצעה נכשלה.')}finally{setBusy(false)}}
   if (sent) return <div className="notice">ההצעה נשלחה ונשמרה בפרויקט.</div>;
-  if (!projectSlug) return <div className="notice">פרויקט לדוגמה — אי אפשר לשלוח אליו הצעה.</div>;
+  if (!projectSlug) return <div className="notice">{SAMPLE_PROPOSAL_UNAVAILABLE}</div>;
   return <><button className="button button-dark" onClick={() => setOpen(!open)}>{open ? 'סגירת הטיוטה' : 'הכנת הצעה לפרויקט'}</button>{open && <div className="proposal-form"><label>איך תיגש/י לפרויקט הזה?<textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="שתפו בקצרה מה הבנתם ומה הייתם מציעים לעשות…"/></label><div className="proposal-row"><label>סוג תמחור<select value={pricingType} onChange={e=>setPricingType(e.target.value)}><option value="fixed">מחיר קבוע</option><option value="hourly">תעריף שעתי</option></select></label><label>הצעה (₪)<input type="number" min="1" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="4,500"/></label></div><label>זמן משוער<input value={delivery} onChange={e=>setDelivery(e.target.value)} placeholder="למשל, 3 שבועות"/></label>{error&&<p className="error-text" role="alert">{error}</p>}<div className="form-actions"><button className="button button-dark" disabled={busy} onClick={send}>{busy?'שולחים…':'שליחת הצעה'}</button><span className="form-help">הצעה ל־{title}</span></div></div>}</>;
 }
 

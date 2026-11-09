@@ -107,3 +107,15 @@ test('proposal history combines the user\'s submitted and demo messages and hand
   assert.equal(response.body.proposals[1].conversationId, 'live-1');
   assert.equal('clientUid' in response.body.proposals[1], false);
 });
+
+test('a Firestore sample project is routed to the private practice collection and never creates a conversation', async () => {
+  const { POST, records } = proposalRoute({ projects: { 'seed-sample-one': { title: 'Stored sample', sample: true, status: 'open', ownerUid: 'agent' } } });
+  const response = await POST(new Request('https://local.test/api/marketplace/proposals', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ projectSlug: 'seed-sample-one', message: 'I would approach the project in clear milestones.', amount: 900, delivery: 'Two weeks', pricingType: 'fixed' }),
+  }));
+  assert.equal(response.status, 201);
+  assert.equal(response.body.demo, true);
+  assert.equal(records.proposals.size, 0);
+  assert.equal([...records['demo-proposals'].values()][0].projectTitle, 'Stored sample');
+});

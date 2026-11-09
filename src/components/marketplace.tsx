@@ -3,6 +3,7 @@ import { ProjectDescription } from '@/components/project-description';
 
 import { TrialStatus } from './trial-status';
 import Link from 'next/link';
+import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY } from '@/lib/projects/presentation';
 import Image from 'next/image';
 import { useState } from 'react';
 import type { Project } from '@/lib/data';
@@ -34,7 +35,7 @@ export function ProjectCard({ project, compact = false, saved, onToggleSave }: {
     {!compact && <ProjectDescription text={project.description}/>}
     <div className="project-facts"><span><small>תקציב</small><strong>{project.budget}</strong></span><span><small>מועד</small><strong>{project.deadline}</strong></span><span><small>פורסם</small><strong>{project.posted}</strong></span></div>
     <OpportunitySignal project={project}/>
-    <div className="card-footer"><span className="client-avatar">{project.client.slice(0,1)}</span><span><strong>{project.client}</strong><small>{project.clientHistory}</small></span><Link href={`/projects/${project.slug}`} className="text-action">לפרטי הפרויקט <span>←</span></Link></div>
+    <div className="card-footer"><span className="client-avatar">{project.client.slice(0,1)}</span><span><strong>{project.client}{project.sample&&<span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</strong><small>{project.sample?SAMPLE_CLIENT_HISTORY:project.clientHistory}</small></span><Link href={`/projects/${project.slug}`} className="text-action">לפרטי הפרויקט <span>←</span></Link></div>
   </article>;
 }
 
