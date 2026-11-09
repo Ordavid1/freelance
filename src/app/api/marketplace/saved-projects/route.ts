@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     await db.runTransaction(async (transaction) => {
       const project = await transaction.get(projectRef);
-      if (body.saved && (!project.exists || project.get('status') !== 'open')) throw new Error('PROJECT_UNAVAILABLE');
+      if (body.saved && (!project.exists || project.get('status') !== 'open' || project.get('sample') === true)) throw new Error('PROJECT_UNAVAILABLE');
       if (body.saved) transaction.set(savedRef, { projectSlug: body.projectSlug, ownerUid: user.uid, createdAt: FieldValue.serverTimestamp() });
       else transaction.delete(savedRef);
     });

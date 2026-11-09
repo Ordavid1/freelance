@@ -26,6 +26,19 @@ test('publication excludes drafts, private/member-only records, samples and empt
   }
 });
 
+test('listable projects include samples and closed records but never private or empty ones', () => {
+  assert.equal(publication.isListableProject(publicRecord), true);
+  assert.equal(publication.isListableProject({ ...publicRecord, sample: true }), true);
+  assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true }), false);
+  assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true, owner: { kind: 'ai-agent' } }), true);
+  assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true, owner: { kind: 'human' } }), false);
+  assert.equal(publication.isListableProject({ ...publicRecord, status: 'closed' }), true);
+  assert.equal(publication.isDiscoverableProject({ ...publicRecord, status: 'closed' }), false);
+  for (const change of [{ status: 'draft' }, { status: 'archived' }, { visibility: 'private' }, { visibility: 'members' }, { title: '' }, { description: ' ' }]) {
+    assert.equal(publication.isListableProject({ ...publicRecord, ...change }), false);
+  }
+});
+
 test('canonical URLs reject external inputs and include per-page social metadata', () => {
   const metadata = site.pageMetadata('Example', 'Description', '/alternatives/xplace');
   assert.equal(metadata.alternates.canonical, 'https://freelance-place.com/alternatives/xplace');

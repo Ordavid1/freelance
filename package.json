@@ -9,7 +9,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:seo": "node --test tests/seo.test.mjs",
     "test:billing": "node --experimental-transform-types --experimental-test-module-mocks --test tests/billing.test.mjs tests/membership-state.test.mjs tests/membership-policy.test.mjs tests/cardcom-deployment.test.mjs",
-    "test:proposals": "node --test tests/proposals.test.mjs"
+    "test:proposals": "node --test tests/proposals.test.mjs",
+    "test:seed": "node --experimental-transform-types --test tests/seed-projects.test.mjs",
+    "seed:projects": "node --experimental-transform-types scripts/seed-projects/seed-projects.ts --catalog scripts/seed-projects/catalog.he.json"
   },
   "dependencies": {
     "@firebase/app": "0.14.9",

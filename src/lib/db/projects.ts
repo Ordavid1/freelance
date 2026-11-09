@@ -1,15 +1,17 @@
 import 'server-only';
 import type { Project } from '@/lib/data';
 import { firestore } from './firestore';
-import { isDiscoverableProject } from '@/lib/seo/publication';
+import { isDiscoverableProject, isListableProject } from '@/lib/seo/publication';
+import { SAMPLE_CLIENT_HISTORY } from '@/lib/projects/presentation';
 
-type ProjectDocument = {
+export type ProjectDocument = {
   title?: string; category?: string; description?: string; budget?: string; deadline?: string;
-  clientName?: string; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
+  clientName?: string; owner?: { kind?: string; name?: string; persona?: string }; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
 };
 
 export function toPublicProject(slug: string, record: ProjectDocument): Project {
-  const name = record.clientName || 'לקוח/ה חדש/ה';
+  const agent = record.sample === true && record.owner?.kind === 'ai-agent' ? record.owner : null;
+  const name = record.clientName || agent?.name || 'לקוח/ה חדש/ה';
   return {
     slug,
     title: record.title || '',
@@ -19,13 +21,15 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     deadline: record.deadline || 'גמיש',
     posted: 'פרויקט חדש',
     client: name,
-    clientHistory: 'פרויקט ראשון ב־Freelance Place',
+    clientHistory: record.sample === true ? SAMPLE_CLIENT_HISTORY : 'פרויקט ראשון ב־Freelance Place',
     skills: Array.isArray(record.skills) ? record.skills : [],
     fit: 'בדקו אם הפרויקט מתאים לכם',
     activity: 'פתוח להצעות',
     proposals: Number(record.proposals) || 0,
     status: record.status || 'open',
     createdAt: (record.createdAt as { toMillis?: () => number } | undefined)?.toMillis?.(),
+    ...(record.sample === true ? { sample: true } : {}),
+    ...(agent ? { ownerKind: 'ai-agent' as const, ...(agent.persona ? { ownerPersona: agent.persona } : {}) } : {}),
   };
 }
 
@@ -40,6 +44,6 @@ export async function listOpenProjects(): Promise<Project[]> {
 
 export async function getOpenProject(slug: string): Promise<Project | null> {
   const snapshot = await firestore().collection('projects').doc(slug).get();
-  if (!snapshot.exists || !isDiscoverableProject(snapshot.data() || {})) return null;
+  if (!snapshot.exists || !(snapshot.get('status') === 'open' && isListableProject(snapshot.data() || {}))) return null;
   return toPublicProject(snapshot.id, snapshot.data() as ProjectDocument);
 }
