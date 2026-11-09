@@ -1,0 +1,245 @@
+/* The workspace fills the browser. The project feed owns the desktop scroll. */
+@media (min-width: 761px) {
+  .studio {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    height: 100svh;
+    min-height: 100svh;
+    overflow: hidden;
+    grid-template-columns: minmax(340px, 2fr) minmax(0, 3fr);
+    gap: clamp(18px, 2vw, 32px);
+    padding: clamp(12px, 1.7vh, 18px) clamp(18px, 1.8vw, 30px);
+    margin: 0;
+  }
+
+  .personal {
+    position: static;
+    top: auto;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .studio-brand {
+    display: none;
+  }
+
+  .personal .auth-control {
+    flex: 0 0 auto;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .personal nav {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 3px;
+    padding: 0 0 8px;
+  }
+
+  .personal nav button {
+    min-width: 0;
+    padding: 8px clamp(5px, 0.8vw, 11px);
+    font-size: clamp(10px, 0.85vw, 13px);
+    white-space: nowrap;
+  }
+
+  .personal > .trial-status,
+  .personal > [role="status"],
+  .personal > [role="alert"] {
+    flex: 0 0 auto;
+    margin: 8px 0 0;
+    padding: clamp(9px, 1vh, 14px) clamp(11px, 1.2vw, 18px);
+    font-size: clamp(10px, 0.9vw, 13px);
+    line-height: 1.45;
+  }
+
+  .personal > .trial-status h2 {
+    margin: 0 0 5px;
+    font-size: clamp(14px, 1.2vw, 18px);
+  }
+
+  .personal > .trial-status p {
+    margin: 4px 0;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  .personal > .trial-status small {
+    margin-top: 5px;
+    font-size: 10px;
+  }
+
+  .personal > .trial-status a,
+  .personal > .trial-status button:not(.trial-dismiss) {
+    padding: 7px 11px;
+    font-size: 11px;
+  }
+
+  .personal .panel-view {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-top: clamp(9px, 1.3vh, 16px);
+    animation: none;
+  }
+
+  .panel-view .personal-title {
+    margin: 8px 0 4px;
+    font-size: clamp(21px, 1.9vw, 29px);
+    line-height: 1.25;
+  }
+
+  .panel-view > p {
+    margin: 4px 0 8px;
+    font-size: clamp(11px, 0.95vw, 14px);
+    line-height: 1.55;
+  }
+
+  .panel-view .role-choice {
+    flex: 0 0 auto;
+    margin: 8px 0 12px;
+  }
+
+  .panel-view .role-choice button {
+    padding: 8px 4px;
+    font-size: clamp(10px, 0.85vw, 12px);
+  }
+
+  .panel-view > h2:not(.personal-title) {
+    margin: 8px 0;
+  }
+
+  .studio-kpis {
+    flex: 0 0 auto;
+    gap: clamp(5px, 0.65vw, 9px);
+  }
+
+  .studio-kpis > div {
+    gap: 5px;
+    min-width: 0;
+    padding: clamp(10px, 1.2vh, 15px) 5px;
+  }
+
+  .studio-kpis b {
+    font-size: clamp(20px, 2vw, 28px);
+  }
+
+  .studio-kpis span {
+    font-size: clamp(9px, 0.75vw, 11px);
+  }
+
+  .profile-invite {
+    margin-top: clamp(14px, 2vh, 22px);
+    padding: clamp(12px, 1.4vw, 20px);
+  }
+
+  .profile-invite > span {
+    font-size: 22px;
+  }
+
+  .profile-invite h2 {
+    margin: 5px 0;
+    font-size: clamp(13px, 1.05vw, 16px);
+  }
+
+  .profile-invite p {
+    margin: 5px 0 8px;
+    font-size: clamp(10px, 0.82vw, 12px);
+    line-height: 1.5;
+  }
+
+  .profile-invite button {
+    font-size: clamp(10px, 0.82vw, 12px);
+  }
+
+  .personal footer {
+    flex: 0 0 auto;
+    margin: 7px 0 0;
+    font-size: 9px;
+    line-height: 1.4;
+  }
+
+  .studio-feed {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    padding: 8px 0 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
+/* Tight 14-inch laptop heights keep the welcome panel usable without its own scroll. */
+@media (min-width: 761px) and (max-height: 760px) {
+  .studio {
+    gap: 16px;
+    padding-block: 8px;
+  }
+
+  .personal .auth-control {
+    margin-bottom: 4px;
+  }
+
+  .personal nav {
+    padding-bottom: 5px;
+  }
+
+  .personal > .trial-status,
+  .personal > [role="status"],
+  .personal > [role="alert"] {
+    margin-top: 5px;
+    padding-block: 7px;
+  }
+
+  .personal .panel-view {
+    padding-top: 6px;
+  }
+
+  .panel-view .role-choice {
+    margin-block: 6px 9px;
+  }
+
+  .profile-invite {
+    margin-top: 10px;
+    padding: 10px 12px;
+  }
+
+  .personal footer {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .profile-invite {
+    margin-top: 14px;
+  }
+}
+
+/* Keep the workspace at viewport height while discovery/legal content stays in the feed. */
+@media (min-width: 761px) {
+  body:has(.studio) .legal-footer {
+    display: none;
+  }
+}
+
+
+/* Keep the approved mark beside the feed title at the old sparkle's scale. */
+.feed-brand-mark {
+  display: block;
+  width: 56px;
+  height: 56px;
+  max-width: 56px;
+  max-height: 56px;
+  flex: 0 0 56px;
+  object-fit: contain;
+}
