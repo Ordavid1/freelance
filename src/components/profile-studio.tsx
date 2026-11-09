@@ -283,7 +283,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setProfile({ ...blank, ...data });
-      setNotice(data.demo ? 'המידע מוכן, אבל Vertex AI עדיין לא הוגדר ליצירת טיוטה.' : 'הטיוטה מוכנה לבדיקה. השלימו או תקנו כל פרט לפני שמירה.');
+      setNotice(data.demo ? 'המידע מוכן, אבל Vertex AI עדיין לא הוגדר ליצירת טיוטה.' : ['הטיוטה מוכנה לבדיקה. השלימו או תקנו כל פרט לפני שמירה.', ...(Array.isArray(data.warnings) ? data.warnings : [])].join(' '));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'היצירה נכשלה.');
     } finally {
