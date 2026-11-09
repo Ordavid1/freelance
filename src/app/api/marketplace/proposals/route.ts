@@ -82,3 +82,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
   }
 }
+
+export async function PATCH(request: Request) {
+  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לבטל הצעה.' }, { status: 401 });
+  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
+  const body = await request.json().catch(() => null);
+  if (typeof body?.proposalId !== 'string' || !/^[a-f0-9]{64}$/.test(body.proposalId)) return NextResponse.json({ error: 'הצעה לא תקינה.' }, { status: 400 });
+  const db = firestore();
+  try {
+    await db.runTransaction(async transaction => {
+      const ref = db.collection('proposals').doc(body.proposalId);
+      const proposal = await transaction.get(ref);
+      if (!proposal.exists || proposal.get('freelancerUid') !== user.uid) throw new Error('NOT_FOUND');
+      if (proposal.get('status') === 'withdrawn') return;
+      if (proposal.get('status') !== 'submitted') throw new Error('INVALID_STATUS');
+      const projectRef = db.collection('projects').doc(proposal.get('projectSlug'));
+      const project = await transaction.get(projectRef);
+      transaction.update(ref, { status: 'withdrawn', updatedAt: FieldValue.serverTimestamp() });
+      if (project.exists) transaction.update(projectRef, { proposals: Math.max(0, Number(project.get('proposals') || 0) - 1), updatedAt: FieldValue.serverTimestamp() });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : '';
+    return NextResponse.json({ error: reason === 'NOT_FOUND' ? 'ההצעה לא נמצאה.' : reason === 'INVALID_STATUS' ? 'לא ניתן לבטל את ההצעה במצב הנוכחי.' : 'ביטול ההצעה נכשל.' }, { status: reason === 'NOT_FOUND' ? 404 : reason === 'INVALID_STATUS' ? 409 : 503 });
+  }
+}
