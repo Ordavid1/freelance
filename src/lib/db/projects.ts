@@ -25,6 +25,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     activity: 'פתוח להצעות',
     proposals: Number(record.proposals) || 0,
     status: record.status || 'open',
+    createdAt: (record.createdAt as { toMillis?: () => number } | undefined)?.toMillis?.(),
   };
 }
 

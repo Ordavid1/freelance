@@ -1,7 +1,7 @@
 export type Project = {
   slug: string; title: string; category: string; description: string; budget: string;
   deadline: string; posted: string; client: string; clientHistory: string;
-  skills: string[]; status?: string; fit: string; activity: string; proposals: number; featured?: boolean; sample?: boolean;
+  skills: string[]; status?: string; createdAt?: number; fit: string; activity: string; proposals: number; featured?: boolean; sample?: boolean;
 };
 
 export const projects: Project[] = [

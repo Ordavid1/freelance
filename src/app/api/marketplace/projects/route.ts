@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
-import { listOpenProjects, toPublicProject } from '@/lib/db/projects';
+import { toPublicProject } from '@/lib/db/projects';
+import { isDiscoverableProject } from '@/lib/seo/publication';
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,8 @@ export async function GET(request: Request) {
       const items = snapshot.docs.map((doc) => toPublicProject(doc.id, doc.data())).sort((a, b) => a.title.localeCompare(b.title));
       return NextResponse.json({ items }, { headers: { 'Cache-Control': 'no-store' } });
     }
-    const items = await listOpenProjects();
+    const snapshot = await firestore().collection('projects').where('status', 'in', ['open', 'closed']).limit(100).get();
+    const items = snapshot.docs.filter(doc => isDiscoverableProject(doc.data())).map(doc => toPublicProject(doc.id, doc.data())).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     return NextResponse.json({ items }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון פרויקטים כרגע.' }, { status: 503 });
