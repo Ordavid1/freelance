@@ -10,6 +10,7 @@ export function ProjectProposals({ projectSlug, initialStatus = 'open', onClosed
   const viewer = useViewer();
   const [status, setStatus] = useState(initialStatus);
   const [closing, setClosing] = useState(false);
+  useEffect(() => { setStatus(initialStatus); }, [projectSlug, initialStatus]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {

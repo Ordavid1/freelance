@@ -151,3 +151,16 @@ test('public project reads are cached for 60 seconds with project tags', async (
   assert.equal(perProject.map(({ options }) => options.tags[1]).join('|'), 'project:a b|project:missing');
   assert.equal(perProject.map(({ keys }) => keys[1]).join('|'), 'a b|missing');
 });
+
+test('project proposal controls use the saved closed status after remounting', () => {
+  const { ProjectProposals } = load('src/components/project-proposals.tsx', {
+    './viewer-context': { useViewer: () => ({ status: 'signed-in', user: { uid: 'owner' } }) },
+  });
+  const render = (initialStatus) => renderToStaticMarkup(createElement(ProjectProposals, { projectSlug: 'persisted-project', initialStatus }));
+  assert.match(render('open'), /סגירת הפרויקט/);
+  for (let refresh = 0; refresh < 2; refresh++) {
+    const markup = render('closed');
+    assert.match(markup, /הפרויקט סגור/);
+    assert.doesNotMatch(markup, /סגירת הפרויקט/);
+  }
+});
