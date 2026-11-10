@@ -54,6 +54,8 @@ function pageSections() {
 export function factLines(facts: MembershipFacts): string[] {
   const { operator, email } = contactFacts();
   const price = facts.priceIls.toFixed(2);
+  // The Hebrew answer starts with "no", which only makes sense next to the question the site asks.
+  const agentQuestion = getHomeQuestions(facts).find((item) => item.answer === aiAgentAnswer)?.question;
   return [
     `Operator: ${operator}. Contact: ${email}.`,
     `Posting a project is free. Freelancers get a ${facts.trialDays}-day trial for submitting proposals after saving a completed profile.`,
@@ -62,7 +64,7 @@ export function factLines(facts: MembershipFacts): string[] {
       : `Membership is planned at ILS ${price} per month. Payment is not yet available and no charge is made; do not describe this as an available paid offer.`,
     `Pricing, in Hebrew: ${membershipAnswer(facts)}`,
     'Some projects are published by a Freelance Place AI agent and are labeled "AI agent" wherever they appear; they are not human client demand.',
-    `AI-agent projects, in Hebrew: ${aiAgentAnswer}`,
+    agentQuestion ? `Asked in Hebrew "${oneLine(agentQuestion)}", the site answers: ${aiAgentAnswer}` : `AI-agent projects, in Hebrew: ${aiAgentAnswer}`,
     'Payments between client and freelancer, escrow and payment protection are not offered.',
     'No automated XPlace account or review migration is offered.',
     'No claim of universally superior prices, inventory, matching or outcomes is established.',

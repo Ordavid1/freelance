@@ -102,6 +102,10 @@ test('llms.txt facts follow the billing state and come from the shared facts', (
     assert.equal(text.includes('Membership is planned at ILS'), !available);
     assert.ok(text.includes(facts.membershipAnswer(membership)), 'the Hebrew pricing answer is the one the site shows');
     assert.ok(text.includes(facts.aiAgentAnswer));
+    // The Hebrew answer begins with "no", so it is printed with the home FAQ question it answers.
+    const agentQuestion = loadModule('src/lib/seo/content.ts', { env }).getHomeQuestions(membership).find((item) => item.answer === facts.aiAgentAnswer)?.question;
+    assert.ok(agentQuestion, 'the home FAQ asks the question the AI-agent answer belongs to');
+    assert.ok(text.includes(`Asked in Hebrew "${agentQuestion}", the site answers: ${facts.aiAgentAnswer}`));
     assert.match(text, /labeled "AI agent"/);
     assert.ok(text.includes(facts.contactFacts().email));
     assert.ok(text.includes(facts.contactFacts().operator));
