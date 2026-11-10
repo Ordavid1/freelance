@@ -63,13 +63,17 @@ test('JSON-LD escapes script injection and round-trips text', () => {
 
 test('preview environment blocks crawling and production keeps render assets crawlable', () => {
   const preview = load('src/lib/seo/site.ts', {}, {});
-  const robots = load('src/app/robots.ts', { '@/lib/seo/site': preview }).default();
+  // robots.ts imports the crawler registry, so it is loaded with the project loader.
+  const robots = loadModule('src/app/robots.ts', { env: {} }).default();
   assert.equal(robots.rules.disallow, '/');
   assert.equal(preview.pageMetadata('Preview', 'Not public', '/').robots.index, false);
-  const prod = load('src/app/robots.ts', { '@/lib/seo/site': site }).default();
-  assert.equal(prod.rules.allow, '/');
-  assert.equal(prod.rules.disallow.includes('/_next/'), false);
-  assert.equal(prod.rules.disallow.includes('/messages'), false);
+  const prod = loadModule('src/app/robots.ts').default();
+  // The wildcard group comes first; the named crawler groups are covered by tests/seo-crawlers.test.mjs.
+  const wildcard = prod.rules[0];
+  assert.equal(wildcard.userAgent, '*');
+  assert.equal(wildcard.allow, '/');
+  assert.equal(wildcard.disallow.includes('/_next/'), false);
+  assert.equal(wildcard.disallow.includes('/messages'), false);
   assert.equal(prod.sitemap, 'https://freelance-place.com/sitemap.xml');
 });
 
