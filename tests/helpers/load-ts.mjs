@@ -9,6 +9,7 @@
 //   never silently reach firebase-admin, the network or the file system.
 // - react, react/jsx-runtime and react-dom/server are real, so components can be
 //   rendered with renderToStaticMarkup.
+import { webcrypto } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -45,7 +46,7 @@ function defaultStubs() {
 export function loadModule(entry, { stubs = {}, env = { SITE_INDEXABLE: 'true' } } = {}) {
   const allStubs = { ...defaultStubs(), ...stubs };
   const context = vm.createContext({
-    process: { env: { ...env } }, console, URL, URLSearchParams, TextEncoder, TextDecoder, Buffer,
+    process: { env: { ...env } }, console, crypto: webcrypto, URL, URLSearchParams, TextEncoder, TextDecoder, Buffer,
     setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask, structuredClone,
     fetch: globalThis.fetch, Response, Request, Headers, AbortController, AbortSignal,
   });

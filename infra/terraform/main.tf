@@ -1,6 +1,6 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
@@ -293,7 +293,8 @@ resource "google_cloud_run_v2_service" "engine" {
   deletion_protection = true
   ingress             = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   template {
-    service_account = google_service_account.account["runtime"].email
+    max_instance_request_concurrency = 4
+    service_account                  = google_service_account.account["runtime"].email
     scaling {
       min_instance_count = 0
       max_instance_count = 5
@@ -302,7 +303,7 @@ resource "google_cloud_run_v2_service" "engine" {
       image = var.engine_image
       ports { container_port = 8080 }
       resources {
-        limits   = { cpu = "1", memory = "512Mi" }
+        limits   = { cpu = "1", memory = "1Gi" }
         cpu_idle = true
       }
       env {
@@ -336,6 +337,10 @@ resource "google_cloud_run_v2_service" "engine" {
       env {
         name  = "FIREBASE_PROJECT_ID"
         value = var.project_id
+      }
+      env {
+        name  = "MAINTENANCE_SCHEDULER_EMAIL"
+        value = google_service_account.maintenance_scheduler.email
       }
       env {
         name  = "UPLOADS_BUCKET"
@@ -467,8 +472,8 @@ resource "google_compute_backend_service" "website" {
 resource "google_compute_security_policy" "website" {
   count = var.engine_image == null ? 0 : 1
   name  = "freelance-marketplace-edge"
-  # Preview first: shared office/mobile IPs and code-rich project briefs must
-  # be measured before enforcement. App account quotas remain enforced.
+  # Preview logs reviewed before enforcement. The initial 120/minute budget
+  # is raised to 600/minute for shared networks; account quotas remain enforced.
   rule {
     priority = 1000
     action   = "throttle"
@@ -481,7 +486,7 @@ resource "google_compute_security_policy" "website" {
       exceed_action  = "deny(429)"
       enforce_on_key = "IP"
       rate_limit_threshold {
-        count        = 120
+        count        = 600
         interval_sec = 60
       }
     }

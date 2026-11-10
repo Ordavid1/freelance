@@ -1,0 +1,14 @@
+# Reviewed public identifiers and fixtures, not credential payloads.
+# Exact historical fingerprints only; new commits and values are still scanned.
+# src/lib/seo/indexnow.ts — Public IndexNow key / fixture
+bc826395a8386965bf2424f15be4170733b4cb74:src/lib/seo/indexnow.ts:generic-api-key:10
+# scripts/indexnow-submit.mjs — Public IndexNow key / fixture
+bc826395a8386965bf2424f15be4170733b4cb74:scripts/indexnow-submit.mjs:generic-api-key:19
+# docs/nango-social-profile.md — Public LinkedIn OAuth client identifier
+c4043e26dd548567bc88d4b424e45a9441ecda13:docs/nango-social-profile.md:linkedin-client-id:28
+# deploy/production.env — Public LinkedIn OAuth client identifier
+c4043e26dd548567bc88d4b424e45a9441ecda13:deploy/production.env:linkedin-client-id:10
+# tests/seo-indexnow.test.mjs — Public IndexNow key / fixture
+bc826395a8386965bf2424f15be4170733b4cb74:tests/seo-indexnow.test.mjs:generic-api-key:506
+# scripts/prepare-cardcom.mjs — Secret Manager resource name, not secret contents
+284d857e260a3b9423a1406220b54dc99e581234:scripts/prepare-cardcom.mjs:generic-api-key:11

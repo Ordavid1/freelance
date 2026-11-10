@@ -77,7 +77,11 @@ export async function POST(request: Request) {
       contentType: extension === 'pdf' ? 'application/pdf' : 'text/plain',
       metadata: { metadata: { ownerUid: user.uid, sourceId: id } },
     });
-    await sourceRef.update({ status: 'ready' });
+    await firestore().runTransaction(async tx => {
+      const current = await tx.get(sourceRef);
+      if (current.get('status') !== 'uploading' || current.get('cleanupLease')) throw new Error('UPLOAD_FINALIZATION_UNAVAILABLE');
+      tx.update(sourceRef, { status: 'ready' });
+    });
     return NextResponse.json({ source: { id, name: safeName(file.name), size: bytes.byteLength } }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     await object.delete({ ignoreNotFound: true }).catch(() => undefined);

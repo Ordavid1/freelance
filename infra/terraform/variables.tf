@@ -13,7 +13,7 @@ variable "canonical_domain" {
 }
 variable "edge_rate_limit_preview" {
   type        = bool
-  default     = true
+  default     = false
   description = "Observe the Cloud Armor per-IP API budget before enforcing it. Set false only after reviewing shared-IP traffic, OAuth and Cardcom callbacks."
 }
 variable "google_sign_in_enabled" {
