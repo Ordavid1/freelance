@@ -215,7 +215,7 @@ Numbers are interpolated from `membershipFacts()`.
 - [!] **Search Console and Bing Webmaster verification.** Needs Or's Google/Microsoft login. Steps in `docs/seo-aeo.md`. Fastest: add the Domain property in Search Console (DNS TXT), submit `https://freelance-place.com/sitemap.xml`, then in Bing Webmaster Tools use "Import from Google Search Console".
 - [!] **Infra approval (Terraform PR on request):** Cloud Run `min_instance_count = 1` + `startup_cpu_boost = true` (removes cold starts for crawlers, est. low double-digit USD/month) and Cloud CDN on the backend service so anonymous HTML can be cached with `s-maxage`. Also drop `:443` from the HTTP→HTTPS redirect target.
 - [!] **Firestore composite index** `projects(status ASC, createdAt DESC)` before the catalogue passes 100 open projects (F12).
-- [!] **Separate branch/PR for WP3** so the home-page refactor can be reviewed and merged independently of the content/schema work.
+- [x] **Separate branch/PR for WP3**: Or chose a separate branch and PR (2026-11-10).
 - [!] `sameAs` profile URLs (LinkedIn company page etc.) once they exist; they go in `src/lib/seo/profiles.ts`.
 - [!] English / hreflang layer and public freelancer profiles are product decisions (WP6).
 - [!] Seeded AI-agent projects: they are indexable today (earlier decision). Recommendation: keep indexable until the planned purge date, never mark as jobs, and return 404 after purge. Reconsider `noindex` if Search Console shows thin-content or soft-404 signals.
@@ -231,3 +231,4 @@ Create and fill a LinkedIn company page and add it to `sameAs`; list the product
 
 ## 8. Progress log
 - 2026-11-10: audit complete; plan written.
+- 2026-11-10: WP1 foundation merged on the thread branch (facts, schema builders, registry, pageMetadata v2, SiteFooter, honest billing/AI-agent copy). Or chose a separate branch and PR for WP3 (home performance). Content lint (`tests/seo-content.test.mjs`) and data module layout added: `src/lib/seo/skill-data/*`, `guides/<slug>.ts`, `glossary-data.ts`, `category-faq.ts`, `info-content.ts`. Skill type gained optional `sources` and `disclaimer`.

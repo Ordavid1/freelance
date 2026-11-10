@@ -46,5 +46,7 @@ export type Skill = {
   questions: Question[];        // >= 3
   related: string[];            // other skill slugs
   guides?: string[];            // guide slugs
+  sources?: { name: string; url: string; checked: string }[]; // official pages behind any external fact
+  disclaimer?: string;          // shown under the page, e.g. "not legal advice"
   published: string; modified: string;
 };
