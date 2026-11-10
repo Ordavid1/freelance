@@ -185,6 +185,7 @@ test('toPublicProject exposes createdAt and updatedAt as milliseconds', () => {
     env,
     stubs: {
       './firestore': { firestore: () => { throw new Error('not used'); } },
+      'next/cache': { unstable_cache: (fn) => fn },
     },
   });
   const timestamp = (millis) => ({ toMillis: () => millis });
