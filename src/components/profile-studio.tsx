@@ -21,6 +21,19 @@ function splitEntries(value: string) {
   return value.split(/\r?\n/).map((entry) => entry.trim().replace(/^[•▪*-]\s*/, '')).filter(Boolean);
 }
 
+function PortfolioLine({ entry, index, onChange, onRemove }: { entry: string; index: number; onChange: (value: string) => void; onRemove: () => void }) {
+  const url = entry.match(/https?:\/\/[^\s)]+/i)?.[0];
+  const title = url ? entry.replace(url, '').replace(/[|:–—-]\s*$/, '').trim() || new URL(url).hostname : entry;
+  return <div className="profile-entry-pill portfolio-entry-pill">
+    <span className="profile-entry-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+    {url ? <a className="portfolio-preview" href={url} target="_blank" rel="noopener noreferrer" aria-label={`פתיחת ${title} בכרטיסייה חדשה`}>
+      <img src={`https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(url)}&sz=128`} alt="" loading="lazy" />
+      <span><strong>{title}</strong><small dir="ltr">{new URL(url).hostname}</small></span><b aria-hidden="true">↗</b>
+    </a> : <textarea aria-label={`תיק עבודות, פריט ${index + 1}`} rows={1} value={entry} onChange={(event) => onChange(event.target.value)} />}
+    <button className="profile-entry-remove" type="button" onClick={onRemove} aria-label={`הסרת פריט ${index + 1}`}>×</button>
+  </div>;
+}
+
 function ProfileEntryEditor({ title, value, onChange, placeholder }: { title: string; value: string; onChange: (value: string) => void; placeholder: string }) {
   const [draft, setDraft] = useState('');
   const entries = splitEntries(value);
@@ -28,7 +41,7 @@ function ProfileEntryEditor({ title, value, onChange, placeholder }: { title: st
   const remove = (index: number) => onChange(entries.filter((_, i) => i !== index).join('\n'));
   return <section className="profile-entry-group" aria-label={title}>
     <div className="profile-entry-heading">{title}<small>{entries.length} פריטים</small></div>
-    <div className="profile-entry-list">{entries.length ? entries.map((entry, index) => <div className="profile-entry-pill" key={`${index}-${entry.slice(0, 24)}`}>
+    <div className="profile-entry-list">{entries.length ? entries.map((entry, index) => title.startsWith('תיק עבודות') ? <PortfolioLine key={`${index}-${entry.slice(0, 24)}`} entry={entry} index={index} onChange={(text) => update(index, text)} onRemove={() => remove(index)}/> : <div className="profile-entry-pill" key={`${index}-${entry.slice(0, 24)}`}>
       <span className="profile-entry-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
       <textarea aria-label={`${title}, פריט ${index + 1}`} rows={1} value={entry} onChange={(event) => update(index, event.target.value)} placeholder={placeholder}/>
       <button className="profile-entry-remove" type="button" onClick={() => remove(index)} aria-label={`הסרת פריט ${index + 1}`}>×</button>

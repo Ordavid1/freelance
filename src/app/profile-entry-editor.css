@@ -38,6 +38,22 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+.portfolio-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 4px 0;
+  color: #202438;
+  text-decoration: none;
+}
+.portfolio-preview img { width: 42px; height: 42px; object-fit: contain; border-radius: 10px; background: #fff; }
+.portfolio-preview span { display: grid; gap: 3px; min-width: 0; }
+.portfolio-preview strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(12px, .85vw, 15px); }
+.portfolio-preview small { color: #73785e; font-size: 11px; }
+.portfolio-preview b { margin-inline-start: auto; color: #151719; font-size: 18px; }
+.portfolio-preview:focus-visible { outline: 2px solid #151719; outline-offset: 3px; border-radius: 8px; }
+
 .profile-entry-pill:focus-within {
   border-color: #9db800;
   outline: 2px solid #151719;
