@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useViewer } from './viewer-context';
+import { SupportHeaderActions } from './support-chat';
 
 // Firebase Auth (SDK, gapi and the auth iframe) is only needed when someone signs in, so it
 // loads on sign-in intent (pointer, focus or touch on the button), on the visitor's first sign of
@@ -19,6 +20,10 @@ async function loadFirebaseAuth() {
 type FirebaseAuthClient = Awaited<ReturnType<typeof loadFirebaseAuth>>;
 
 export function AuthControl() {
+  return <SupportHeaderActions><AuthControlContent /></SupportHeaderActions>;
+}
+
+function AuthControlContent() {
   const viewer = useViewer();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

@@ -5,6 +5,8 @@ import { adminAuth } from '@/lib/auth/firebase-admin';
 import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
 import { readJsonBody } from '@/lib/security/request-body';
 
+import { SUPPORT_COOKIE } from '@/lib/support/shared';
+
 export const runtime = 'nodejs';
 
 function sameToken(left: string, right: string) {
@@ -67,6 +69,8 @@ export async function DELETE(request: Request) {
   const cookieStore = await cookies();
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0 });
+  // End the browser's support session too, especially on shared devices.
+  response.cookies.set(SUPPORT_COOKIE, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/support', maxAge: 0 });
   response.cookies.set('fz_csrf', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
   return response;
 }

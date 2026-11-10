@@ -39,6 +39,8 @@ function defaultStubs() {
     react: { ...React, cache: (fn) => fn },
     'next/link': { default: ({ href, children, prefetch, ...rest }) => React.createElement('a', { href: typeof href === 'string' ? href : String(href), ...rest }, children) },
     'next/image': { default: ({ src, alt, width, height, priority, ...rest }) => React.createElement('img', { src, alt, width, height, ...rest }) },
+    // Lazy browser-only panels are not exercised by server-rendering tests.
+    'next/dynamic': { __esModule: true, default: () => () => null },
     'next/navigation': { notFound() { throw Object.assign(new Error('NEXT_NOT_FOUND'), { digest: 'NEXT_NOT_FOUND' }); } },
   };
 }

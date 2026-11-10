@@ -72,6 +72,14 @@ resource "google_service_account" "billing_scheduler" {
   display_name = "Freelance Cardcom renewal scheduler"
   depends_on   = [google_project_service.api]
 }
+resource "google_secret_manager_secret_iam_member" "runtime_resend" {
+  for_each   = var.resend_secrets
+  project    = each.value.project
+  secret_id  = each.value.name
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:${google_service_account.account["runtime"].email}"
+  depends_on = [google_project_service.api]
+}
 resource "google_cloud_scheduler_job" "billing" {
   count            = var.billing_enabled && var.engine_image != null ? 1 : 0
   name             = "freelance-membership-renewal"
@@ -407,6 +415,34 @@ resource "google_cloud_run_v2_service" "engine" {
         value = tostring(var.billing_enabled)
       }
       env {
+        name  = "SUPPORT_INBOX_EMAIL"
+        value = var.support_inbox_email
+      }
+      env {
+        name  = "SUPPORT_FROM_EMAIL"
+        value = var.support_from_email
+      }
+      env {
+        name  = "SUPPORT_REPLY_DOMAIN"
+        value = var.support_reply_domain
+      }
+      env {
+        name  = "SUPPORT_ALLOWED_REPLY_EMAILS"
+        value = join(",", var.support_allowed_reply_emails)
+      }
+      dynamic "env" {
+        for_each = var.resend_secrets
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = "projects/${env.value.project}/secrets/${env.value.name}"
+              version = env.value.version
+            }
+          }
+        }
+      }
+      env {
         name  = "BILLING_SCHEDULER_EMAIL"
         value = google_service_account.billing_scheduler.email
       }
@@ -434,7 +470,7 @@ resource "google_cloud_run_v2_service" "engine" {
     }
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom, google_secret_manager_secret_iam_member.runtime_resend]
 }
 resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
   count    = var.engine_image == null ? 0 : 1

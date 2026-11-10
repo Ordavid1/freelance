@@ -55,6 +55,7 @@ test('session creation uses the same origin check and retains CSRF validation', 
     'next/server': { NextResponse },
     '@/lib/auth/firebase-admin': {},
     '@/lib/auth/session': session(),
+    '@/lib/support/shared': load('src/lib/support/shared.ts', {}, {}),
   });
   const validOrigin = await route.POST(new Request(backend, { method: 'POST', headers: { origin: env.NEXT_PUBLIC_SITE_URL, 'Content-Type': 'application/json' }, body: '{}' }));
   assert.equal((await validOrigin.json()).error, 'Refresh the page and try again.');

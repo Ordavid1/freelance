@@ -99,3 +99,37 @@ variable "cardcom_secrets" {
     error_message = "Cardcom secret versions must be pinned positive version numbers, not latest aliases."
   }
 }
+
+variable "support_inbox_email" {
+  type        = string
+  default     = "customer@freelance-place.com"
+  description = "Owner inbox receiving support notifications and allowed to reply into chat."
+}
+variable "support_from_email" {
+  type        = string
+  default     = ""
+  description = "Sender on a domain verified in Resend. Empty keeps chat in email fallback mode."
+}
+variable "support_reply_domain" {
+  type        = string
+  default     = ""
+  description = "Dedicated receiving subdomain configured with Resend MX; never replace the owner's inbox MX."
+}
+variable "support_allowed_reply_emails" {
+  type        = list(string)
+  default     = []
+  description = "Additional owner/team email addresses allowed to reply into chat. The support inbox is always allowed."
+}
+variable "resend_secrets" {
+  type        = map(object({ project = string, name = string, version = string }))
+  default     = {}
+  description = "Existing Secret Manager references for RESEND_API_KEY and RESEND_WEBHOOK_SECRET. Values never enter Terraform."
+  validation {
+    condition     = alltrue([for key in keys(var.resend_secrets) : contains(["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET"], key)])
+    error_message = "Only RESEND_API_KEY and RESEND_WEBHOOK_SECRET are supported."
+  }
+  validation {
+    condition     = alltrue([for ref in values(var.resend_secrets) : can(regex("^[1-9][0-9]*$", ref.version))])
+    error_message = "Resend secret versions must be pinned positive version numbers."
+  }
+}

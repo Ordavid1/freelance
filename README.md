@@ -18,3 +18,7 @@ The Next.js application source is included. See the deployment status and readin
 ## Search and answer discovery
 
 [SEO/AEO implementation and launch checks](docs/seo-aeo.md)
+
+## Customer support
+
+[Chat widget, Resend email replies, runtime variables, and activation checks](docs/support-chat.md)

@@ -1,0 +1,10 @@
+{
+  "support_inbox_email": "customer@freelance-place.com",
+  "support_from_email": "Freelance Place <customer@freelance-place.com>",
+  "support_reply_domain": "chat.freelance-place.com",
+  "support_allowed_reply_emails": [],
+  "resend_secrets": {
+    "RESEND_API_KEY": { "project": "freelance-514118", "name": "RESEND_API_KEY", "version": "1" },
+    "RESEND_WEBHOOK_SECRET": { "project": "freelance-514118", "name": "RESEND_WEBHOOK_SECRET", "version": "1" }
+  }
+}
