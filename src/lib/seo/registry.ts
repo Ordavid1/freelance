@@ -21,9 +21,9 @@ const corePages: SeoPage[] = [
   {
     path: '/alternatives/xplace', kind: 'comparison',
     title: 'אלטרנטיבה ל־XPlace.com לפרילנסרים בישראל',
-    description: 'משווים בין Freelance Place ל־XPlace.com: מרחב עבודה בעברית, גילוי פרויקטים, פרופיל והצעות מחיר. מדריך לבחירת האתר המתאים לעבודה העצמאית שלכם.',
-    modified: '2026-11-08',
-    llms: { section: 'Comparisons', note: 'Comparison, selection criteria, current limitations and cited competitor source.' },
+    description: 'השוואה מבוססת מקורות בין Freelance Place ל־XPlace.com: מחיר מנוי, התחייבות, ניסיון חינם ומהירות טעינה, עם תאריך בדיקה ושיטה גלויה.',
+    modified: '2026-11-10',
+    llms: { section: 'Comparisons', note: 'Dated, sourced comparison of membership price, commitment, free trial and page speed, with the method and the cited XPlace pages.' },
   },
   {
     path: '/guides/project-brief', kind: 'guide',

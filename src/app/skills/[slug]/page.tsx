@@ -6,7 +6,7 @@ import { SkillArticle } from '@/components/discovery/skill-article';
 import { StructuredData } from '@/components/discovery/structured-data';
 import { categories } from '@/lib/seo/categories';
 import { guideLinks } from '@/lib/seo/linking';
-import { publicProjects, sortNewestFirst } from '@/lib/seo/listing';
+import { sortNewestFirst } from '@/lib/seo/listing';
 import { discoveryProjects } from '@/lib/seo/projects';
 import { metadataFor, requirePage } from '@/lib/seo/registry';
 import { webPageNode, withContext } from '@/lib/seo/schema';
@@ -33,7 +33,7 @@ export default async function SkillPage({ params }: Props) {
   const path = `/skills/${skill.slug}`;
   const page = requirePage(path);
   const category = categories.find((item) => item.slug === skill.category);
-  const projects = projectsForSkill(skill, sortNewestFirst(publicProjects(await discoveryProjects())));
+  const projects = projectsForSkill(skill, sortNewestFirst(await discoveryProjects()));
   const crumbs = [{ name: 'דף הבית', path: '/' }, { name: 'כישורים', path: '/skills' }, { name: skill.name, path }];
   return <>
     <PublicHeader />

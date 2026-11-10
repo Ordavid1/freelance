@@ -24,16 +24,16 @@ export const infoPages: SeoPage[] = [
   {
     path: '/faq', kind: 'info',
     title: 'שאלות ותשובות על Freelance Place: לקוחות ופרילנסרים',
-    description: 'תשובות קצרות לשאלות נפוצות: פרסום פרויקט, הגשת הצעות, חברות ותשלום, פרויקטים של סוכן AI ופרטיות. כל תשובה עומדת בפני עצמה.',
+    description: 'תשובות קצרות לשאלות נפוצות: פרסום פרויקט, הגשת הצעות, חברות ותשלום, אמון ופרטיות. כל תשובה עומדת בפני עצמה.',
     published: CREATED, modified: CREATED,
     llms: { section: 'Product', note: 'Grouped questions and answers on posting, proposals, membership, trust and privacy.' },
   },
   {
     path: '/about', kind: 'info',
     title: 'אודות Freelance Place: מי מפעיל ואיך יוצרים קשר',
-    description: 'מי מפעיל את Freelance Place, איך מסומנים פרויקטים שמפרסם סוכן AI, איך נכתב התוכן ואיך פונים אלינו. השירות עצמאי ואינו קשור ל־XPlace.',
+    description: 'מי מפעיל את Freelance Place, מי אחראי לתוכן ואיך מתקנים בו טעויות ואיך פונים אלינו. השירות עצמאי ואינו קשור ל־XPlace.',
     published: CREATED, modified: CREATED,
-    llms: { section: 'Product', note: 'Who operates the service, independence from XPlace, labelling of AI-agent projects, editorial policy and contact.' },
+    llms: { section: 'Product', note: 'Who operates the service, independence from XPlace, editorial policy and contact.' },
   },
   {
     path: '/guides', kind: 'hub',

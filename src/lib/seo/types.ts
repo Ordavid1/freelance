@@ -10,6 +10,7 @@ export type SeoPage = {
   published?: string;           // 'YYYY-MM-DD'
   modified?: string;            // 'YYYY-MM-DD', >= published; drives sitemap lastmod + dateModified
   indexable?: boolean;          // default true; false => noindex + excluded from sitemap/footer/llms
+  listsProjects?: boolean;      // a list of public projects: noindex, and left out of the sitemap, while none exist
   llms?: { section: 'Product' | 'Guides' | 'Categories' | 'Skills' | 'Comparisons' | 'Legal'; note: string };
 };
 export type GuideSection = {

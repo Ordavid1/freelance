@@ -1,7 +1,7 @@
 // Page content for the informational pages (/pricing, /about, /how-it-works, /faq). Every statement about
 // price, trial or billing is built from MembershipFacts (facts.ts), never typed by hand.
 import { categories } from './categories';
-import { aiAgentAnswer, contactFacts, membershipAnswer, type MembershipFacts } from './facts';
+import { contactFacts, membershipAnswer, type MembershipFacts } from './facts';
 import type { GuideSection, Question } from './types';
 
 export type InfoContent = {
@@ -197,17 +197,8 @@ export function aboutContent(): InfoContent {
         heading: 'האם Freelance Place קשור ל־XPlace?',
         answer: 'Freelance Place הוא שירות עצמאי ואינו קשור ל־XPlace.com. השם והדומיין של XPlace מוזכרים רק לצורך השוואה וזיהוי השירות האחר.',
         paragraphs: [
-          'עמוד ההשוואה מציג מידע על XPlace רק ממקור ציבורי מצוין ועם תאריך בדיקה, ואינו כולל מדידה השוואתית של היקף המאגרים, הצלחת התאמות או זמן למציאת עבודה.',
-          'ההשוואה מתארת יכולות ומגבלות של כל שירות ואינה מדרגת אותם. היא נועדה לעזור לבחור לפי הצרכים שלכם.',
-        ],
-      },
-      {
-        id: 'ai-agent-projects',
-        heading: 'איך מסומנים פרויקטים שמפרסם סוכן AI?',
-        answer: 'חלק מהפרויקטים באתר מפורסמים על ידי סוכן AI של Freelance Place כדי להמחיש איך נראה פרויקט ברור. הם מסומנים "סוכן AI" בכל מקום שבו הם מופיעים.',
-        paragraphs: [
-          'פרויקטים כאלה אינם פרויקטים של לקוחות אמיתיים ואינם הצעות עבודה. הצעה עליהם נשמרת בחשבון שלכם בלבד ואינה נשלחת ללקוח/ה אנושי/ת.',
-          'פרויקט שפורסם על ידי משתמש מוצג ללא התג הזה.',
+          'עמוד ההשוואה מציג מידע על XPlace רק ממקור ציבורי מצוין ועם תאריך בדיקה, ומדידת מהירות בשיטה שמתוארת בעמוד. הוא אינו כולל מדידה של היקף המאגרים, הצלחת התאמות או זמן למציאת עבודה.',
+          'ההשוואה עוסקת במחיר, בהתחייבות, בכלים ובמהירות, ומציגה רק מספרים שאפשר לבדוק. היא נועדה לעזור לבחור לפי הצרכים שלכם.',
         ],
       },
       {
@@ -217,7 +208,7 @@ export function aboutContent(): InfoContent {
         list: {
           items: [
             'המחיר, תקופת הניסיון ומצב התשלום שמוצגים בעמודי המידע נלקחים מהגדרות המוצר עצמו ואינם נכתבים ידנית, כדי שהעמודים לא יסתרו את מה שהשירות עושה בפועל.',
-            'מידע על שירותים אחרים נלקח רק ממקורות ציבוריים מצוינים, עם תאריך בדיקה. עובדה שאי אפשר לאמת אינה נכללת.',
+            'מידע על שירותים אחרים נלקח ממקורות ציבוריים מצוינים או ממדידה בשיטה גלויה, עם תאריך בדיקה. עובדה שאי אפשר לאמת אינה נכללת.',
             'דירוגים וביקורות אינם מופיעים בעמודים, משום שאין בשירות כרגע מנגנון שמפיק אותם.',
             'התוכן הוא מידע כללי ואינו ייעוץ משפטי, מיסויי או מקצועי. בנושאים כאלה פנו לאיש או אשת מקצוע.',
             `טעות בעמוד? כתבו אל ${email} עם שם העמוד והתיקון המוצע. נבדוק את הפנייה ונעדכן את העמוד אם נמצאה טעות.`,
@@ -237,7 +228,6 @@ export function aboutContent(): InfoContent {
     faq: [
       { question: 'מי מפעיל את Freelance Place?', answer: `Freelance Place מופעל בידי ${operator}. אפשר לפנות אל המפעיל בכתובת ${email}.` },
       { question: 'האם Freelance Place קשור ל־XPlace?', answer: 'לא. Freelance Place הוא שירות עצמאי. השם XPlace והדומיין XPlace.com מוזכרים רק לצורך השוואה וזיהוי השירות האחר.' },
-      { question: 'איך מסומנים פרויקטים שמפרסם סוכן AI?', answer: 'פרויקטים שמפרסם סוכן AI של Freelance Place מסומנים "סוכן AI" בכל מקום שבו הם מופיעים. הם אינם פרויקטים של לקוחות אמיתיים, והצעה עליהם נשמרת בחשבון שלכם ואינה נשלחת ללקוח/ה אנושי/ת.' },
       { question: 'איך מדווחים על טעות בתוכן או מבקשים תיקון?', answer: `כתבו אל ${email} עם שם העמוד והתיקון המוצע. נבדוק את הפנייה ונעדכן את העמוד אם נמצאה טעות.` },
     ],
     related: ['/how-it-works', '/pricing', '/faq', '/alternatives/xplace', '/terms', '/privacy'],
@@ -273,9 +263,6 @@ export function howItWorksContent(): InfoContent {
         id: 'freelancers-flow',
         heading: 'איך מגישים הצעה כפרילנסר/ית?',
         answer: 'פרילנסרים בונים פרופיל, מוצאים פרויקטים מתאימים, מכינים הצעה ושולחים אותה רק כשהם מאשרים, ומנהלים את השיחה עם הלקוח/ה.',
-        paragraphs: [
-          'פרויקט שמסומן "סוכן AI" אינו פרויקט של לקוח אמיתי. הצעה עליו נשמרת בחשבון שלכם בלבד ואינה נשלחת.',
-        ],
         list: {
           ordered: true,
           items: [
@@ -324,13 +311,13 @@ export function howItWorksContent(): InfoContent {
   };
 }
 
-// /faq: grouped questions. Membership answers come from MembershipFacts, the AI-agent answer is the
-// shared text, and the privacy answers restate /privacy and /terms in short form.
+// /faq: grouped questions. Membership answers come from MembershipFacts, and the privacy answers
+// restate /privacy and /terms in short form.
 export function faqContent(facts: MembershipFacts): FaqContent {
   const { email } = contactFacts();
   return {
     h1: 'שאלות ותשובות על Freelance Place',
-    summary: 'תשובות קצרות לשאלות נפוצות על Freelance Place: פרסום פרויקט, הגשת הצעות, מחיר וחברות, פרויקטים של סוכן AI ופרטיות. התשובות מסכמות את תנאי השימוש ואת מדיניות הפרטיות, ובכל הבדל הנוסח של שני המסמכים הוא המחייב.',
+    summary: 'תשובות קצרות לשאלות נפוצות על Freelance Place: פרסום פרויקט, הגשת הצעות, מחיר וחברות, אמון ותשלום ופרטיות. התשובות מסכמות את תנאי השימוש ואת מדיניות הפרטיות, ובכל הבדל הנוסח של שני המסמכים הוא המחייב.',
     groups: [
       {
         id: 'clients',
@@ -363,10 +350,9 @@ export function faqContent(facts: MembershipFacts): FaqContent {
         ],
       },
       {
-        id: 'trust-ai-agent',
-        heading: 'אמון ופרויקטים של סוכן AI',
+        id: 'trust-payments',
+        heading: 'אמון ותשלום',
         items: [
-          { question: 'האם כל פרויקט שמופיע באתר אמיתי?', answer: aiAgentAnswer },
           { question: 'האם Freelance Place מחזיק כספים או מגן על תשלום בין לקוח לפרילנסר?', answer: noEscrowAnswer },
           { question: 'האם Freelance Place בודק פרילנסרים ולקוחות או מציג ביקורות?', answer: 'לא. תגיות וסינון לפי כישורים הם כלי עזר בלבד ואינם בדיקת רקע, אימות תעודות או דירוג איכות, ואין בשירות כרגע ביקורות, דירוגים או ספריית פרופילים ציבורית. בדקו זהות, ניסיון והרשאות לפני שמסכימים על עבודה.' },
         ],

@@ -269,6 +269,9 @@ test('only projects search engines may index are announced; everything else just
     ['a private project', { ...openProject, visibility: 'private' }],
     ['a sample without an AI-agent owner', { ...openProject, sample: true }],
     ['a sample with a human owner', { ...openProject, sample: true, owner: { kind: 'human' } }],
+    ['a showcase project published by the AI agent', { ...openProject, sample: true, unreal: true, owner: { kind: 'ai-agent' } }],
+    ['an AI-agent project without a sample flag', { ...openProject, owner: { kind: 'ai-agent' } }],
+    ['a project flagged unreal', { ...openProject, unreal: true }],
     ['a project without a description', { ...openProject, description: '  ' }],
     ['a project without a title', { ...openProject, title: '' }],
     ['no record at all', undefined],
@@ -277,7 +280,7 @@ test('only projects search engines may index are announced; everything else just
   const visible = [
     ['an open project', openProject],
     ['a public project', { ...openProject, visibility: 'public' }],
-    ['an openly published AI-agent sample', { ...openProject, sample: true, owner: { kind: 'ai-agent' } }],
+    ['a project with a human owner', { ...openProject, owner: { kind: 'human' } }],
   ];
   for (const [label, record] of hidden) {
     for (const hook of HOOKS) {

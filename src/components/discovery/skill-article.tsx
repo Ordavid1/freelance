@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import type { Project } from '@/lib/data';
 import { formatHebrewDate } from '@/lib/seo/dates';
-import { countAiAgentProjects, projectCountSentence } from '@/lib/seo/listing';
+import { projectCountSentence } from '@/lib/seo/listing';
 import type { GuideLink } from '@/lib/seo/linking';
 import { summarize } from '@/lib/seo/site';
 import type { Skill } from '@/lib/seo/types';
-import { AiAgentNote, ProjectCardList } from './project-cards';
+import { ProjectCardList } from './project-cards';
 import { Questions } from './public-content';
 import './taxonomy.css';
 
@@ -26,7 +26,7 @@ type Props = {
 export function SkillArticle({ skill, category, related, guides, projects }: Props) {
   const modified = formatHebrewDate(skill.modified);
   const shown = projects.slice(0, SKILL_PROJECT_LIMIT);
-  const count = projectCountSentence(projects.length, countAiAgentProjects(projects), { one: 'הקשור לכישור הזה', many: 'הקשורים לכישור הזה' });
+  const count = projectCountSentence(projects.length, { one: 'הקשור לכישור הזה', many: 'הקשורים לכישור הזה' });
   return <article>
     <p className="disc-eyebrow"><Link href="/skills">כישורים</Link>{category && <> · <Link href={`/categories/${category.slug}`}>{category.name}</Link></>}</p>
     <h1>{skill.name}</h1>
@@ -73,7 +73,6 @@ export function SkillArticle({ skill, category, related, guides, projects }: Pro
       {projects.length > 0 ? <>
         <p className="disc-status">{count}{projects.length > shown.length ? ` מוצגים כאן ${shown.length} הפרויקטים האחרונים שפורסמו.` : ''}</p>
         <ProjectCardList projects={shown} />
-        <AiAgentNote projects={shown} />
       </> : <p className="disc-empty">כרגע אין באתר פרויקטים פתוחים שמסומנים בכישור הזה. הרשימה מתעדכנת עם כל פרסום חדש, ואפשר לפרסם פרויקט משלכם או לעיין בכל הפרויקטים הפתוחים.</p>}
     </section>
 

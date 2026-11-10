@@ -30,7 +30,12 @@ const linking = load('src/lib/seo/linking.ts');
 const registry = load('src/lib/seo/registry.ts');
 const { categories } = load('src/lib/seo/categories.ts');
 const { AI_AGENT_BADGE } = load('src/lib/projects/presentation.ts');
-const LABEL = `"${AI_AGENT_BADGE}"`;
+// Public discovery pages never mention AI-agent or sample projects: they only ever receive a real client's projects.
+const assertNoShowcaseWording = (html, label) => {
+  assert.equal(html.includes(AI_AGENT_BADGE), false, `${label}: no "${AI_AGENT_BADGE}" label`);
+  assert.equal(/ai-agent-badge|role="note"/.test(html), false, `${label}: no AI-agent badge or note`);
+  assert.equal(/סוכן AI|פרויקט הדגמה|פרויקטי הדגמה/.test(html), false, `${label}: no showcase wording`);
+};
 
 const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 const count = (html, pattern) => (html.match(pattern) ?? []).length;
@@ -229,16 +234,8 @@ test('pageWindow lists the first, last, current and neighbouring pages with gaps
 
 // ---- listing, counts and dates ---------------------------------------------------------------
 
-test('listing: AI-agent projects are labelled, demo cards are never public, order is newest first with a slug tie-break', () => {
-  assert.equal(AI_AGENT_BADGE, 'סוכן AI');
-  const both = { slug: 'a', sample: true, ownerKind: 'ai-agent' };
-  const ownerOnly = { slug: 'b', ownerKind: 'ai-agent' };
-  const demo = { slug: 'c', sample: true };
-  const human = { slug: 'd' };
-  assert.deepEqual([both, ownerOnly, demo, human].map(listing.isAiAgentProject), [true, true, true, false]);
-  assert.deepEqual([both, ownerOnly, demo, human].map(listing.isPublicProject), [true, true, false, true]);
-  assert.deepEqual(plain(listing.publicProjects([both, ownerOnly, demo, human]).map((item) => item.slug)), ['a', 'b', 'd']);
-  assert.equal(listing.countAiAgentProjects([both, ownerOnly, demo, human]), 3);
+test('listing: order is newest first with a slug tie-break, and the listing rules know nothing about AI-agent projects', () => {
+  for (const removed of ['isAiAgentProject', 'isPublicProject', 'publicProjects', 'countAiAgentProjects']) assert.equal(listing[removed], undefined, `${removed} is gone: lists receive discoverable projects only`);
   const input = [{ slug: 'old', createdAt: 1 }, { slug: 'b-tie', createdAt: 5 }, { slug: 'none' }, { slug: 'a-tie', createdAt: 5 }, { slug: 'new', createdAt: 9 }];
   const snapshot = input.map((item) => item.slug);
   assert.deepEqual(plain(listing.sortNewestFirst(input).map((item) => item.slug)), ['new', 'a-tie', 'b-tie', 'old', 'none']);
@@ -246,24 +243,20 @@ test('listing: AI-agent projects are labelled, demo cards are never public, orde
   assert.equal(listing.projectPath('a b/ç'), '/projects/a%20b%2F%C3%A7');
 });
 
-test('count sentences state real numbers, disclose the AI-agent share and say nothing for zero', () => {
+test('count sentences state real numbers and say nothing for zero', () => {
   const place = { one: 'בתחום הזה', many: 'בתחומים האלה' };
-  const sentence = (total, ai) => listing.projectCountSentence(total, ai, place);
-  assert.equal(sentence(1, 0), 'כרגע יש פרויקט פתוח אחד בתחום הזה.');
-  assert.equal(sentence(1, 1), `כרגע יש פרויקט פתוח אחד בתחום הזה, והוא מסומן ${LABEL}.`);
-  assert.equal(sentence(2, 0), 'כרגע יש שני פרויקטים פתוחים בתחומים האלה.');
-  assert.equal(sentence(3, 1), `כרגע יש 3 פרויקטים פתוחים בתחומים האלה, מהם אחד מסומן ${LABEL}.`);
-  assert.equal(sentence(3, 2), `כרגע יש 3 פרויקטים פתוחים בתחומים האלה, מהם 2 מסומנים ${LABEL}.`);
-  assert.equal(sentence(3, 3), `כרגע יש 3 פרויקטים פתוחים בתחומים האלה, וכל אחד מהם מסומן ${LABEL}.`);
-  assert.equal(sentence(2, 5), `כרגע יש שני פרויקטים פתוחים בתחומים האלה, וכל אחד מהם מסומן ${LABEL}.`, 'the AI share is clamped to the total');
-  for (const total of [0, -1, Number.NaN, 1.5]) assert.equal(sentence(total, 0), undefined, String(total));
-  const range = (from, to, total, ai) => listing.projectRangeSentence(from, to, total, ai);
-  assert.equal(range(13, 24, 30, 10), `מוצגים 13–24 מתוך 30 פרויקטים פתוחים. 10 מהם מסומנים ${LABEL}.`);
-  assert.equal(range(1, 12, 30, 0), 'מוצגים 1–12 מתוך 30 פרויקטים פתוחים.');
-  assert.equal(range(25, 30, 30, 30), `מוצגים 25–30 מתוך 30 פרויקטים פתוחים. כל הפרויקטים מסומנים ${LABEL}.`);
-  assert.equal(range(2, 2, 13, 1), `מוצג פרויקט 2 מתוך 13 פרויקטים פתוחים. אחד מהם מסומן ${LABEL}.`);
-  assert.equal(range(1, 1, 1, 1), `מוצג פרויקט 1 מתוך 1 פרויקט פתוח. הפרויקט מסומן ${LABEL}.`);
-  assert.equal(range(0, 0, 0, 0), undefined);
+  const sentence = (total) => listing.projectCountSentence(total, place);
+  assert.equal(sentence(1), 'כרגע יש פרויקט פתוח אחד בתחום הזה.');
+  assert.equal(sentence(2), 'כרגע יש שני פרויקטים פתוחים בתחומים האלה.');
+  assert.equal(sentence(3), 'כרגע יש 3 פרויקטים פתוחים בתחומים האלה.');
+  for (const total of [0, -1, Number.NaN, 1.5]) assert.equal(sentence(total), undefined, String(total));
+  const range = (from, to, total) => listing.projectRangeSentence(from, to, total);
+  assert.equal(range(13, 24, 30), 'מוצגים 13–24 מתוך 30 פרויקטים פתוחים.');
+  assert.equal(range(1, 12, 30), 'מוצגים 1–12 מתוך 30 פרויקטים פתוחים.');
+  assert.equal(range(2, 2, 13), 'מוצג פרויקט 2 מתוך 13 פרויקטים פתוחים.');
+  assert.equal(range(1, 1, 1), 'מוצג פרויקט 1 מתוך 1 פרויקט פתוח.');
+  assert.equal(range(0, 0, 0), undefined);
+  for (const text of [sentence(3), range(13, 24, 30)]) assert.doesNotMatch(text, /מסומנ|AI/, 'no share of labelled projects is ever disclosed');
 });
 
 test('Hebrew dates are written out without ICU data and the Israeli calendar day is used for timestamps', () => {
@@ -375,22 +368,21 @@ test('skill page: answer first, byline with date, FAQ markup equal to its JSON-L
   assert.equal(meta.robots.index, true);
 });
 
-test('skill page lists only matching public projects, newest first, labels AI-agent ones and caps the list', async () => {
+test('skill page lists only matching projects, newest first, with a plain count and no AI-agent wording, and caps the list', async () => {
   const skill = skillsModule.skillBySlug('wordpress');
   const alias = skill.aliases.find(matching.isTitleAlias);
   assert.ok(alias, 'the reference skill has a Latin alias');
   const list = [
-    project(1, { skills: [alias], ...agent }), project(2, { title: `אתר ב־${alias} לסטודיו`, skills: [] }), project(3, { skills: ['Unrelated'] }),
-    project(4, { skills: [alias], sample: true }), project(5, { category: skill.category, skills: [], title: 'פרויקט לפי תחום בלבד' }),
+    project(1, { skills: [alias] }), project(2, { title: `אתר ב־${alias} לסטודיו`, skills: [] }), project(3, { skills: ['Unrelated'] }),
+    project(5, { category: skill.category, skills: [], title: 'פרויקט לפי תחום בלבד' }),
   ];
   const page = load('src/app/skills/[slug]/page.tsx', { ...ui, ...projectsData(list) });
   const html = renderToStaticMarkup(await page.default(params('wordpress')));
   assert.equal(count(html, /class="disc-card"/g), 2);
   assert.ok(html.indexOf('href="/projects/project-1"') < html.indexOf('href="/projects/project-2"'), 'newest first');
-  for (const absent of ['project-3', 'project-4', 'project-5']) assert.equal(html.includes(`href="/projects/${absent}"`), false, `${absent} does not match`);
-  assert.ok(html.includes(escapeHtml(`כרגע יש שני פרויקטים פתוחים הקשורים לכישור הזה, מהם אחד מסומן ${LABEL}.`)));
-  assert.equal(count(html, /class="ai-agent-badge"/g), 1);
-  assert.match(html, /role="note"/);
+  for (const absent of ['project-3', 'project-5']) assert.equal(html.includes(`href="/projects/${absent}"`), false, `${absent} does not match`);
+  assert.ok(html.includes('כרגע יש שני פרויקטים פתוחים הקשורים לכישור הזה.'));
+  assertNoShowcaseWording(html, 'skill page');
   assert.equal(html.includes('כרגע אין באתר פרויקטים'), false);
 
   const crowded = Array.from({ length: 8 }, (_, index) => project(index + 1, { skills: [alias] }));
@@ -431,10 +423,7 @@ test('skills hub: answer first, grouped by category and CollectionPage JSON-LD e
 
 // ---- project index ---------------------------------------------------------------------------
 
-const indexList = () => [
-  ...Array.from({ length: 30 }, (_, index) => project(index + 1, { skills: index % 2 ? ['WordPress'] : ['Obscure'], ...((index + 1) % 3 === 0 ? agent : {}) })),
-  project(40, { sample: true }), project(41, { sample: true }),
-];
+const indexList = () => Array.from({ length: 30 }, (_, index) => project(index + 1, { skills: index % 2 ? ['WordPress'] : ['Obscure'] }));
 const projectsIndex = (list = indexList()) => load('src/app/projects/page.tsx', { ...ui, ...projectsData(list) });
 const renderIndex = async (page, query) => renderToStaticMarkup(await page.default(search(query)));
 
@@ -451,10 +440,8 @@ test('project index page 1: canonical /projects, newest first, crawlable cards, 
     assert.ok(titles.every((position, index) => position > 0 && (index === 0 || position > titles[index - 1])), 'projects 1..12 in newest-first order');
     assert.equal(html.includes('>פרויקט מספר 13</a>'), false);
     assert.equal(count(html, /href="\/projects\/project-\d+"/g), 12, 'every card title is a real link');
-    assert.equal(html.includes('href="/projects/project-40"'), false, 'demo cards are never listed');
-    assert.ok(html.includes(escapeHtml(`מוצגים 1–12 מתוך 30 פרויקטים פתוחים. 10 מהם מסומנים ${LABEL}.`)));
-    assert.equal(count(html, /class="ai-agent-badge"/g), 4, 'projects 3, 6, 9 and 12 come from the AI agent');
-    assert.match(html, /role="note"/);
+    assert.ok(html.includes('מוצגים 1–12 מתוך 30 פרויקטים פתוחים.'));
+    assertNoShowcaseWording(html, 'project index');
     assert.ok(html.includes('<a href="/projects?page=2" rel="next"'));
     assert.equal(html.includes('rel="prev"'), false);
     assert.ok(html.includes('aria-current="page"'));
@@ -481,7 +468,8 @@ test('project index later pages: self-canonical, indexable, continued numbering 
   const positions = nodeOfType(html, 'CollectionPage').mainEntity.itemListElement.map((entry) => entry.position);
   assert.deepEqual(plain(positions), Array.from({ length: 12 }, (_, index) => index + 13));
   assert.equal(nodeOfType(html, 'CollectionPage').url, 'https://freelance-place.com/projects?page=2');
-  assert.ok(html.includes(escapeHtml(`מוצגים 13–24 מתוך 30 פרויקטים פתוחים. 10 מהם מסומנים ${LABEL}.`)));
+  assert.ok(html.includes('מוצגים 13–24 מתוך 30 פרויקטים פתוחים.'));
+  assertNoShowcaseWording(html, 'project index page 2');
   html = await renderIndex(page, { page: '3' });
   assert.equal(count(html, /class="disc-card"/g), 6);
   assert.equal(html.includes('rel="next"'), false);
@@ -500,17 +488,16 @@ test('project index: invalid or out-of-range pages are a 404 with noindex metada
 });
 
 test('project index with nothing to list: honest empty state, noindex but followable, later pages are a 404', async () => {
-  for (const list of [[], [project(1, { sample: true })]]) {
-    const page = projectsIndex(list);
-    const html = await renderIndex(page, {});
-    assert.match(html, /class="disc-empty"/);
-    assert.equal(count(html, /class="disc-card"/g), 0);
-    assert.equal(count(html, /class="disc-pager"/g), 0);
-    assert.equal(/כרגע יש /.test(html), false, 'no count when there are no projects');
-    const meta = await page.generateMetadata(search({}));
-    assert.deepEqual(plain({ index: meta.robots.index, follow: meta.robots.follow }), { index: false, follow: true });
-    await assert.rejects(page.default(search({ page: '2' })), NOT_FOUND);
-  }
+  const page = projectsIndex([]);
+  const empty = await renderIndex(page, {});
+  assert.match(empty, /class="disc-empty"/);
+  assert.equal(count(empty, /class="disc-card"/g), 0);
+  assert.equal(count(empty, /class="disc-pager"/g), 0);
+  assert.equal(/כרגע יש /.test(empty), false, 'no count when there are no projects');
+  assertNoShowcaseWording(empty, 'empty project index');
+  const meta = await page.generateMetadata(search({}));
+  assert.deepEqual(plain({ index: meta.robots.index, follow: meta.robots.follow }), { index: false, follow: true });
+  await assert.rejects(page.default(search({ page: '2' })), NOT_FOUND);
   const html = await renderIndex(projectsIndex([]), {});
   for (const category of categories) assert.ok(html.includes(`href="/categories/${category.slug}"`), `${category.slug} stays reachable from the empty index`);
   assert.ok(html.includes('href="/projects/new"'));
@@ -537,7 +524,7 @@ const extraQuestions = [{ question: 'שאלה נוספת ראשונה?', answer:
 
 test('category page: three or more FAQs with identical JSON-LD, skill and guide links, real counts', async () => {
   const web = categories.find((category) => category.slug === 'web-development');
-  const list = [project(1, { ...agent }), project(2), project(3, { category: 'עיצוב ומיתוג', skills: ['Shopify'] }), project(4, { category: 'עיצוב וגרפיקה' }), project(5, { sample: true })];
+  const list = [project(1), project(2), project(3, { category: 'עיצוב ומיתוג', skills: ['Shopify'] }), project(4, { category: 'עיצוב וגרפיקה' })];
   const page = load('src/app/categories/[slug]/page.tsx', categoryData(list, { 'web-development': extraQuestions }));
   const html = renderToStaticMarkup(await page.default(params('web-development')));
   assert.equal(count(html, /<h1[ >]/g), 1);
@@ -547,9 +534,8 @@ test('category page: three or more FAQs with identical JSON-LD, skill and guide 
   const faq = nodeOfType(html, 'FAQPage');
   assert.deepEqual(plain(faq.mainEntity.map((entry) => entry.name)), [web.question, ...extraQuestions.map((entry) => entry.question)]);
   assert.deepEqual(plain(faq.mainEntity.map((entry) => entry.acceptedAnswer.text)), [web.answer, ...extraQuestions.map((entry) => entry.answer)]);
-  assert.ok(html.includes(escapeHtml(`כרגע יש 3 פרויקטים פתוחים בתחום הזה, מהם אחד מסומן ${LABEL}.`)), 'two by label, one by skill; the demo card and other categories are not counted');
-  assert.equal(count(html, /class="ai-agent-badge"/g), 1);
-  assert.match(html, /role="note"/);
+  assert.ok(html.includes('כרגע יש 3 פרויקטים פתוחים בתחום הזה.'), 'two by label, one by skill; other categories are not counted');
+  assertNoShowcaseWording(html, 'category page');
   assert.ok(html.includes('<a href="/skills/wordpress">'), 'the category links its indexable skill pages');
   assert.ok(html.includes('<a href="/guides/project-brief">'));
   const registered = new Set(registry.indexablePages().map((entry) => entry.path));
@@ -586,8 +572,8 @@ const renderDetail = async (list, slug) => renderToStaticMarkup(await load('src/
 
 test('project page: visible breadcrumb equals its JSON-LD, publish date, skill tag links and related projects', async () => {
   const main = project(0, { slug: 'main', title: 'אתר תדמית לסטודיו', skills: ['WordPress', 'Obscure Tool'], createdAt: Date.UTC(2026, 10, 9, 22, 30) });
-  const others = Array.from({ length: 8 }, (_, index) => project(index + 1, { skills: ['WordPress'], ...(index === 0 ? agent : {}) }));
-  const html = await renderDetail([main, ...others, project(20, { slug: 'demo', sample: true }), project(21, { category: 'וידאו ואנימציה', skills: ['Premiere'] })], 'main');
+  const others = Array.from({ length: 8 }, (_, index) => project(index + 1, { skills: ['WordPress'] }));
+  const html = await renderDetail([main, ...others, project(21, { category: 'וידאו ואנימציה', skills: ['Premiere'] })], 'main');
   assert.ok(html.includes('<a href="/">דף הבית</a>') && html.includes('<a href="/categories/web-development">פיתוח אתרים</a>'));
   assert.ok(html.includes('<span aria-current="page">אתר תדמית לסטודיו</span>'));
   const crumbs = nodesOfType(html, 'BreadcrumbList');
@@ -599,25 +585,38 @@ test('project page: visible breadcrumb equals its JSON-LD, publish date, skill t
   assert.ok(html.includes('<span class="tag">Obscure Tool</span>'));
   assert.equal(count(html, /class="disc-card"/g), 6, 'at most six related projects');
   assert.match(html, /<h2 id="related-projects-heading">פרויקטים דומים<\/h2>/);
-  for (const absent of ['href="/projects/main"', 'href="/projects/demo"', 'href="/projects/project-21"', 'href="/projects/project-7"']) assert.equal(html.includes(absent), false, absent);
+  for (const absent of ['href="/projects/main"', 'href="/projects/project-21"', 'href="/projects/project-7"']) assert.equal(html.includes(absent), false, absent);
   assert.ok(html.includes('href="/projects/project-1"') && html.includes('href="/projects/project-6"'));
-  assert.equal(count(html, /class="ai-agent-badge"/g), 1);
-  assert.match(html, /role="note"/);
+  assertNoShowcaseWording(html, 'project page');
+  assert.equal(nodesOfType(html, 'WebPage').length, 1, 'a real project keeps its WebPage JSON-LD');
 });
 
-test('project page keeps demo cards unindexed without schema and shows no related section or date without data', async () => {
+test('showcase project pages stay inside the product: noindex, no structured data, no SEO list ever includes them', async () => {
+  // A showcase project still opens from the product feed (with its own label), but it is never offered to search engines.
   const demo = project(1, { slug: 'demo', sample: true, createdAt: undefined });
-  const html = await renderDetail([demo, project(2, { skills: [] })], 'demo');
-  assert.equal(jsonLd(html).length, 0, 'a demo card carries no structured data');
-  assert.ok(html.includes('class="disc-crumbs"'));
-  assert.equal(html.includes('<time'), false, 'no date is invented');
-  assert.match(html, /class="ai-agent-badge"/, 'sample projects keep the AI-agent label');
-  const alone = await renderDetail([project(1, { slug: 'solo' })], 'solo');
+  const bot = project(1, { slug: 'bot', ...agent });
+  const render = async (showcase, slug) => renderToStaticMarkup(await load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData([project(2, { skills: [] })], { [slug]: showcase }) }).default(params(slug)));
+  const demoHtml = await render(demo, 'demo');
+  assert.equal(jsonLd(demoHtml).length, 0, 'a showcase page carries no structured data');
+  assert.ok(demoHtml.includes('class="disc-crumbs"'));
+  assert.equal(demoHtml.includes('<time'), false, 'no date is invented');
+  const botHtml = await render(bot, 'bot');
+  assert.equal(jsonLd(botHtml).length, 0, 'an AI-agent project carries no structured data either');
+  for (const [showcase, slug] of [[demo, 'demo'], [bot, 'bot']]) {
+    const page = load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData([], { [slug]: showcase }) });
+    const meta = await page.generateMetadata(params(slug));
+    assert.equal(meta.robots.index, false, `${slug} is noindex`);
+    assert.equal(meta.alternates?.canonical, `https://freelance-place.com/projects/${slug}`, `${slug} keeps a self canonical`);
+  }
+  const real = await load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData([project(1, { slug: 'solo' })]) }).generateMetadata(params('solo'));
+  assert.equal(real.robots.index, true, 'a real client project stays indexable');
+});
+
+test('project page shows no related section or date without data, and a missing project is a 404', async () => {
+  const alone = await renderDetail([project(1, { slug: 'solo', createdAt: undefined })], 'solo');
   assert.equal(alone.includes('disc-related'), false);
+  assert.equal(alone.includes('<time'), false, 'no date is invented');
   assert.equal(nodesOfType(alone, 'WebPage').length, 1);
-  const agentPage = await renderDetail([project(1, { slug: 'bot', ...agent })], 'bot');
-  assert.equal(jsonLd(agentPage).length, 2, 'AI-agent projects keep their structured data');
-  assert.match(agentPage, /class="ai-agent-badge"/);
   await assert.rejects(load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData([]) }).default(params('missing')), NOT_FOUND);
 });
 

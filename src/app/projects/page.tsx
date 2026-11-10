@@ -3,12 +3,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/discovery/breadcrumbs';
 import { Pagination } from '@/components/discovery/pagination';
-import { AiAgentNote, ProjectCardList } from '@/components/discovery/project-cards';
+import { ProjectCardList } from '@/components/discovery/project-cards';
 import { PublicHeader } from '@/components/discovery/public-content';
 import { StructuredData } from '@/components/discovery/structured-data';
 import { categories } from '@/lib/seo/categories';
 import { formatHebrewDate, israelDate } from '@/lib/seo/dates';
-import { countAiAgentProjects, projectCountSentence, projectPath, projectRangeSentence, publicProjects, sortNewestFirst } from '@/lib/seo/listing';
+import { projectCountSentence, projectPath, projectRangeSentence, sortNewestFirst } from '@/lib/seo/listing';
 import { paginate, parsePageParam, projectsPagePath } from '@/lib/seo/pagination';
 import { discoveryProjects } from '@/lib/seo/projects';
 import { metadataFor, requirePage } from '@/lib/seo/registry';
@@ -25,10 +25,10 @@ const heading = 'פרויקטים פתוחים לפרילנסרים';
 // An empty list is a thin page (or a failed read): keep it out of the index but let links be followed.
 const emptyListing: Metadata['robots'] = { index: false, follow: true };
 
-// What the index lists: public, discoverable projects, newest first. Pagination slices this
-// list in memory, so what discoveryProjects returns decides how many pages exist.
+// What the index lists: discoverable projects (real clients' projects only), newest first. Pagination
+// slices this list in memory, so what discoveryProjects returns decides how many pages exist.
 async function listedProjects() {
-  return sortNewestFirst(publicProjects(await discoveryProjects()));
+  return sortNewestFirst(await discoveryProjects());
 }
 
 // The ItemList of a later page continues the numbering of the pages before it.
@@ -57,10 +57,9 @@ export default async function ProjectsIndex({ searchParams }: Props) {
   if (!slice) notFound();
 
   const registered = requirePage(path);
-  const aiTotal = countAiAgentProjects(listed);
   const status = slice.totalPages > 1
-    ? projectRangeSentence(slice.from, slice.to, slice.total, aiTotal)
-    : projectCountSentence(slice.total, aiTotal, { one: 'באתר', many: 'באתר' });
+    ? projectRangeSentence(slice.from, slice.to, slice.total)
+    : projectCountSentence(slice.total, { one: 'באתר', many: 'באתר' });
   const latest = israelDate(listed[0]?.createdAt);
   const latestText = latest ? formatHebrewDate(latest) : undefined;
   const pagePath = projectsPagePath(slice.page);
@@ -73,13 +72,12 @@ export default async function ProjectsIndex({ searchParams }: Props) {
     <main className="discovery-content">
       <Breadcrumbs items={[{ name: 'דף הבית', path: '/' }, { name: 'פרויקטים', path }]} />
       <h1>{slice.page > 1 ? `${heading} · עמוד ${slice.page}` : heading}</h1>
-      <p className="disc-brief"><strong>בקיצור:</strong> כאן מופיעים הפרויקטים הפתוחים להצעות ב־Freelance Place, מהחדש לישן. כל פרויקט נפתח לעמוד מלא עם התיאור, התקציב והכישורים. פרויקטים שמפרסם סוכן AI של Freelance Place מסומנים &quot;סוכן AI&quot;.</p>
+      <p className="disc-brief"><strong>בקיצור:</strong> כאן מופיעים הפרויקטים הפתוחים להצעות ב־Freelance Place, מהחדש לישן. כל פרויקט נפתח לעמוד מלא עם התיאור, התקציב והכישורים.</p>
       {(status || latestText) && <p className="disc-status">{status}{latest && latestText && <>{status ? ' ' : ''}הפרויקט האחרון פורסם ב־<time dateTime={latest}>{latestText}</time>.</>}</p>}
 
       {slice.total > 0 ? <section aria-labelledby="projects-list">
         <h2 id="projects-list">הפרויקטים</h2>
         <ProjectCardList projects={slice.items} skills={skills} />
-        <AiAgentNote projects={slice.items} />
         <Pagination page={slice.page} totalPages={slice.totalPages} hrefFor={projectsPagePath} label="עימוד פרויקטים" />
       </section> : <p className="disc-empty">כרגע אין פרויקטים פתוחים להצגה ברשימה. הרשימה מתעדכנת עם כל פרסום חדש. אפשר לפרסם פרויקט משלכם, או לעיין בתחומים ובכישורים שמופיעים למטה.</p>}
 

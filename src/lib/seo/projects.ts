@@ -10,8 +10,11 @@ export const readPublicProject = cache(async (slug: string) => {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(slug)) return null;
   return getProject(slug) || getOpenProject(slug);
 });
+// The one list every public discovery page reads. The data layer already returns discoverable
+// projects only; the filter here keeps that true if the source ever widens, so a showcase
+// project can never reach a list, count, related section or ItemList.
 export const discoveryProjects = cache(async () => {
-  try { return await listOpenProjects(); }
+  try { return (await listOpenProjects()).filter(isDiscoverableProject); }
   catch (error) { console.error('Public project discovery unavailable', error instanceof Error ? error.name : 'Error'); return []; }
 });
 // Separate from the UI's 100-item feed: every published record is considered.
