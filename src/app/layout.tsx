@@ -11,6 +11,7 @@ import './site-footer.css';
 import { SiteFooter } from '@/components/site-footer';
 import { SupportChatProvider } from '@/components/support-chat';
 import { supportContactEmail } from '@/lib/support/config';
+import Script from 'next/script';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
@@ -29,5 +30,5 @@ export const metadata: Metadata = {
   referrer: 'strict-origin-when-cross-origin',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Script src="https://www.googletagmanager.com/gtm.js?id=GTM-54NQ7CCV" strategy="afterInteractive" /><Script id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date());`}</Script><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
 }
