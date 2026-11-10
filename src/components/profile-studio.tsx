@@ -9,7 +9,7 @@ import '@/app/profile-entry-editor.css';
 const platforms = ['Behance', 'Website'] as const;
 type LinkPlatform = typeof platforms[number];
 type SocialProvider = 'github' | 'linkedin';
-type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string };
+type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
 type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
 type StoredSource = { id: string; name: string; size: number };
@@ -117,7 +117,11 @@ export function ProfileStudio({ userId }: { userId: string }) {
     if (!restoredDraft.current) fetch('/api/marketplace/profile', { cache: 'no-store' }).then(async (response) => {
       if (response.ok) {
         const data = await response.json();
-        if (data.profile) setProfile({ ...blank, ...data.profile });
+        if (data.profile) {
+          const website = data.profile.website || (data.profile.portfolio?.match(/https?:\/\/[^\s)]+/g) || []).find((url: string) => !/github\.com|linkedin\.com|dribbble\.com/i.test(url)) || '';
+          setProfile({ ...blank, ...data.profile, website, portfolio: website });
+          if (website) setLinks((current) => ({ ...current, Website: website }));
+        }
       }
     }).catch(() => {});
     fetch('/api/integrations/dribbble', { cache: 'no-store' }).then(async (response) => {
@@ -212,6 +216,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       if (source === 'Behance' && url.hostname !== 'behance.net' && !url.hostname.endsWith('.behance.net')) throw new Error('הוסיפו קישור לפרופיל או לפרויקט ציבורי ב־Behance.');
       const nextLinks = { ...links, [source]: url.href };
       setLinks(nextLinks);
+      if (source === 'Website') setProfile((current) => ({ ...current, website: url.href, portfolio: url.href }));
       try { sessionStorage.setItem(approvedLinksKey, JSON.stringify(nextLinks)); } catch { /* The approved link remains available in the current editor. */ }
       setLinkDrafts((current) => ({ ...current, [source]: url.href }));
       setNotice(`הקישור ל־${source} אושר ונוסף למקורות. הוא ייקרא בלחיצה על יצירת פרופיל בעזרת AI.`);
@@ -225,6 +230,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   function removeLink(platform: LinkPlatform) {
     const nextLinks = { ...links };
     delete nextLinks[platform];
+    if (platform === 'Website') setProfile((current) => ({ ...current, website: '', portfolio: '' }));
     setLinks(nextLinks);
     try { sessionStorage.setItem(approvedLinksKey, JSON.stringify(nextLinks)); } catch { /* Removal still applies to the current editor. */ }
     setLinkDrafts((current) => { const next = { ...current }; delete next[platform]; return next; });
@@ -319,7 +325,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const response = await fetch('/api/ai/profile', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setProfile({ ...blank, ...data });
+      setProfile({ ...blank, ...data, website: links.Website || '', portfolio: links.Website || '' });
       setNotice(data.demo ? 'המידע מוכן, אבל Vertex AI עדיין לא הוגדר ליצירת טיוטה.' : ['הטיוטה מוכנה לבדיקה. השלימו או תקנו כל פרט לפני שמירה.', ...(Array.isArray(data.warnings) ? data.warnings : [])].join(' '));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'היצירה נכשלה.');

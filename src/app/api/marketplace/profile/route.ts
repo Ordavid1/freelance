@@ -8,7 +8,7 @@ import { shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/membership/state';
 
 export const runtime = 'nodejs';
 
-const textFields = ['name', 'headline', 'bio', 'portfolio', 'experience', 'education'] as const;
+const textFields = ['name', 'headline', 'bio', 'portfolio', 'experience', 'education', 'website'] as const;
 
 export async function GET() {
   const user = await getCurrentUser();

@@ -33,15 +33,7 @@ export async function POST(request: Request) {
         headers: { 'Provider-Config-Key': key, 'Connection-Id': connectionId, 'Base-Url-Override': 'https://api.github.com', 'Accept': 'application/vnd.github+json' },
       });
       const login = value(userResponse, 'login');
-      const repoResponse = login ? await nangoJson<unknown[]>(`/proxy/users/${encodeURIComponent(login)}/repos?type=owner&sort=updated&per_page=30`, {
-        headers: { 'Provider-Config-Key': key, 'Connection-Id': connectionId, 'Base-Url-Override': 'https://api.github.com', 'Accept': 'application/vnd.github+json' },
-      }) : [];
-      const repositories = Array.isArray(repoResponse) ? repoResponse.filter((repo): repo is Record<string, unknown> => !!repo && typeof repo === 'object').filter((repo) => repo.private !== true).slice(0, 20) : [];
       const url = value(userResponse, 'html_url', login ? `https://github.com/${login}` : '');
-      const portfolio = repositories.map((repo) => {
-        const repoUrl = safeText(repo.html_url, 500);
-        return `${safeText(repo.name, 120)}${safeText(repo.description) ? ` — ${safeText(repo.description, 500)}` : ''}${repoUrl ? ` (${repoUrl})` : ''}`;
-      }).join('\n');
       const sourceText = [
         `GitHub profile: ${value(userResponse, 'name', login)}`,
         `Username: ${login}`,
@@ -50,10 +42,8 @@ export async function POST(request: Request) {
         `Company: ${value(userResponse, 'company')}`,
         `Location: ${value(userResponse, 'location')}`,
         `Blog: ${value(userResponse, 'blog')}`,
-        `Public repository count: ${String(userResponse.public_repos ?? '')}`,
-        `Recent public repositories:\n${portfolio}`,
       ].filter(Boolean).join('\n').slice(0, 14_000);
-      return NextResponse.json({ provider, sourceText, profile: { name: value(userResponse, 'name', login), headline: '', bio: safeText(userResponse.bio, 1500), portfolio, experience: '', education: '', skills: [] }, url });
+      return NextResponse.json({ provider, sourceText, profile: { name: value(userResponse, 'name', login), headline: '', bio: safeText(userResponse.bio, 1500), portfolio: '', experience: '', education: '', skills: [] }, url });
     }
 
     const linkedIn = await nangoJson<Record<string, unknown>>('/proxy/v2/userinfo', {
