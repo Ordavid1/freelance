@@ -119,6 +119,16 @@ test('per-sender and site-wide rate limits cap replies; failed sends are retryab
   const blocked = randomUUID(); const none = []; fetch = run(blocked, inbound(blocked), none);
   try { await hook(blocked); assert.equal(none.length, 0); } finally { fetch.mock.restore(); }
 });
+test('an abandoned in-progress claim is retryable (503), and a failed send refunds the hourly slot', async () => {
+  setup(); const emailId = randomUUID(); const sent = [];
+  rows.set('supportAutoReplies/' + emailId, { state: 'sending', at: Date.now(), hour: 1 });
+  let fetch = run(emailId, inbound(emailId), sent);
+  try { assert.equal((await hook(emailId)).status, 503); assert.equal(sent.length, 0); } finally { fetch.mock.restore(); }
+  setup(); const other = randomUUID();
+  fetch = transport((url, options) => options.method === 'POST' ? new Response('boom', { status: 500 }) : Response.json(inbound(other)));
+  try { assert.equal((await hook(other)).status, 503); } finally { fetch.mock.restore(); }
+  assert.equal(rows.get('supportRateLimits/autoreply-hour').count, 0);
+});
 test('kill switch disables replies and chat aliases still reach the chat bridge, not the responder', async () => {
   setup(); process.env.SUPPORT_AUTOREPLY = 'off'; const emailId = randomUUID(); const sent = []; let fetch = run(emailId, inbound(emailId), sent);
   try { await hook(emailId); assert.equal(sent.length, 0); } finally { fetch.mock.restore(); delete process.env.SUPPORT_AUTOREPLY; }

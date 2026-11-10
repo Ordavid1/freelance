@@ -113,14 +113,17 @@ async function claim(emailId: string, messageId: string, sender: string): Promis
     const now = Date.now();
     for (const existing of [byEmail, byMessage]) {
       const data = existing.data();
-      if (existing.exists && (data?.state === 'sent' || now - (data?.at ?? 0) < CLAIM_STALE_MS)) return { ok: false, reason: 'duplicate' } as Claim;
+      if (!existing.exists) continue;
+      if (data?.state === 'sent') return { ok: false, reason: 'duplicate' } as Claim;
+      // Another delivery may be sending right now, or may have died mid-send: answer retryably, never "done".
+      if (now - (data?.at ?? 0) < CLAIM_STALE_MS) return { ok: false, reason: 'in-progress' } as Claim;
     }
     const sends = ((bySender.data()?.sends as number[] | undefined) || []).filter((at) => now - at < DAY_MS);
     if (sends.length >= AUTOREPLY_PER_SENDER_PER_DAY) return { ok: false, reason: 'sender-rate-limit' } as Claim;
     const hour = Math.floor(now / 3_600_000);
     const used = budget.data()?.window === hour ? (budget.data()?.count as number) : 0;
     if (used >= AUTOREPLY_PER_HOUR) return { ok: false, reason: 'site-rate-limit' } as Claim;
-    const entry = { state: 'sending', at: now, createdAt: Timestamp.fromMillis(now) };
+    const entry = { state: 'sending', at: now, hour, createdAt: Timestamp.fromMillis(now) };
     tx.set(emailRef, entry);
     tx.set(messageRef, entry);
     tx.set(senderRef, { sends: [...sends, now], updatedAt: Timestamp.fromMillis(now) });
@@ -132,14 +135,17 @@ async function settle(emailId: string, messageId: string, sender: string, sent: 
   const db = firestore();
   const refs = [db.collection('supportAutoReplies').doc(emailId), db.collection('supportAutoReplies').doc(`m-${digest(messageId || emailId)}`)];
   const senderRef = db.collection('supportAutoReplyLimits').doc(digest(sender));
+  const budgetRef = db.collection('supportRateLimits').doc('autoreply-hour');
   await db.runTransaction(async (tx) => {
-    const current = await tx.get(senderRef);
+    const [current, budget, claimed] = await Promise.all([tx.get(senderRef), tx.get(budgetRef), tx.get(refs[0])]);
     if (sent) refs.forEach((ref) => tx.update(ref, { state: 'sent', sentAt: Timestamp.now() }));
     else {
       // A failed send must be retryable by the provider's webhook redelivery and must not spend the sender's allowance.
       refs.forEach((ref) => tx.set(ref, { state: 'failed', at: 0, createdAt: Timestamp.now() }));
       const sends = ((current.data()?.sends as number[] | undefined) || []).slice(0, -1);
       tx.set(senderRef, { sends, updatedAt: Timestamp.now() });
+      // Return the site-wide slot too, but only if its hourly window is still the current one.
+      if (budget.data()?.window === claimed.data()?.hour && (budget.data()?.count ?? 0) > 0) tx.set(budgetRef, { window: budget.data()!.window, count: budget.data()!.count - 1 });
     }
   }).catch(() => {});
 }
@@ -152,7 +158,10 @@ export async function sendAutoReply(config: SupportConfig, emailId: string, emai
   if (!decision.reply) return { ignored: true, reason: decision.reason };
   const messageId = (email.message_id || '').trim();
   const claimed = await claim(emailId, messageId, decision.to);
-  if (!claimed.ok) return claimed.reason === 'duplicate' ? { duplicate: true } : { ignored: true, reason: claimed.reason };
+  if (!claimed.ok) {
+    if (claimed.reason === 'in-progress') throw new SupportError('AUTOREPLY_IN_PROGRESS', 503, 'Auto-reply is still being sent.');
+    return claimed.reason === 'duplicate' ? { duplicate: true } : { ignored: true, reason: claimed.reason };
+  }
   const language = detectLanguage(email.subject, email.text, email.html && !email.text ? email.html.replace(/<[^>]*>/g, ' ') : null);
   const content = buildAutoReply(language, email.from, email.subject || '');
   const references = [header(email.headers, 'references')?.trim(), messageId].filter(Boolean).join(' ').slice(-900);
