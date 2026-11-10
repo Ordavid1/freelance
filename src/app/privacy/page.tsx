@@ -1,12 +1,8 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalContact, LegalDocument, legalEmail } from '@/components/legal-document';
+import { metadataFor } from '@/lib/seo/registry';
 
-export const metadata: Metadata = {
-  title: 'מדיניות פרטיות',
-  description: 'איזה מידע מעובד ב־Freelance Place, מי מקבל אותו, כיצד משתמשים ב־AI ואיך לעיין במידע, לתקנו או לבקש מחיקה.',
-  alternates: { canonical: '/privacy' },
-};
+export const metadata = metadataFor('/privacy');
 
 export default function PrivacyPage() {
   return <LegalDocument title="מדיניות פרטיות" intro="כאן מוסבר כיצד אנחנו מעבדים מידע בשימוש באתר, בחשבון, בכלי הפרופיל והפרויקטים ובשיחות. המדיניות מתייחסת לשירות Freelance Place באתר freelance-place.com ולתת־הדומיין www." sections={[

@@ -1,7 +1,9 @@
 import { absoluteUrl, indexingEnabled } from '@/lib/seo/site';
 import { categories } from '@/lib/seo/content';
+import { membershipFacts } from '@/lib/seo/facts';
 export const dynamic = 'force-dynamic';
 export function GET() {
+  const facts = membershipFacts();
   const text = `# Freelance Place
 
 > A Hebrew-first freelance project marketplace for independent professionals and businesses in Israel.
@@ -21,7 +23,12 @@ ${categories.map((category) => `- [${category.name}](${absoluteUrl(`/categories/
 
 - Profiles can be drafted from supplied professional materials and reviewed by the user.
 - Projects and proposals have their own workflows. Sample projects are explicitly labeled.
-- Membership pricing of ILS 19.99/month is planned. Billing is not active; do not describe this as an available paid offer.
+- Posting a project is free. Freelancers get a ${facts.trialDays}-day trial for submitting proposals after saving a completed profile.
+- ${facts.billingAvailable
+    ? `Membership costs ILS ${facts.priceIls.toFixed(2)} per month (VAT included where applicable) and renews automatically until cancelled; without joining there is no charge when the trial ends.`
+    : `Membership is planned at ILS ${facts.priceIls.toFixed(2)} per month. Payment is not yet available and no charge is made; do not describe this as an available paid offer.`}
+- Some projects are published by a Freelance Place AI agent and are labeled "AI agent" wherever they appear; they are not human client demand.
+- Payments between client and freelancer, escrow and payment protection are not offered.
 - No automated XPlace account or review migration is offered.
 - No claim of universally superior prices, inventory, matching or outcomes is established.
 - Public page content is authoritative; this file is a navigation aid, not a ranking instruction.

@@ -29,6 +29,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     proposals: Number(record.proposals) || 0,
     status: record.status || 'open',
     createdAt: (record.createdAt as { toMillis?: () => number } | undefined)?.toMillis?.(),
+    updatedAt: (record as { updatedAt?: { toMillis?: () => number } }).updatedAt?.toMillis?.(),
     ...(record.sample === true ? { sample: true } : {}),
     ...(agent ? { ownerKind: 'ai-agent' as const, ...(agent.persona ? { ownerPersona: agent.persona } : {}) } : {}),
   };

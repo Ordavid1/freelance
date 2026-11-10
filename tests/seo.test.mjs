@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { NextRequest, NextResponse } from 'next/server.js';
+import { loadModule } from './helpers/load-ts.mjs';
 
 // Run the actual TypeScript helpers with a mocked data boundary; no live account
 // or Firestore writes are needed to exercise publication and outage behavior.
@@ -15,7 +16,9 @@ function load(path, stubs = {}, env = { SITE_INDEXABLE: 'true' }) {
 }
 const publication = load('src/lib/seo/publication.ts');
 const site = load('src/lib/seo/site.ts');
-const content = load('src/lib/seo/content.ts');
+// content.ts and the registry import sibling modules, so they use the shared project loader.
+const content = loadModule('src/lib/seo/content.ts');
+const registry = loadModule('src/lib/seo/registry.ts');
 const publicRecord = { status: 'open', title: 'A real project', description: 'A complete brief' };
 
 test('publication excludes drafts, private/member-only records, samples and empty content', () => {
@@ -117,7 +120,7 @@ test('sitemap failures propagate and preview never touches the database', async 
   await assert.rejects(projectModule([], true).sitemapProjects(), /Database unavailable/);
   const preview = load('src/lib/seo/site.ts', {}, {});
   const route = load('src/app/sitemap.ts', {
-    '@/lib/seo/site': preview, '@/lib/seo/content': content,
+    '@/lib/seo/site': preview, '@/lib/seo/registry': registry,
     '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
   });
   assert.equal((await route.default()).length, 0);
@@ -126,7 +129,7 @@ test('sitemap failures propagate and preview never touches the database', async 
 test('sitemap uses source modification times and only real public/editorial pages', async () => {
   const updatedAt = new Date('2026-11-08T12:00:00Z');
   const route = load('src/app/sitemap.ts', {
-    '@/lib/seo/site': site, '@/lib/seo/content': content,
+    '@/lib/seo/site': site, '@/lib/seo/registry': registry,
     '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
   });
   const entries = await route.default();
@@ -134,7 +137,10 @@ test('sitemap uses source modification times and only real public/editorial page
   assert.equal(entries.at(-1).lastModified, updatedAt);
   assert.equal(entries.some((item) => item.url.includes('brand-language')), false);
   assert.equal(entries.some((item) => item.url.includes('/signin')), false);
-  assert.equal(entries.slice(0, -1).every((item) => item.lastModified === undefined), true);
+  // Static pages get a lastModified only when the registry declares a real modification date, and it is that date.
+  const declared = new Map(registry.indexablePages().map((page) => [`https://freelance-place.com${page.path}`, page.modified]));
+  assert.equal(entries.slice(0, -1).every((item) => item.lastModified === declared.get(item.url)), true);
+  assert.equal(entries.slice(0, -1).some((item) => item.lastModified === undefined), true);
 });
 
 

@@ -1,12 +1,8 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalContact, LegalDocument, legalEmail } from '@/components/legal-document';
+import { metadataFor } from '@/lib/seo/registry';
 
-export const metadata: Metadata = {
-  title: 'תנאי שימוש',
-  description: 'תנאי השימוש ב־Freelance Place: חשבונות, פרויקטים, הצעות, הודעות, כלי AI, זכויות בתוכן ומגבלות השירות.',
-  alternates: { canonical: '/terms' },
-};
+export const metadata = metadataFor('/terms');
 
 export default function TermsPage() {
   return <LegalDocument title="תנאי שימוש" intro="תנאים אלה מסדירים את השימוש ב־Freelance Place באתר freelance-place.com ובתת־הדומיין www. קראו אותם לפני פתיחת חשבון, העלאת תוכן או שימוש בכלי השירות." sections={[
