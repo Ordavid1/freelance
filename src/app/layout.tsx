@@ -7,7 +7,8 @@ import './globals.css';
 import './discovery.css';
 import './legal.css';
 import './responsive-typography.css';
-import { LegalFooter } from '@/components/legal-document';
+import './site-footer.css';
+import { SiteFooter } from '@/components/site-footer';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
@@ -26,5 +27,5 @@ export const metadata: Metadata = {
   referrer: 'strict-origin-when-cross-origin',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph()} />{children}<LegalFooter /></body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph()} />{children}<SiteFooter /></body></html>;
 }

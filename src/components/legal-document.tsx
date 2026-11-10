@@ -5,10 +5,6 @@ import { legalEmail, legalOperator, legalUpdated } from '@/lib/legal/identity';
 
 export { legalEmail, legalOperator, legalUpdated };
 
-export function LegalFooter() {
-  return <footer className="legal-footer"><span>Freelance Place</span><nav aria-label="מידע משפטי"><Link href="/privacy">מדיניות פרטיות</Link><Link href="/terms">תנאי שימוש</Link><a href={`mailto:${legalEmail}`}>יצירת קשר</a></nav></footer>;
-}
-
 export function LegalContact() {
   return <p>המפעיל ובעל השליטה במידע: <bdi lang="en">{legalOperator}</bdi> (אור דוד). לשאלות, בקשות פרטיות, דיווחים והודעות משפטיות: <a href={`mailto:${legalEmail}`}><bdi>{legalEmail}</bdi></a>.</p>;
 }
