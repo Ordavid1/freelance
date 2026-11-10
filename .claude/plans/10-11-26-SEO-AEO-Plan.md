@@ -142,17 +142,17 @@ export type Skill = {
 ### WP1 — Foundation: facts, registry, schema, metadata, accuracy
 Owner: sub-thread 1 (runs first; all others branch from it).
 Write-set: `src/lib/legal/identity.ts` (new), `src/components/legal-document.tsx` (re-export only), `src/lib/seo/{facts,types,registry,schema,site,content,publication}.ts`, `src/lib/seo/guides/index.ts` (empty stub), `src/lib/seo/skills.ts` (empty stub), `src/lib/seo/hubs.ts` (empty stub), `src/lib/seo/info-pages.ts` (empty stub), `src/lib/seo/profiles.ts` (empty `sameAs` list), `src/components/discovery/*`, `src/components/site-footer.tsx` + css, `src/app/layout.tsx`, `src/app/sitemap.ts`, `src/app/alternatives/xplace/page.tsx`, `src/app/guides/project-brief/page.tsx`, `src/app/categories/[slug]/page.tsx` (schema builders only), `src/app/projects/[slug]/page.tsx` (schema + description only), `src/app/llms.txt/route.ts` (truthful facts only; WP2 rewrites it), `tests/seo-foundation.test.mjs`, `docs/seo-aeo.md` (sections touched). `tests/seo.test.mjs` may be edited only where an assertion encodes behaviour this plan intentionally changes (for example static pages having no `lastmod`).
-- [ ] `facts.ts`: `membershipFacts()` returns price (from `PRICE_AGOROT`), trial days (from `TRIAL_MS`) and `billingAvailable` (same check as `getBillingStatus`: `cardcomConfig()` in try/catch). `contactFacts()` from `legal/identity.ts`.
-- [ ] Rewrite pricing/billing/AI-agent statements (home FAQ, comparison FAQ, comparison table row and payments paragraph, llms facts) from `facts.ts`; delete the false "not in the sitemap / not indexed" claim. Required copy is in section 3a.
-- [ ] `schema.ts`: typed builders (`organization`, `website`, `siteGraph`, `webPage`, `article`, `collectionPage`, `itemList`, `breadcrumbList`, `faqPage`, `membershipService` (emitted only when billing is available)). Organization gets `alternateName: 'פרילנס פלייס'`, description, `areaServed: IL`, `knowsLanguage: he`, `legalName` + `contactPoint` from `contactFacts()`, `sameAs` only from `profiles.ts` when non-empty. All pages use the builders. Project pages add `datePublished`/`dateModified`, `keywords` (skills) and a category breadcrumb level when the category maps to a known category.
-- [ ] Policy test: no `JobPosting`, `Review`, `AggregateRating`, `Rating` types in any builder output; all URLs absolute on `SITE_URL`.
-- [ ] `pageMetadata` v2: options `{ type: 'website' | 'article', published, modified }`, `alternates.languages` (`he-IL` and `x-default` → canonical), per-page OG image alt = title; `summarize(text, max)` that cuts at a word/sentence boundary with an ellipsis (fixes mid-word project descriptions); `viewport` export with `themeColor` in the layout.
-- [ ] Home title becomes `Freelance Place — פרויקטים לפרילנסרים ופרסום פרויקט בחינם` (absolute); the XPlace angle stays in the description and H2.
-- [ ] `registry.ts`: builds the page list from static core pages + `categories` + `guides` + `skills` (quality-gated) + `hubs` + `info-pages`; exports `allPages()`, `indexablePages()`, `pageByPath()`, `editorialPaths` (kept for compatibility); `sitemap.ts` derives from it and sets `lastModified` only where `modified` is a real date; legal pages use `legalUpdated`.
-- [ ] Registry invariant tests: unique paths, title/description length windows, valid dates, `modified >= published`, every `related` path resolves.
-- [ ] `SiteFooter` (server component) replaces `LegalFooter` in the layout: link groups for categories, skills (indexable only), guides, product pages, legal; responsive, RTL; hidden groups when empty.
+- [x] `facts.ts`: `membershipFacts()` returns price (from `PRICE_AGOROT`), trial days (from `TRIAL_MS`) and `billingAvailable` (same check as `getBillingStatus`: `cardcomConfig()` in try/catch). `contactFacts()` from `legal/identity.ts`.
+- [x] Rewrite pricing/billing/AI-agent statements (home FAQ, comparison FAQ, comparison table row and payments paragraph, llms facts) from `facts.ts`; delete the false "not in the sitemap / not indexed" claim. Required copy is in section 3a.
+- [x] `schema.ts`: typed builders (`organization`, `website`, `siteGraph`, `webPage`, `article`, `collectionPage`, `itemList`, `breadcrumbList`, `faqPage`, `membershipService` (emitted only when billing is available)). Organization gets `alternateName: 'פרילנס פלייס'`, description, `areaServed: IL`, `knowsLanguage: he`, `legalName` + `contactPoint` from `contactFacts()`, `sameAs` only from `profiles.ts` when non-empty. All pages use the builders. Project pages add `datePublished`/`dateModified`, `keywords` (skills) and a category breadcrumb level when the category maps to a known category.
+- [x] Policy test: no `JobPosting`, `Review`, `AggregateRating`, `Rating` types in any builder output; all URLs absolute on `SITE_URL`.
+- [x] `pageMetadata` v2: options `{ type: 'website' | 'article', published, modified }`, `alternates.languages` (`he-IL` and `x-default` → canonical), per-page OG image alt = title; `summarize(text, max)` that cuts at a word/sentence boundary with an ellipsis (fixes mid-word project descriptions); `viewport` export with `themeColor` in the layout.
+- [x] Home title becomes `Freelance Place — פרויקטים לפרילנסרים ופרסום פרויקט בחינם` (absolute); the XPlace angle stays in the description and H2.
+- [x] `registry.ts`: builds the page list from static core pages + `categories` + `guides` + `skills` (quality-gated) + `hubs` + `info-pages`; exports `allPages()`, `indexablePages()`, `pageByPath()`, `editorialPaths` (kept for compatibility); `sitemap.ts` derives from it and sets `lastModified` only where `modified` is a real date; legal pages use `legalUpdated`.
+- [x] Registry invariant tests: unique paths, title/description length windows, valid dates, `modified >= published`, every `related` path resolves.
+- [x] `SiteFooter` (server component) replaces `LegalFooter` in the layout: link groups for categories, skills (indexable only), guides, product pages, legal; responsive, RTL; hidden groups when empty.
 - [x] `tests/helpers/load-ts.mjs` (done by the coordinator, commit e5aa82b): `loadModule(entry, { stubs, env })` resolves `@/` and relative imports, stubs packages, uses real React so components render with `renderToStaticMarkup`. `npm run test:seo` now runs every `tests/seo*.test.mjs`. Use it for all new tests.
-- [ ] `docs/seo-aeo.md` updated for everything above.
+- [x] `docs/seo-aeo.md` updated for everything above.
 
 ### WP2 — AI-crawler access, llms.txt, IndexNow
 Owner: sub-thread 2 (after WP1).
@@ -163,15 +163,15 @@ Write-set: `src/lib/seo/{crawlers,llms,indexnow}.ts`, `src/lib/projects/events.t
 - [ ] Tests for group structure, toggle, key file, payload, no-op in preview.
 
 ### WP3 — Rendering and Core Web Vitals (home and shared shell)
-Owner: sub-thread 3 (after WP1; separate PR/branch if Or allows, see section 5).
+Owner: sub-thread 3 (after WP1; separate PR/branch if Or allows, see section 5). **Done: merged to main as PR #5 on 2026-11-10 (Deploy engine run #34 succeeded).**
 Write-set: `src/app/page.tsx`, `src/components/{workspace-home,auth-control,trial-status,my-applications,studio-tools,project-proposals,actions}.tsx`, `src/lib/auth/firebase-client.ts`, `src/lib/db/projects.ts`, `src/lib/seo/projects.ts` (cache only), `src/app/{studio,workspace-responsive}.css` (order/semantics only), `next.config.ts` (headers only), tests.
-- [ ] One shared viewer context: `/api/auth/session` is fetched once; marketplace endpoints that need a login are called only for signed-in viewers (no 401s for anonymous visitors or crawlers).
-- [ ] Firebase Auth SDK, gapi and the auth iframe load on demand (sign-in intent), not on every page view.
-- [ ] Server passes real initial projects to `WorkspaceHome`; feed no longer flashes four demo cards then reflows; no misleading placeholder text in the SSR HTML (no "בודקים התחברות…", no zero KPIs for anonymous visitors).
-- [ ] DOM order: main content (H1) before the personal sidebar, visual layout unchanged; no heading inside `<button>`; each real-project card exposes a crawlable link to `/projects/<slug>`.
-- [ ] Heavy views (`ProfileSetup`, `StudioInbox`, `ProjectComposer`, billing, bid form, proposals) behind `next/dynamic`.
-- [ ] `unstable_cache` (60 s) around public project reads; HSTS (`max-age=31536000`, no includeSubDomains) via `next.config.ts` headers.
-- [ ] Evidence: Lighthouse mobile before/after on `/` (targets: TBT ≤ 200 ms, performance ≥ 95, zero console errors, ≤ 3 requests to `/api` for anonymous load), screenshots at 390 px and 1440 px before/after, signed-in flows exercised with Playwright request mocking.
+- [x] One shared viewer context: `/api/auth/session` is fetched once; marketplace endpoints that need a login are called only for signed-in viewers (no 401s for anonymous visitors or crawlers).
+- [x] Firebase Auth SDK, gapi and the auth iframe load on demand (sign-in intent), not on every page view.
+- [x] Server passes real initial projects to `WorkspaceHome`; feed no longer flashes four demo cards then reflows; no misleading placeholder text in the SSR HTML (no "בודקים התחברות…", no zero KPIs for anonymous visitors).
+- [x] DOM order: main content (H1) before the personal sidebar, visual layout unchanged; no heading inside `<button>`; each real-project card exposes a crawlable link to `/projects/<slug>`.
+- [x] Heavy views (`ProfileSetup`, `StudioInbox`, `ProjectComposer`, billing, bid form, proposals) behind `next/dynamic`.
+- [x] `unstable_cache` (60 s) around public project reads; HSTS (`max-age=31536000`, no includeSubDomains) via `next.config.ts` headers.
+- [x] Evidence: Lighthouse mobile before/after on `/` (targets: TBT ≤ 200 ms, performance ≥ 95, zero console errors, ≤ 3 requests to `/api` for anonymous load), screenshots at 390 px and 1440 px before/after, signed-in flows exercised with Playwright request mocking.
 
 ### WP4 — Programmatic landing pages, hubs, internal linking
 Owner: sub-thread 4 (after WP1).
@@ -232,3 +232,6 @@ Create and fill a LinkedIn company page and add it to `sameAs`; list the product
 ## 8. Progress log
 - 2026-11-10: audit complete; plan written.
 - 2026-11-10: WP1 foundation merged on the thread branch (facts, schema builders, registry, pageMetadata v2, SiteFooter, honest billing/AI-agent copy). Or chose a separate branch and PR for WP3 (home performance). Content lint (`tests/seo-content.test.mjs`) and data module layout added: `src/lib/seo/skill-data/*`, `guides/<slug>.ts`, `glossary-data.ts`, `category-faq.ts`, `info-content.ts`. Skill type gained optional `sources` and `disclaimer`.
+- 2026-11-10: WP3 merged to `main` as PR #5 together with the one-line fix for the broken main build (an import above `'use client'` in `workspace-home.tsx`); Deploy engine run #34 succeeded. Lighthouse mobile on a local production build (simulated throttling, median of 3): performance 93 to 95, accessibility 96 to 100, CLS 0.036 to 0, JavaScript transferred 203 KB to 157 KB, API calls on the first anonymous load 10 to 2.
+- 2026-11-10: the SEO branch merged `main` (PR #5). Gates on the merged tree: `test:seo` 49 pass / 1 skipped (strict content catalogue), `test:home` 12/12, `test:billing` 31/31, `test:proposals` 3/3, `test:seed` 9/9, typecheck clean, `next build` ok, local `next start` crawl and Playwright flows pass. The sitemap returns 500 locally by design (no Firestore credentials); it is verified on production after deploy.
+- 2026-11-10: content written but not yet wired to pages: skills for writing-marketing (5), design (6), video-animation (4); 25 glossary terms; four client guides; category FAQs; pricing/about/how-it-works/FAQ copy. Stub registry entries keep unfinished pages out of the footer and sitemap.
