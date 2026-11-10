@@ -98,6 +98,7 @@ export function BillingPanel({ eligible = false, trialEndsAt }: { eligible?: boo
       </div>
       <div className={styles.price}><b>₪19.99</b><span>לחודש</span></div>
     </header>
+    <p className={styles.free}><b aria-hidden="true">✓</b>פרסום פרויקטים חינם תמיד, ללא קשר למנוי. המנוי נדרש רק להגשת הצעות כפרילנסר/ית.</p>
     {badge && <p className={styles.badge} data-tone={badge.tone}><i aria-hidden="true"/>{badge.text}</p>}
 
     {message && <p className={styles.message} data-tone={message.tone} role={message.tone === 'error' ? 'alert' : 'status'}>{message.text}</p>}
