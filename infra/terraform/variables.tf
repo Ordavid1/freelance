@@ -11,6 +11,11 @@ variable "canonical_domain" {
   default     = "freelance-place.com"
   description = "Primary public hostname for the Freelance Place website."
 }
+variable "edge_rate_limit_preview" {
+  type        = bool
+  default     = true
+  description = "Observe the Cloud Armor per-IP API budget before enforcing it. Set false only after reviewing shared-IP traffic, OAuth and Cardcom callbacks."
+}
 variable "google_sign_in_enabled" {
   type        = bool
   default     = false

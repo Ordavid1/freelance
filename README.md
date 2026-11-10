@@ -6,6 +6,8 @@ Freelance Place production deployment foundation.
 - [Verified deployment status and blockers](deploy/STATUS.md)
 - [Terraform infrastructure](infra/terraform/main.tf)
 - [GitHub Actions deployment](.github/workflows/deploy.yml)
+- [Security audit — 10 November 2026](docs/audits/2026-11-10-marketplace-security.md)
+- [Marketplace security implementation plan](docs/security-plan.md)
 
 The Next.js application source is included. See the deployment status and readiness audit for the current release boundary.
 

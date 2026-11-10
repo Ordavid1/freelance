@@ -1,3 +1,5 @@
+import { enforceActionLimit } from '@/lib/security/rate-limit';
+import { readFormBody } from '@/lib/security/request-body';
 import { createHash, randomUUID } from 'node:crypto';
 import { profileResponseSchema, profileSystemInstruction, PROFILE_PROMPT_VERSION, validateProfileDraft } from '@/lib/profile-generation';
 import { NextResponse } from 'next/server';
@@ -13,8 +15,11 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
-  if (Number(request.headers.get('content-length') || 0) > 45 * 1024 * 1024) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
-  const form = await request.formData().catch(() => null);
+  const limited = await enforceActionLimit(user.uid, 'ai.profile');
+  if (limited) return limited;
+  const parsedBody = await readFormBody(request, 256 * 1024);
+  if (!parsedBody.ok) return parsedBody.response;
+  const form = parsedBody.value;
   if (!form) return NextResponse.json({ error: 'לא הצלחנו לקרוא את הקבצים.' }, { status: 400 });
   const uploaded = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
   if (uploaded.length) return NextResponse.json({ error: 'יש לשמור את המסמכים במקורות הפרופיל לפני עיבוד.' }, { status: 400 });

@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All marketplace, billing and quota access goes through the server.
+    // Firebase Admin bypasses these rules and is constrained by runtime IAM.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

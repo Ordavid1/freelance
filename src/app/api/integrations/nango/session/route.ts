@@ -1,3 +1,5 @@
+import { enforceActionLimit } from '@/lib/security/rate-limit';
+import { readJsonBody } from '@/lib/security/request-body';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { integrationId, nangoApiKey, nangoJson, type SocialProvider } from '@/lib/integrations/nango';
@@ -9,7 +11,11 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לחבר חשבון.' }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { provider?: unknown } | null;
+  const limited = await enforceActionLimit(user.uid, 'oauth.session');
+  if (limited) return limited;
+  const parsedBody = await readJsonBody(request, 4_096);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as { provider?: unknown } | null;
   const provider = body?.provider;
   if (provider !== 'github' && provider !== 'linkedin') {
     return NextResponse.json({ error: 'ספק החיבור לא תקין.' }, { status: 400 });

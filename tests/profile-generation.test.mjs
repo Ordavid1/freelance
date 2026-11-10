@@ -1,3 +1,4 @@
+import { loadModule } from './helpers/load-ts.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -12,6 +13,8 @@ function load(path, stubs = {}) {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { module, exports: module.exports, URL, File, Buffer, console: stubs.__console || console, process: { env: { GOOGLE_CLOUD_PROJECT: 'test-project' } }, require(name) {
+    if (name === '@/lib/security/request-body') return loadModule('src/lib/security/request-body.ts');
+    if (name === '@/lib/security/rate-limit') return { enforceActionLimit: async () => null };
     if (name === 'server-only') return {};
     if (name === 'node:net') return { isIP };
     if (name in stubs) return stubs[name];

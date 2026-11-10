@@ -1,3 +1,4 @@
+import { loadModule } from './helpers/load-ts.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -48,6 +49,7 @@ test('allows localhost development without opening production to internal origin
 
 test('session creation uses the same origin check and retains CSRF validation', async () => {
   const route = load('src/app/api/auth/session/route.ts', env, {
+    '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
     'node:crypto': { timingSafeEqual },
     'next/headers': { cookies: async () => ({ get: () => undefined }) },
     'next/server': { NextResponse },

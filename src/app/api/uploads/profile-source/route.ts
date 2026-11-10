@@ -1,3 +1,5 @@
+import { enforceActionLimit } from '@/lib/security/rate-limit';
+import { readFormBody } from '@/lib/security/request-body';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
@@ -36,8 +38,11 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשמור מסמך.' }, { status: 401 });
-  if (Number(request.headers.get('content-length') || 0) > MAX_BYTES + 100_000) return NextResponse.json({ error: 'הקובץ גדול מדי.' }, { status: 413 });
-  const form = await request.formData().catch(() => null);
+  const limited = await enforceActionLimit(user.uid, 'source.upload');
+  if (limited) return limited;
+  const parsedBody = await readFormBody(request, MAX_BYTES + 100_000);
+  if (!parsedBody.ok) return parsedBody.response;
+  const form = parsedBody.value;
   const file = form?.get('file');
   if (!(file instanceof File) || !file.size || file.size > MAX_BYTES) return NextResponse.json({ error: 'אפשר להעלות מסמך אחד עד 8MB.' }, { status: 400 });
   const extension = safeName(file.name).toLowerCase().split('.').pop();

@@ -7,6 +7,8 @@ registerHooks({resolve(specifier, context, next) {
   if(specifier.startsWith('@/')) return next(new URL('../src/'+specifier.slice(2)+'.ts',import.meta.url).href,context);
   return next(specifier,context);
 }});
+await mock.module('../src/lib/security/rate-limit.ts',{namedExports:{enforceActionLimit:async()=>null}});
+await mock.module('../src/lib/security/marketplace-policy.ts',{namedExports:{accountWriteDenied:async()=>null,assertContactAllowed:async()=>{},ContactUnavailable:class extends Error {}}});
 let gates=0, created=0, closed=0;
 const user={uid:'expired-freelancer',name:'Test',email:'test@example.com'};
 await mock.module('../src/lib/auth/session.ts',{namedExports:{getCurrentUser:async()=>user,isSameOrigin:()=>true}});

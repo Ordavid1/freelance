@@ -2,6 +2,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { BillingError } from './cardcom';
+import { readJsonBody } from '@/lib/security/request-body';
 export function json(value: unknown, status = 200) { return NextResponse.json(value, { status, headers: { 'Cache-Control': 'no-store' } }); }
 export function failure(error: unknown) { return json({ error: error instanceof BillingError ? error.code : 'BILLING_UNAVAILABLE' }, error instanceof BillingError ? error.status : 503); }
 export async function billingUser(request?: Request) {
@@ -11,8 +12,7 @@ export async function billingUser(request?: Request) {
   return user;
 }
 export async function body(request: Request) {
-  if (Number(request.headers.get('content-length')) > 4096) throw new BillingError('BODY_TOO_LARGE', 413);
-  const text = await request.text();
-  if (text.length > 4096) throw new BillingError('BODY_TOO_LARGE', 413);
-  try { return JSON.parse(text); } catch { throw new BillingError('INVALID_BODY', 400); }
+  const parsedBody = await readJsonBody(request, 4096);
+  if (!parsedBody.ok) throw new BillingError(parsedBody.response.status === 413 ? 'BODY_TOO_LARGE' : 'INVALID_BODY', parsedBody.response.status);
+  return parsedBody.value;
 }

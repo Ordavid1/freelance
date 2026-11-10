@@ -8,18 +8,18 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           workload_identity_provider: projects/561053183039/locations/global/workloadIdentityPools/github/providers/freelance
           service_account: freelance-deployer@freelance-514118.iam.gserviceaccount.com
-      - uses: google-github-actions/setup-gcloud@v3
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
       - name: Inspect production references and access
         env:
           CLOUDSDK_CORE_DISABLE_PROMPTS: '1'
         run: |
           python3 - <<'PY'
-          import json, subprocess
+          import json, subprocess, urllib.request, urllib.error
           def read(args):
               p=subprocess.run(['gcloud',*args,'--format=json','--quiet'],capture_output=True,text=True)
               if p.returncode:return {'accessible':False}
@@ -30,11 +30,20 @@ jobs:
               result[project]={'secretsAccessible':r['accessible']}
               if r['accessible']:
                   result[project]['cardcomSecrets']=[s['name'] for s in r['data'] if 'cardcom' in s['name'].lower()]
+          token=subprocess.run(['gcloud','auth','print-access-token'],check=True,capture_output=True,text=True).stdout.strip()
           checks=[]
           for project in ['freelance-514118','crypto-coral-328619']:
               for secret in ['cardcom-terminal-number','cardcom-api-name','CARDCOM_TERMINAL_NUMBER','CARDCOM_API_NAME']:
-                  p=subprocess.run(['gcloud','secrets','versions','access','latest','--secret='+secret,'--project='+project,'--quiet'],capture_output=True,text=True)
-                  checks.append({'project':project,'name':secret,'readable':p.returncode==0,'reason':next((code for code in ['PERMISSION_DENIED','NOT_FOUND','SERVICE_DISABLED'] if code in p.stderr),None)})
+                  # Check IAM without retrieving any credential payload.
+                  req=urllib.request.Request(
+                      f'https://secretmanager.googleapis.com/v1/projects/{project}/secrets/{secret}:testIamPermissions',
+                      data=json.dumps({'permissions':['secretmanager.versions.access']}).encode(),
+                      headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})
+                  try:
+                      with urllib.request.urlopen(req,timeout=20) as response: permissions=json.load(response).get('permissions',[])
+                      checks.append({'project':project,'name':secret,'readable':'secretmanager.versions.access' in permissions})
+                  except urllib.error.HTTPError as error:
+                      checks.append({'project':project,'name':secret,'readable':False,'httpStatus':error.code})
           result['exactSecretAccess']=checks
           r=read(['run','services','describe','freelance-engine','--project=freelance-514118','--region=me-west1'])
           result['runtimeAccessible']=r['accessible']
@@ -45,7 +54,7 @@ jobs:
           with open('billing-diagnostics.json','w') as f:json.dump(result,f,indent=2)
           print(json.dumps(result,indent=2))
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: billing-diagnostics
           path: billing-diagnostics.json

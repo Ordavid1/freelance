@@ -1,6 +1,6 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
@@ -203,19 +203,50 @@ resource "google_storage_bucket_iam_member" "user_uploads_runtime" {
   member = "serviceAccount:${google_service_account.account["runtime"].email}"
 }
 resource "google_firestore_database" "default" {
-  project                     = var.project_id
-  name                        = "(default)"
-  location_id                 = var.data_location
-  type                        = "FIRESTORE_NATIVE"
-  delete_protection_state     = "DELETE_PROTECTION_ENABLED"
-  deletion_policy             = "PREVENT"
-  app_engine_integration_mode = "DISABLED"
+  project                           = var.project_id
+  name                              = "(default)"
+  location_id                       = var.data_location
+  type                              = "FIRESTORE_NATIVE"
+  delete_protection_state           = "DELETE_PROTECTION_ENABLED"
+  deletion_policy                   = "PREVENT"
+  app_engine_integration_mode       = "DISABLED"
+  point_in_time_recovery_enablement = "POINT_IN_TIME_RECOVERY_ENABLED"
 
   lifecycle {
     prevent_destroy = true
   }
 
   depends_on = [google_project_service.api]
+}
+resource "google_firestore_backup_schedule" "daily" {
+  project   = var.project_id
+  database  = google_firestore_database.default.name
+  retention = "2592000s"
+  daily_recurrence {}
+}
+resource "google_firebaserules_ruleset" "server_only" {
+  project = var.project_id
+  source {
+    files {
+      name    = "firestore.rules"
+      content = file("${path.module}/firestore.rules")
+    }
+  }
+  depends_on = [google_project_service.api]
+}
+resource "google_firebaserules_release" "firestore" {
+  project      = var.project_id
+  name         = "cloud.firestore"
+  ruleset_name = google_firebaserules_ruleset.server_only.name
+  depends_on   = [google_firestore_database.default]
+}
+resource "google_firestore_field" "security_rate_limit_expiry" {
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "securityRateLimits"
+  field      = "expiresAt"
+  ttl_config {}
+  index_config {}
 }
 resource "google_identity_platform_config" "default" {
   project = var.project_id
@@ -289,6 +320,10 @@ resource "google_cloud_run_v2_service" "engine" {
       env {
         name  = "GOOGLE_CLOUD_LOCATION"
         value = "global"
+      }
+      env {
+        name  = "AI_GENERATION_ENABLED"
+        value = tostring(var.ai_generation_enabled)
       }
       env {
         name  = "VERTEX_MODEL_ID"
@@ -422,7 +457,45 @@ resource "google_compute_backend_service" "website" {
   name                  = "freelance-engine-backend"
   protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
+  security_policy       = google_compute_security_policy.website[0].id
+  log_config {
+    enable      = true
+    sample_rate = 1.0
+  }
   backend { group = google_compute_region_network_endpoint_group.website[0].id }
+}
+resource "google_compute_security_policy" "website" {
+  count = var.engine_image == null ? 0 : 1
+  name  = "freelance-marketplace-edge"
+  # Preview first: shared office/mobile IPs and code-rich project briefs must
+  # be measured before enforcement. App account quotas remain enforced.
+  rule {
+    priority = 1000
+    action   = "throttle"
+    preview  = var.edge_rate_limit_preview
+    match {
+      expr { expression = "request.path.startsWith('/api/')" }
+    }
+    rate_limit_options {
+      conform_action = "allow"
+      exceed_action  = "deny(429)"
+      enforce_on_key = "IP"
+      rate_limit_threshold {
+        count        = 120
+        interval_sec = 60
+      }
+    }
+    description = "Per-IP API budget; inspect preview logs before enforcement."
+  }
+  rule {
+    priority = 2147483647
+    action   = "allow"
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config { src_ip_ranges = ["*"] }
+    }
+    description = "Public marketplace and search traffic."
+  }
 }
 resource "google_compute_url_map" "website" {
   count           = var.engine_image == null ? 0 : 1
@@ -447,6 +520,13 @@ resource "google_compute_target_https_proxy" "website" {
   name             = "freelance-website-https"
   url_map          = google_compute_url_map.website[0].id
   ssl_certificates = [google_compute_managed_ssl_certificate.website[0].id]
+  ssl_policy       = google_compute_ssl_policy.website[0].id
+}
+resource "google_compute_ssl_policy" "website" {
+  count           = var.engine_image == null ? 0 : 1
+  name            = "freelance-website-tls"
+  min_tls_version = "TLS_1_2"
+  profile         = "MODERN"
 }
 resource "google_compute_global_forwarding_rule" "https" {
   count                 = var.engine_image == null ? 0 : 1

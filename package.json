@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test": "node --experimental-transform-types --experimental-test-module-mocks --test tests/*.test.mjs",
+    "test:security": "node --experimental-transform-types --experimental-test-module-mocks --test tests/security*.test.mjs tests/request-origin.test.mjs tests/proposal-withdrawal.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -21,7 +23,7 @@
     "@google/genai": "^1.30.0",
     "@nangohq/frontend": "^0.72.3",
     "firebase-admin": "14.5.0",
-    "google-auth-library": "^10.5.0",
+    "google-auth-library": "^11.3.4",
     "next": "^16.2.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

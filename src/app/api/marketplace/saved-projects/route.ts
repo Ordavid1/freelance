@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
@@ -20,7 +21,9 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשמור פרויקט.' }, { status: 401 });
-  const body = await request.json().catch(() => null) as { projectSlug?: unknown; saved?: unknown } | null;
+  const parsedBody = await readJsonBody(request, 4_096);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as { projectSlug?: unknown; saved?: unknown } | null;
   if (typeof body?.projectSlug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.projectSlug) || typeof body.saved !== 'boolean') return NextResponse.json({ error: 'פרטי השמירה לא תקינים.' }, { status: 400 });
   const db = firestore();
   const projectRef = db.collection('projects').doc(body.projectSlug);

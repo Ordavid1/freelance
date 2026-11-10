@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
@@ -25,8 +26,9 @@ export async function PUT(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשמור פרופיל.' }, { status: 401 });
-  if (Number(request.headers.get('content-length') || 0) > 30_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
-  const body = await request.json().catch(() => null) as { profile?: unknown } | null;
+  const parsedBody = await readJsonBody(request, 30_000);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as { profile?: unknown } | null;
   const profile = body?.profile;
   if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
   const input = profile as Record<string, unknown>;
