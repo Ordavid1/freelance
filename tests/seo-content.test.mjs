@@ -91,11 +91,12 @@ const info = collectInfo();
 const categoryFaq = collectCategoryFaq();
 const intro = glossaryIntro();
 
-// Every string inside an object, with a readable location for failure messages.
+// Every string inside an object, with a readable location for failure messages. The `url` key (only
+// used by sources[]) is skipped: lintSources requires it to be an https URL, lintText forbids URLs in text.
 function* strings(value, where) {
   if (typeof value === 'string') yield [where, value];
   else if (Array.isArray(value)) for (const [index, item] of value.entries()) yield* strings(item, `${where}[${index}]`);
-  else if (value && typeof value === 'object') for (const [key, item] of Object.entries(value)) if (!key.startsWith('__')) yield* strings(item, `${where}.${key}`);
+  else if (value && typeof value === 'object') for (const [key, item] of Object.entries(value)) if (!key.startsWith('__') && key !== 'url') yield* strings(item, `${where}.${key}`);
 }
 
 function lintText(where, text, problems) {
