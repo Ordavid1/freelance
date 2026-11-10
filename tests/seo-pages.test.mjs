@@ -221,7 +221,8 @@ async function assertGuideRoute(route, guide, registryOfRoute, label) {
   // FAQ: the single FAQPage repeats the visible questions and answers word for word.
   if (guide.faq.length) {
     assert.deepEqual(faqPairs(ofType(html, 'FAQPage')[0]), detailsFaq(html), `${label}: FAQPage equals the visible FAQ`);
-    assert.deepEqual(detailsFaq(html), pairs(guide.faq), `${label}: the visible FAQ is the guide FAQ`);
+    // plain(): guide data loaded from the repository lives in the loader's vm realm, so its arrays have another prototype.
+    assert.deepEqual(plain(detailsFaq(html)), plain(pairs(guide.faq)), `${label}: the visible FAQ is the guide FAQ`);
   } else assert.doesNotMatch(html, /faq-heading/, `${label}: no empty FAQ block`);
   return html;
 }
