@@ -20,7 +20,7 @@ export default function GlossaryPage() {
     ? definedTermSetNode({ path, name: glossaryIntro.h1, description: glossaryIntro.summary, terms: glossaryTerms.map((term, index) => ({ name: term.term, description: term.definition, anchor: glossaryTermId(index) })) })
     : null;
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <article className="ga-article">
       <ArticleHeader title={glossaryIntro.h1} summary={glossaryIntro.summary} modified={modified} />
       <GlossaryList terms={glossaryTerms} />

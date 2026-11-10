@@ -26,7 +26,7 @@ export default async function GuidePage({ params }: Props) {
   const trail = [crumbs.home, crumbs.guides, { name: guide.title, path }];
   // The FAQPage markup is emitted by the FAQ block of GuideArticle from the same questions it renders.
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <GuideArticle guide={guide} />
     <StructuredData data={withContext(breadcrumbNode(trail))} />
     <StructuredData data={withContext(articleNode({ path, headline: guide.title, description: guide.description, published: guide.published, modified: guide.modified }))} />

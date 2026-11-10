@@ -1,0 +1,88 @@
+/* Skill pages, the project index and the shared project list. New class names only (disc-*):
+   the look follows the public discovery pages (discovery.css): cream card, lime accent, dark ink.
+   Nothing here restyles a class that other pages use. */
+
+.disc-crumbs{margin-bottom:4px}
+.disc-crumbs ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:2px 8px;font-size:14px;color:#4b5258}
+.disc-crumbs li{min-width:0;overflow-wrap:anywhere}
+.disc-crumbs li+li::before{content:"/";margin-inline-end:8px;color:#596067}
+.disc-crumbs [aria-current]{font-weight:600;color:#25272a}
+
+.disc-eyebrow{margin:20px 0 0;font-size:14px;color:#4b5258}
+.disc-eyebrow+h1{margin-top:6px}
+
+.disc-brief{max-width:78ch;margin:4px 0 14px;padding:16px 22px;background:#fff;border:1px solid #e2e2db;border-inline-start:6px solid #ceef00;border-radius:12px;font-size:18px;line-height:1.8;color:#25272a}
+.disc-brief strong{font-weight:700}
+.disc-byline{margin:0 0 8px;font-size:14px;color:#4b5258}
+
+.disc-list{max-width:78ch;margin:12px 0;padding-inline-start:24px}
+.disc-list li{margin:8px 0;padding-inline-start:4px}
+.disc-after{max-width:78ch}
+
+.disc-section-note{max-width:78ch;font-size:15px;color:#4b5258}
+.disc-note{max-width:78ch;margin:14px 0;padding:12px 16px;background:#fff;border:1px dashed #a9ad9e;border-radius:10px;font-size:14px;line-height:1.8;color:#33383d}
+.disc-disclaimer{max-width:78ch;margin:26px 0 0;padding:14px 18px;background:#faf6e3;border:1px solid #d9d2b0;border-radius:10px;font-size:14px;line-height:1.8;color:#4a4320}
+.disc-status{max-width:78ch;margin:10px 0;font-size:16px;color:#25272a}
+
+.disc-sources{max-width:78ch;padding-inline-start:22px}
+.disc-sources li{margin:8px 0;overflow-wrap:anywhere}
+
+.disc-link-list{list-style:none;margin:14px 0;padding:0;display:grid;gap:10px;max-width:78ch}
+.disc-link-list li{padding:12px 16px;background:#fff;border:1px solid #e2e2db;border-radius:10px}
+.disc-link-list a{font-weight:700}
+.disc-link-list p{margin:2px 0 0;font-size:14px;line-height:1.7;color:#33383d}
+
+.disc-skill-grid{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.disc-skill-grid li{min-width:0;padding:18px 20px;background:#fff;border:1px solid #e2e2db;border-radius:12px}
+.disc-skill-grid h3{margin:0 0 6px;font-size:19px;line-height:1.45}
+.disc-skill-grid p{margin:0;max-width:none;font-size:15px;line-height:1.75;color:#33383d}
+
+.disc-cards{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.disc-card{min-width:0;display:flex;flex-direction:column;gap:6px;padding:18px 20px;background:#fff;border:1px solid #e2e2db;border-radius:12px;color:#25272a;line-height:1.7}
+.disc-card .disc-card-title{margin:0;font-size:18px;line-height:1.5;font-weight:700;max-width:none}
+.disc-card .disc-card-title a{color:#17263a;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;overflow-wrap:anywhere}
+.disc-card .disc-card-title a:hover{color:#445400}
+.disc-card p{max-width:none;margin:0}
+.disc-card-meta{font-size:14px;color:#4b5258}
+.disc-card-meta .ai-agent-badge{margin-inline:0 8px}
+.disc-card-excerpt{font-size:14px;line-height:1.75;color:#33383d;overflow-wrap:anywhere}
+.disc-chips{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 8px}
+.disc-chips li{margin:0}
+.disc-chip{display:inline-block;padding:1px 10px;border:1px solid #d3d5cb;border-radius:999px;background:#f6f5ef;color:#25272a;font-size:13px;line-height:1.75;font-weight:400}
+a.disc-chip{text-decoration:underline;text-underline-offset:3px}
+a.disc-chip:hover{background:#eef3c9;color:#33400a}
+.disc-chip-category{background:#ceef00;border-color:#b9d800;font-weight:600}
+a.disc-chip-category:hover{background:#c1e000;color:#25272a}
+
+.disc-pager{margin:28px 0 8px}
+.disc-pager ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.disc-pager a,.disc-pager span{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 14px;border:1px solid #d3d5cb;border-radius:10px;background:#fff;color:#25272a;text-decoration:none;font-size:15px}
+.disc-pager a:hover{background:#eef3c9;color:#33400a}
+.disc-pager [aria-current="page"]{background:#ceef00;border-color:#b9d800;font-weight:700}
+.disc-pager .disc-pager-gap{min-width:0;padding:0 2px;border:0;background:transparent}
+
+.disc-browse{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:12px 0;padding:0}
+.disc-empty{max-width:78ch;padding:20px 22px;background:#fff;border:1px solid #e2e2db;border-radius:12px;line-height:1.85}
+.disc-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin:20px 0 4px}
+.disc-actions .discovery-cta{margin-inline-end:0}
+
+.disc-lead-meta{font-size:15px;color:#4b5258}
+
+/* Project page (workspace look): breadcrumb, publish date, tag links and related projects. */
+.page-body .disc-crumbs{margin:0 0 12px}
+.page-body .disc-crumbs ol{font-size:12px;color:#657169}
+.page-body .disc-crumbs a{text-decoration:underline;text-underline-offset:3px}
+.disc-dates{margin:-8px 0 18px;font-size:13px;color:#657169}
+.tag.tag-link{text-decoration:none}
+a.tag.tag-link{font-weight:600;border-color:#b9d6c4;text-decoration:underline;text-underline-offset:3px}
+a.tag.tag-link:hover{background:#dcefe3}
+.disc-related{margin-top:32px;max-width:980px}
+.disc-related h2{font-size:20px;margin:0 0 4px}
+.disc-related .disc-cards{margin-top:12px}
+
+@media(max-width:760px){
+  .disc-cards,.disc-skill-grid{grid-template-columns:1fr}
+  .disc-brief{padding:14px 16px;font-size:17px}
+  .disc-card{padding:16px}
+}
+@media print{.disc-pager,.disc-actions{display:none}}

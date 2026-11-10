@@ -18,7 +18,7 @@ export default function GuidesIndexPage() {
   const items = groups.flatMap((group) => group.items).map((item) => ({ name: item.title, path: item.path }));
   const trail = [crumbs.home, crumbs.guides];
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <ArticleHeader title={guidesIndexIntro.h1} summary={guidesIndexIntro.summary} modified={modified} />
     <GuideIndex groups={groups} />
     <StructuredData data={withContext(breadcrumbNode(trail))} />

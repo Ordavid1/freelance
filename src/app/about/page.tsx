@@ -18,7 +18,7 @@ export default function AboutPage() {
   const trail = [crumbs.home, { name: content.h1, path }];
   // The Organization node lives in the site graph; the AboutPage points to it as its main entity.
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <InfoArticle content={content} path={path} modified={modified} actions={[articleActions.browseProjects, articleActions.postProject]} afterSections={<OperatorContact operator={contact.operator} email={contact.email} />} />
     <StructuredData data={withContext(breadcrumbNode(trail))} />
     <StructuredData data={withContext(webPageNode({ type: 'AboutPage', path, name: title, description, published, modified }))} />

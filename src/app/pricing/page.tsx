@@ -21,7 +21,7 @@ export default function PricingPage() {
   const service = membershipServiceNode(facts);
   const trail = [crumbs.home, { name: content.h1, path }];
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <InfoArticle content={content} path={path} modified={modified} actions={[articleActions.postProject, articleActions.browseProjects]} />
     <StructuredData data={withContext(breadcrumbNode(trail))} />
     <StructuredData data={withContext(webPageNode({ path, name: title, description, published, modified }))} />

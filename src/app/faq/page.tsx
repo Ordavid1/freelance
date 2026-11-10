@@ -19,7 +19,7 @@ export default function FaqPage() {
   const trail = [crumbs.home, { name: content.h1, path }];
   // FaqGroups emits the single FAQPage, with every question of every group.
   return <><PublicHeader /><main className="discovery-content">
-    <Breadcrumbs items={trail} />
+    <Breadcrumbs items={trail} structured={false} className="ga-crumbs" />
     <article className="ga-article">
       <ArticleHeader title={content.h1} summary={content.summary} modified={modified} />
       <FaqGroups groups={content.groups} />
