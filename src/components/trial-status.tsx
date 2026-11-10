@@ -1,13 +1,19 @@
 'use client';
 import Link from 'next/link';
-import { BillingPanel } from './billing-panel';
+import dynamic from 'next/dynamic';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { MembershipAccess } from '@/lib/membership/state';
+import { useViewer } from './viewer-context';
+// Billing is only needed on the full membership view, so it loads on demand.
+const BillingPanel = dynamic(() => import('./billing-panel').then((module) => module.BillingPanel));
 
 export function useMembership() {
+  const { status } = useViewer();
   const [access, setAccess] = useState<MembershipAccess | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'signed-out' | 'error'>('loading');
   useEffect(() => {
+    // Membership is account-only: anonymous visitors never call the endpoint.
+    if (status !== 'signed-in') return;
     let active = true;
     async function refresh() {
       try {
@@ -25,7 +31,9 @@ export function useMembership() {
     window.addEventListener('focus', onRefresh);
     const interval = window.setInterval(onRefresh, 30000);
     return () => { active = false; clearInterval(interval); window.removeEventListener('fz-profile-updated', onRefresh); window.removeEventListener('focus', onRefresh); };
-  }, []);
+  }, [status]);
+  if (status === 'anonymous') return { access: null, state: 'signed-out' as const };
+  if (status === 'loading') return { access: null, state: 'loading' as const };
   return { access, state };
 }
 const formatDate = (value: number) => new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(value);
@@ -33,7 +41,8 @@ export function TrialStatus({ onSetup, full = false }: { onSetup?: () => void; f
   const { access, state } = useMembership();
   const [dismissed, setDismissed] = useState(false);
   if (!full && dismissed && access?.state === 'preview') return null;
-  if (state === 'loading') return <p role="status">טוענים את מצב החברות…</p>;
+  // Nothing is announced while the viewer is unknown. The full view keeps its space so the page does not jump.
+  if (state === 'loading') return full ? <div className="trial-status-pending" aria-hidden="true" /> : null;
   if (state === 'signed-out') return full ? <section className="trial-status"><h2>14 ימים להתחיל משהו טוב.</h2><p>מקימים פרופיל בקלות ומקבלים הגשת הצעות בחינם לשבועיים. לאחר מכן ₪19.99 לחודש.</p><Link href="/signin">כניסה והקמת פרופיל</Link></section> : null;
   if (state === 'error' || !access) return <p role="alert">לא ניתן לטעון את מצב החברות. נסו לרענן את העמוד.</p>;
   if (access.profileType === 'publisher') return full ? <><section className="trial-status"><h2>פרסום פרויקטים בחינם, תמיד.</h2><p>אפשר לפרסם פרויקטים, לקבל הצעות ולנהל שיחות ללא מנוי וללא מגבלת ניסיון. החברות בתשלום מיועדת להגשת הצעות כפרילנסר/ית בלבד.</p></section>{access.paidUntil !== null && <BillingPanel/>}</> : null;

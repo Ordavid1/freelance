@@ -1,13 +1,16 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useViewer } from './viewer-context';
 type Application = { id: string; conversationId: string; projectSlug: string; projectTitle: string; amount: number; pricingType: string; delivery: string; message: string; status: string; isDemo?: boolean };
 export function MyApplications({ revision = 0 }: { revision?: number }) {
+  const { status } = useViewer();
   const [items, setItems] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
+    if (status !== 'signed-in') return;
     let active = true;
     setLoading(true);
     fetch('/api/marketplace/proposals', { cache: 'no-store' }).then(async response => {
@@ -15,7 +18,7 @@ export function MyApplications({ revision = 0 }: { revision?: number }) {
       if (active) { setItems(data.proposals || []); setError(''); }
     }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'לא ניתן לטעון הצעות.'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [revision]);
+  }, [revision, status]);
   async function withdraw(id: string) {
     setBusy(id); setError('');
     try {
@@ -25,6 +28,7 @@ export function MyApplications({ revision = 0 }: { revision?: number }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'ביטול ההצעה נכשל.'); }
     finally { setBusy(null); }
   }
+  if (status !== 'signed-in') return null;
   return <section className="my-applications" aria-label="הפרויקטים שהגשתי אליהם הצעה">
     <header className="applications-heading"><h2>הנה הפרוייקטים שהצעת עליהם</h2><p>ההצעות ששלחת והשיחות עם המפרסמים, במקום אחד.</p></header>
     {error && <p className="error-text" role="alert">{error}</p>}

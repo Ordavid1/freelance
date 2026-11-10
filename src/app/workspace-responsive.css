@@ -126,7 +126,8 @@
     font-size: clamp(10px, 0.85vw, 12px);
   }
 
-  .panel-view > h2:not(.personal-title) {
+  .panel-view > h2:not(.personal-title),
+  .panel-view > div:where(.panel-heading):not(.personal-title) {
     margin: 8px 0;
   }
 
