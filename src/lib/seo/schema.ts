@@ -74,10 +74,11 @@ export function itemListNode(items: readonly ListItemInput[]): JsonLdNode {
   return { '@type': 'ItemList', itemListElement: items.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, url: absoluteUrl(item.path) })) };
 }
 
-export function collectionPageNode(input: { path: string; name: string; description?: string; items: readonly ListItemInput[] }): JsonLdNode {
+export function collectionPageNode(input: { path: string; name: string; description?: string; modified?: string; items: readonly ListItemInput[] }): JsonLdNode {
   return {
     '@type': 'CollectionPage', name: input.name, url: absoluteUrl(input.path), inLanguage: LANGUAGE,
     ...(input.description ? { description: input.description } : {}),
+    ...(input.modified ? { dateModified: input.modified } : {}),
     isPartOf: { '@id': WEBSITE_ID }, mainEntity: itemListNode(input.items),
   };
 }
