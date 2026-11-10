@@ -18,7 +18,7 @@
     "seo:indexnow": "node scripts/indexnow-submit.mjs"
   },
   "dependencies": {
-    "@firebase/app": "0.14.9",
+    "@firebase/app": "0.16.5",
     "@firebase/auth": "1.12.1",
     "@google/genai": "^1.30.0",
     "@nangohq/frontend": "^0.72.3",
@@ -35,7 +35,7 @@
     "typescript": "^5.9.0"
   },
   "overrides": {
-    "@firebase/app": "0.14.9",
+    "@firebase/app": "0.16.5",
     "@firebase/app-compat": "0.5.9",
     "rimraf": "^6.1.4"
   }
