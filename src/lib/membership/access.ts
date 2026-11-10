@@ -32,7 +32,7 @@ export async function requireMarketplaceAccess(uid: string) {
   try {
     const access = await getMembershipAccess(uid);
     if (access.canUseMarketplace) return null;
-    return NextResponse.json({ code: access.state === 'preview' ? 'PROFILE_REQUIRED' : 'MEMBERSHIP_REQUIRED', error: access.state === 'preview' ? 'הקימו פרופיל בקלות וקבלו 14 ימים להגשת הצעות בחינם.' : 'תקופת הניסיון להגשת הצעות הסתיימה. החברות היא ₪19.99 לחודש. אפשר להצטרף בעמוד החברות.', access }, { status: 402, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ code: access.state === 'preview' ? 'PROFILE_REQUIRED' : 'MEMBERSHIP_REQUIRED', error: access.state === 'preview' ? 'הקימו פרופיל בקלות וקבלו חודשיים להגשת הצעות בחינם.' : 'תקופת הניסיון להגשת הצעות הסתיימה. החברות היא ₪19.99 לחודש. אפשר להצטרף בעמוד החברות.', access }, { status: 402, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לבדוק את מצב החברות כרגע. נסו שוב.' }, { status: 503 });
   }

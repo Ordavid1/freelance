@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { accessFromRecord, profileIsComplete, TRIAL_MS } from '../src/lib/membership/state.ts';
-test('trial lasts exactly 14 days and expires at its boundary', () => {
-  assert.equal(TRIAL_MS, 1209600000);
+test('trial lasts exactly 60 days and expires at its boundary', () => {
+  assert.equal(TRIAL_MS, 5184000000);
   const record = { state: 'trial', trialStartedAt: 1000, trialEndsAt: 1000 + TRIAL_MS };
   assert.equal(accessFromRecord(record, record.trialEndsAt - 1).canUseMarketplace, true);
   assert.equal(accessFromRecord(record, record.trialEndsAt).state, 'expired');

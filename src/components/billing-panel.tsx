@@ -88,7 +88,7 @@ export function BillingPanel({ eligible = false, trialEndsAt }: { eligible?: boo
   else if (loadState === 'loading') checkoutNote = 'טוענים את אפשרות התשלום…';
   else if (eligible && !status?.available) checkoutNote = 'התשלום אינו זמין כרגע. לא נוצר חיוב.';
   else if (trialEndsAt) checkoutNote = `החיוב הראשון של ₪19.99 יהיה ב־${date(trialEndsAt)}, לאחר סיום הניסיון. אימות הכרטיס עשוי ליצור תפיסת מסגרת זמנית של ₪1 שמשתחררת, ללא חיוב בפועל.`;
-  else if (!eligible) checkoutNote = status?.paidUntil && status.paidUntil > Date.now() ? 'אפשר לחדש מנוי לאחר סיום התקופה ששולמה.' : 'אפשר להצטרף לאחר הקמת פרופיל פרילנסר וסיום 14 ימי הניסיון.';
+  else if (!eligible) checkoutNote = status?.paidUntil && status.paidUntil > Date.now() ? 'אפשר לחדש מנוי לאחר סיום התקופה ששולמה.' : 'אפשר להצטרף לאחר הקמת פרופיל פרילנסר וסיום חודשיים הניסיון.';
 
   return <section id="membership-billing" className={styles.panel} aria-label="מנוי ותשלומים">
     <header className={styles.header}>
