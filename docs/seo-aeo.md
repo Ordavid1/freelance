@@ -130,6 +130,6 @@ Checked on the branch after merging the latest `main`, which by then carried ano
 - A crawl of the built app with billing on followed every internal link from `/` and visited 53 URLs: all answered 200, every indexable page has exactly one `<h1>` and an absolute canonical on the site origin, account pages answer `X-Robots-Tag: noindex, nofollow`, and every JSON-LD block parses.
 - `/pricing`, `/faq` and `/llms.txt` print the trial length from the code constant (60 days) and no stale 14-day text remains. The content lint now reads the allowed trial and price numbers from the same constants and requires the whole planned catalogue (skills, guides, glossary, category questions) on every run.
 - `robots.txt` lists the search-index, user-triggered and training crawler groups, each repeating `Disallow: /api/`.
-- Chromium layout checks at 390, 768 and 1440 px (before that merge, which touched no layout) found no horizontal overflow on the new page families.
+- Chromium layout checks at 390 and 1440 px (run before that merge, which touched no layout) found no horizontal overflow on the new page families.
 
 Not verifiable from the checkout, and so still open: Search Console and Bing ownership and sitemap submission, live indexing of the new pages, citations by AI assistants, and field Core Web Vitals. The checkout has no Firestore, so the project listings and project pages were exercised with test data, and the sitemap's project URLs only on production.
