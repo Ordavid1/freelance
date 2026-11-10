@@ -1,4 +1,3 @@
-import { TrialStatus } from '@/components/trial-status';
 'use client';
 import { ProjectDescription } from '@/components/project-description';
 import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY, SAMPLE_FEED_HINT, SAMPLE_FOOTER_TEXT } from '@/lib/projects/presentation';
@@ -12,6 +11,7 @@ import '@/app/studio.css';
 import '@/app/workspace-responsive.css';
 import '@/app/workspace-palette.css';
 import { ProfileSetup } from '@/components/publisher-profile-setup';
+import { TrialStatus } from '@/components/trial-status';
 import { BidForm, StudioInbox } from '@/components/studio-tools';
 import { AuthControl } from '@/components/auth-control';
 import { ProjectProposals } from '@/components/project-proposals';
