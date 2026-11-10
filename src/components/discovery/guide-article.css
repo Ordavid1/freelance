@@ -25,7 +25,7 @@
 .discovery-content .ga-toc ol{margin:0;padding-inline-start:1.5em;columns:2;column-gap:36px}
 .discovery-content .ga-toc li{break-inside:avoid;padding-block:2px}
 .discovery-content .ga-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
-.discovery-content .ga-chips a{display:inline-block;padding:3px 13px;background:#f6f5ef;border:1px solid #d9dad1;border-radius:999px;text-decoration:none}
+.discovery-content .ga-chips a{display:inline-block;padding:3px 13px;background:#f6f5ef;border:1px solid #d9dad1;border-radius:18px;text-decoration:none}
 .discovery-content .ga-chips a:hover{background:#ceef00;color:#151719}
 
 /* Sections */
@@ -82,6 +82,8 @@
   .discovery-content .ga-operator dd{margin-bottom:8px}
   /* discovery.css prints the stacked cell labels left-to-right (written for Latin product names); guide tables use Hebrew labels. */
   .discovery-content .ga-table td::before{direction:inherit;color:#3d4a00}
+  /* The stacked table is a block, so a table-caption box inside it shrinks to one word per line; make it a full-width block. */
+  .discovery-content .ga-table caption{display:block;padding:12px 14px}
 }
 
 @media print{
