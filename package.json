@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:seo": "node --test tests/seo.test.mjs",
+    "test:seo": "node --test tests/seo*.test.mjs",
     "test:billing": "node --experimental-transform-types --experimental-test-module-mocks --test tests/billing.test.mjs tests/membership-state.test.mjs tests/membership-policy.test.mjs tests/cardcom-deployment.test.mjs",
     "test:proposals": "node --test tests/proposals.test.mjs",
     "test:seed": "node --experimental-transform-types --test tests/seed-projects.test.mjs",
