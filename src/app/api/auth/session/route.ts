@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth/firebase-admin';
 import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
+import { readJsonBody } from '@/lib/security/request-body';
 
 export const runtime = 'nodejs';
 
@@ -14,13 +15,12 @@ function sameToken(left: string, right: string) {
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
-  const length = Number(request.headers.get('content-length') || 0);
-  if (length > 24_000) return NextResponse.json({ error: 'Request is too large.' }, { status: 413 });
 
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get('fz_csrf')?.value || '';
-  let body: { idToken?: unknown; csrfToken?: unknown };
-  try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }); }
+  const parsedBody = await readJsonBody(request, 24_000);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value;
   if (typeof body.csrfToken !== 'string' || !cookieToken || !sameToken(body.csrfToken, cookieToken)) {
     return NextResponse.json({ error: 'Refresh the page and try again.' }, { status: 403 });
   }

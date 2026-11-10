@@ -1,3 +1,4 @@
+import { loadModule } from './helpers/load-ts.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,6 +14,7 @@ function load(path, stubs = {}) {
   vm.runInNewContext(code, { module, exports: module.exports, URL, URLSearchParams, process: { env: {
     NANGO_API_KEY: 'test-key', NANGO_GITHUB_INTEGRATION_ID: 'github', NANGO_LINKEDIN_INTEGRATION_ID: 'linkedin',
   } }, require(name) {
+    if (name === '@/lib/security/request-body') return loadModule('src/lib/security/request-body.ts');
     if (name === 'server-only') return {};
     if (name in stubs) return stubs[name];
     throw new Error(`Unexpected dependency: ${name}`);
@@ -46,13 +48,15 @@ test('connection list exposes OAuth connection_id, not Nango numeric internal id
   assert.deepEqual(await response.json(), { connections: [{ provider: 'github', connectionId: 'oauth-connection' }] });
 });
 
-test('authorized connection imports profile and public repositories using connection_id', async () => {
+test('authorized connection imports only profile context using connection_id', async () => {
   const api = route('import');
   const response = await api.POST(importRequest());
   assert.equal(response.status, 200);
   const imported = await response.json();
   assert.equal(imported.profile.name, 'Designer');
-  assert.match(imported.sourceText, /Portfolio/);
+  assert.match(imported.sourceText, /GitHub profile: Designer/);
+  assert.doesNotMatch(imported.sourceText, /Portfolio/);
+  assert.equal(api.calls.length, 2, 'profile context never fetches repositories');
   assert.equal(api.calls[1].init.headers['Connection-Id'], 'oauth-connection');
 });
 

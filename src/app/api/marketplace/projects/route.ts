@@ -1,3 +1,5 @@
+import { enforceActionLimit } from '@/lib/security/rate-limit';
+import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
@@ -29,8 +31,11 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לפרסם פרויקט.' }, { status: 401 });
-  if (Number(request.headers.get('content-length') || 0) > 24_000) return NextResponse.json({ error: 'הבקשה גדולה מדי.' }, { status: 413 });
-  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  const limited = await enforceActionLimit(user.uid, 'project.create');
+  if (limited) return limited;
+  const parsedBody = await readJsonBody(request, 24_000);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as Record<string, unknown> | null;
   const input = validateProjectInput(body);
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const { title, category, description, budget, deadline, skills } = input.value;
@@ -54,8 +59,10 @@ export async function PATCH(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לסגור פרויקט.' }, { status: 401 });
-  const body = await request.json().catch(() => null) as { slug?: unknown; status?: unknown } | null;
-  if (typeof body?.slug !== 'string' || body.slug.length > 80 || body.status !== 'closed') return NextResponse.json({ error: 'פרטי סגירת הפרויקט לא תקינים.' }, { status: 400 });
+  const parsedBody = await readJsonBody(request, 4_096);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as { slug?: unknown; status?: unknown } | null;
+  if (typeof body?.slug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.slug) || body.status !== 'closed') return NextResponse.json({ error: 'פרטי סגירת הפרויקט לא תקינים.' }, { status: 400 });
   try {
     const ref = firestore().collection('projects').doc(body.slug);
     // The project as it was when this request closed it (not set when it was already closed).

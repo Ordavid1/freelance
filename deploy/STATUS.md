@@ -1,4 +1,10 @@
-# Current production update — 9 November 2026
+# Security inspection — 10 November 2026
+
+Read-only GCP metadata and public HTTP checks confirm the canonical HTTPS site is live with an ACTIVE certificate. Cloud Run revision `freelance-engine-00037-2vj` receives all traffic; direct `run.app` access returns 404. Membership billing and its renewal scheduler are enabled. Google Identity Platform's provider is enabled, but the Cloud Run Google sign-in UI flag is false and the live page says Google sign-in is unavailable. The application now accepts Google sessions only.
+
+The older status below is historical and does not describe current billing, DNS, auth or certificate state. See the [security audit](../docs/audits/2026-11-10-marketplace-security.md) and [prioritized plan](../docs/security-plan.md). Hardening changes in this checkout have not been deployed or applied to GCP.
+
+# Historical production update — 9 November 2026
 
 - Cloud Run, external HTTPS load balancer, static IP and managed certificate have been provisioned. Terraform applied 14 additions, one display-name update and no deletions; a post-apply plan showed no changes.
 - Final legal-page source `16c6eb1` was deployed successfully by GitHub run `42528089837`. Cloud Run revision `freelance-engine-00003-rgr` is Ready and has 100% of traffic.

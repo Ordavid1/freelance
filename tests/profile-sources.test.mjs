@@ -1,3 +1,4 @@
+import { loadModule } from './helpers/load-ts.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,6 +20,8 @@ function sourceRoute() {
   };
   const module = { exports: {} };
   const stubs = {
+    '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
+    '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     'node:crypto': {}, 'firebase-admin/firestore': {}, 'next/server': { NextResponse },
     '@/lib/auth/session': { getCurrentUser: async () => ({ uid: 'owner' }) },
     '@/lib/db/firestore': { firestore: () => ({ collection: () => ({ doc: () => ({ collection: () => query }) }) }) },

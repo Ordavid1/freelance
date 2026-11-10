@@ -384,6 +384,7 @@ function routeSetup({ user = owner, sameOrigin = true, docs = {}, createFails = 
   };
   const stubs = {
     ...harness.stubs,
+    '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     'next/server': { ...harness.stubs['next/server'], NextResponse: { json: (body, init) => Response.json(body, init) } },
     'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' } },
     'node:crypto': { randomUUID: () => NEW_ID },

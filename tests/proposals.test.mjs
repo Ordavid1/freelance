@@ -1,3 +1,4 @@
+import { loadModule } from './helpers/load-ts.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -48,6 +49,8 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
     },
   };
   const stubs = {
+    '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
+    '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 1_000, increment: (amount) => amount } },
     'next/server': { NextResponse: { json: (body, init = {}) => ({ body, status: init.status || 200, headers: init.headers || {} }) } },
     '@/lib/auth/session': { getCurrentUser: async () => user, isSameOrigin: () => true },
@@ -64,6 +67,18 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
   }, { filename: 'src/app/api/marketplace/proposals/route.ts' });
   return { ...module.exports, records };
 }
+
+test('proposal inputs reject document paths and non-string pricing types before any project lookup', async () => {
+  const valid = { projectSlug: 'project-one', message: 'A detailed proposal message with scope.', delivery: 'Two weeks', amount: 1500, pricingType: 'fixed' };
+  for (const overrides of [{ projectSlug: '' }, { projectSlug: 'a/b/c' }, { projectSlug: '..' }, { pricingType: ['fixed'] }]) {
+    const route = proposalRoute();
+    const response = await route.POST(new Request('https://local.test/api/marketplace/proposals', {
+      method: 'POST', body: JSON.stringify({ ...valid, ...overrides }),
+    }));
+    assert.equal(response.status, 400);
+    assert.equal(route.records.proposals.size, 0);
+  }
+});
 
 test('a demo application is saved only in the private demo collection', async () => {
   const { POST, records } = proposalRoute({ projects: { 'sample:sample-project': { slug: 'sample-project', title: 'Sample project', sample: true } } });

@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test": "node --experimental-transform-types --experimental-test-module-mocks --test tests/*.test.mjs",
+    "test:security": "node --experimental-transform-types --experimental-test-module-mocks --test tests/security*.test.mjs tests/request-origin.test.mjs tests/proposal-withdrawal.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

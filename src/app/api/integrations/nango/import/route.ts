@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { integrationId, nangoJson, ownedNangoConnections, safeText, type SocialProvider } from '@/lib/integrations/nango';
@@ -12,7 +13,9 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
-  const body = await request.json().catch(() => null) as { provider?: unknown; connectionId?: unknown } | null;
+  const parsedBody = await readJsonBody(request, 4_096);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.value as { provider?: unknown; connectionId?: unknown } | null;
   const provider = body?.provider;
   const connectionId = typeof body?.connectionId === 'string' ? body.connectionId.trim() : '';
   if ((provider !== 'github' && provider !== 'linkedin') || !connectionId || connectionId.length > 200) {
