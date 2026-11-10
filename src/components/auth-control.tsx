@@ -1,79 +1,109 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { GoogleAuthProvider, setPersistence, signInWithPopup, signOut as clearFirebaseAuth, type Auth } from '@firebase/auth';
-import { getClientAuth } from '@/lib/auth/firebase-client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useViewer } from './viewer-context';
 
-type User = { uid: string; email: string | null; name: string | null; picture: string | null };
+// Firebase Auth (SDK, gapi and the auth iframe) is only needed when someone signs in, so it
+// loads on sign-in intent (pointer, focus or touch on the button), on the visitor's first sign of
+// life anywhere on the page, or after an idle fallback. Crawlers and lab runs never interact, so
+// none of this weighs on the first load.
+const AUTH_IDLE_FALLBACK_MS = 5000;
+const AUTH_WARMUP_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel'] as const;
+
+async function loadFirebaseAuth() {
+  const [sdk, { getClientAuth }] = await Promise.all([import('@firebase/auth'), import('@/lib/auth/firebase-client')]);
+  const client = await getClientAuth();
+  await sdk.setPersistence(client.auth, client.persistence);
+  return { ...client, sdk };
+}
+type FirebaseAuthClient = Awaited<ReturnType<typeof loadFirebaseAuth>>;
 
 export function AuthControl() {
-  const [user, setUser] = useState<User | null>(null);
-  const [ready, setReady] = useState(false);
+  const viewer = useViewer();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [authClient, setAuthClient] = useState<Awaited<ReturnType<typeof getClientAuth>> | null>(null);
-  useEffect(() => {
-    fetch('/api/auth/session', { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : { user: null })
-      .then((data) => setUser(data.user))
-      .catch(() => setUser(null))
-      .finally(() => setReady(true));
-    getClientAuth()
-      .then(async (client) => {
-        await setPersistence(client.auth, client.persistence);
-        setAuthClient(client);
-      })
-      .catch(() => setError('לא ניתן לטעון את אפשרויות ההתחברות.'));
+  const [authClient, setAuthClient] = useState<FirebaseAuthClient | null>(null);
+  const loading = useRef<Promise<void> | null>(null);
+  const loadFailed = useRef(false);
+  const prepareSignIn = useCallback(() => {
+    if (loading.current) return loading.current;
+    loading.current = loadFirebaseAuth()
+      .then((client) => { loadFailed.current = false; setAuthClient(client); })
+      // A failed background load stays silent; it is reported (and retried) when the person clicks.
+      .catch(() => { loading.current = null; loadFailed.current = true; });
+    return loading.current;
   }, []);
+  const anonymous = viewer.status === 'anonymous';
+  useEffect(() => {
+    if (!anonymous) return;
+    // The first pointer, key, touch or wheel event anywhere starts the download, so by the time the
+    // button is tapped the client is normally ready and the first tap signs in.
+    const stopWarmup = () => AUTH_WARMUP_EVENTS.forEach((name) => window.removeEventListener(name, onFirstInteraction, true));
+    function onFirstInteraction() { stopWarmup(); void prepareSignIn(); }
+    AUTH_WARMUP_EVENTS.forEach((name) => window.addEventListener(name, onFirstInteraction, { capture: true, passive: true }));
+    const timer = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) window.requestIdleCallback(() => void prepareSignIn(), { timeout: 2000 });
+      else void prepareSignIn();
+    }, AUTH_IDLE_FALLBACK_MS);
+    return () => { stopWarmup(); window.clearTimeout(timer); };
+  }, [anonymous, prepareSignIn]);
 
   async function signOut() {
     await fetch('/api/auth/session', { method: 'DELETE' });
-    setUser(null);
     window.location.assign('/');
   }
 
-  async function signInWithGoogle() {
-    setBusy(true);
+  function signInWithGoogle() {
     setError('');
-    let auth: Auth | undefined;
-    try {
-      const client = authClient;
-      if (!client) throw new Error('אפשרות ההתחברות עדיין נטענת. נסו שוב בעוד רגע.');
-      auth = client.auth;
-      if (!client.googleSignInEnabled) throw new Error('התחברות עם Google אינה זמינה כרגע.');
-      const popup = signInWithPopup(auth, new GoogleAuthProvider());
-      setBusy(true);
-      const credential = await popup;
-      const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
-      if (!csrfResponse.ok) throw new Error('לא ניתן להתחיל התחברות מאובטחת.');
-      const { csrfToken } = await csrfResponse.json();
-      const sessionResponse = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken }),
-      });
-      if (!sessionResponse.ok) {
-        const data = await sessionResponse.json().catch(() => ({}));
-        throw new Error(data.error || 'ההתחברות נכשלה.');
-      }
-      await clearFirebaseAuth(auth);
-      window.location.reload();
-    } catch (cause) {
-      if (auth) await clearFirebaseAuth(auth).catch(() => {});
-      setError(cause instanceof Error ? cause.message : 'ההתחברות עם Google נכשלה.');
-      setBusy(false);
+    if (!authClient) {
+      setError(loadFailed.current ? 'לא ניתן לטעון את אפשרויות ההתחברות.' : 'אפשרות ההתחברות עדיין נטענת. נסו שוב בעוד רגע.');
+      void prepareSignIn();
+      return;
     }
+    // The popup must open synchronously inside the click handler or browsers block it.
+    const { auth, sdk } = authClient;
+    if (!authClient.googleSignInEnabled) { setError('התחברות עם Google אינה זמינה כרגע.'); return; }
+    let popup: ReturnType<typeof sdk.signInWithPopup>;
+    try { popup = sdk.signInWithPopup(auth, new sdk.GoogleAuthProvider()); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'ההתחברות עם Google נכשלה.'); return; }
+    setBusy(true);
+    void (async () => {
+      try {
+        const credential = await popup;
+        const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
+        if (!csrfResponse.ok) throw new Error('לא ניתן להתחיל התחברות מאובטחת.');
+        const { csrfToken } = await csrfResponse.json();
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken }),
+        });
+        if (!sessionResponse.ok) {
+          const data = await sessionResponse.json().catch(() => ({}));
+          throw new Error(data.error || 'ההתחברות נכשלה.');
+        }
+        await sdk.signOut(auth);
+        window.location.reload();
+      } catch (cause) {
+        await sdk.signOut(auth).catch(() => {});
+        setError(cause instanceof Error ? cause.message : 'ההתחברות עם Google נכשלה.');
+        setBusy(false);
+      }
+    })();
   }
 
-  if (!ready) return <span className="auth-control" aria-live="polite">בודקים התחברות…</span>;
-  if (!user) return <div className="auth-entry">
-    <button className="auth-control auth-signin" type="button" onClick={signInWithGoogle} disabled={busy || !authClient} aria-label="התחברות עם Google">
+  // While the viewer is unknown the sign-in button is rendered invisibly so the header keeps its size.
+  if (viewer.status === 'loading') return <div className="auth-entry auth-pending" aria-hidden="true">
+    <button className="auth-control auth-signin" type="button" tabIndex={-1} disabled><GoogleMark /><span>התחברות</span></button>
+  </div>;
+  if (!viewer.user) return <div className="auth-entry" onPointerEnter={prepareSignIn} onFocus={prepareSignIn} onTouchStart={prepareSignIn} onPointerDown={prepareSignIn}>
+    <button className="auth-control auth-signin" type="button" onClick={signInWithGoogle} disabled={busy} aria-label="התחברות עם Google">
       <GoogleMark />
       <span>{busy ? 'מתחברים…' : 'התחברות'}</span>
     </button>
     {error && <span className="auth-signin-error" role="alert">{error}</span>}
   </div>;
-  return <div className="auth-control"><span>{user.name || user.email || 'החשבון שלי'}</span><button onClick={signOut}>יציאה</button></div>;
+  return <div className="auth-control"><span>{viewer.user.name || viewer.user.email || 'החשבון שלי'}</span><button onClick={signOut}>יציאה</button></div>;
 }
 
 function GoogleMark() {

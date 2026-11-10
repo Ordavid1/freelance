@@ -228,6 +228,7 @@
   :root .membership-plan h2,
   :root .legal-toc li,
   :root .panel-view h2,
+  :root .panel-view div:where(.panel-heading),
   :root .personal .form-panel h2 {
     font-size: clamp(15px, calc(11.625px + 0.2344vw), 18px);
   }
