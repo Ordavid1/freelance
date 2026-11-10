@@ -1,3 +1,4 @@
+import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -11,7 +12,7 @@ import { loadModule } from './helpers/load-ts.mjs';
 function load(path, stubs = {}, env = { SITE_INDEXABLE: 'true' }) {
   const module = { exports: {} };
   const code = ts.transpileModule(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  vm.runInNewContext(code, { module, exports: module.exports, URL, process: { env }, console, require(name) { if (name in stubs) return stubs[name]; throw new Error(`Unexpected dependency: ${name}`); } }, { filename: path });
+  vm.runInNewContext(code, { module, exports: module.exports, URL, Headers, crypto: webcrypto, process: { env }, console, require(name) { if (name in stubs) return stubs[name]; throw new Error(`Unexpected dependency: ${name}`); } }, { filename: path });
   return module.exports;
 }
 const publication = load('src/lib/seo/publication.ts');
@@ -103,7 +104,7 @@ test('preview environment blocks crawling and production keeps render assets cra
 });
 
 test('canonical host redirects preserve path/query and account or alternate hosts are noindex', () => {
-  const { proxy } = load('src/proxy.ts', { 'next/server': { NextResponse }, '@/lib/seo/site': site });
+  const { proxy } = load('src/proxy.ts', { 'next/server': { NextResponse }, '@/lib/seo/site': site, '@/lib/security/csp': loadModule('src/lib/security/csp.ts') });
   const request = (host, path) => new NextRequest(`https://${host}${path}`, { headers: { host } });
   const redirect = proxy(request('www.freelance-place.com', '/alternatives/xplace?utm_source=test'));
   assert.equal(redirect.status, 308);

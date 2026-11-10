@@ -1,3 +1,15 @@
+variable "security_owner_email" {
+  type        = string
+  default     = "or@ailead.work"
+  description = "Owner-authorized destination for marketplace operational alerts."
+}
+resource "google_monitoring_notification_channel" "security_owner" {
+  type         = "email"
+  display_name = "Marketplace owner security alerts"
+  labels       = { email_address = var.security_owner_email }
+  enabled      = true
+  depends_on   = [google_project_service.monitoring]
+}
 variable "security_notification_channels" {
   type        = list(string)
   default     = []
@@ -15,11 +27,11 @@ resource "google_project_service" "monitoring" {
 resource "google_monitoring_alert_policy" "security_events" {
   display_name          = "Marketplace billing or quota infrastructure failure"
   combiner              = "OR"
-  notification_channels = var.security_notification_channels
+  notification_channels = distinct(concat(var.security_notification_channels, [google_monitoring_notification_channel.security_owner.name]))
   conditions {
     display_name = "Failed renewal batch or unavailable abuse limiter"
     condition_matched_log {
-      filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"freelance-engine\" AND ((jsonPayload.event=\"billing_renewal_batch\" AND jsonPayload.failed>0) OR textPayload=\"security_rate_limit_unavailable\")"
+      filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"freelance-engine\" AND ((jsonPayload.event=\"billing_renewal_batch\" AND jsonPayload.failed>0) OR textPayload=\"security_rate_limit_unavailable\" OR (jsonPayload.event=\"upload_cleanup\" AND (jsonPayload.failed=true OR jsonPayload.review>0)))"
     }
   }
   alert_strategy {
@@ -35,7 +47,7 @@ resource "google_monitoring_alert_policy" "security_events" {
 resource "google_monitoring_alert_policy" "server_errors" {
   display_name          = "Marketplace sustained server errors"
   combiner              = "OR"
-  notification_channels = var.security_notification_channels
+  notification_channels = distinct(concat(var.security_notification_channels, [google_monitoring_notification_channel.security_owner.name]))
   conditions {
     display_name = "More than five server errors per minute for five minutes"
     condition_threshold {
