@@ -1,0 +1,91 @@
+/* Article layout shared by guides and the information pages (pricing, about, how it works, FAQ,
+   glossary, guides index). It builds on the .discovery-content container from discovery.css and
+   changes none of its rules: every selector is scoped to .discovery-content plus a ga- class, which
+   also keeps it ahead of discovery.css whatever order the CSS chunks load in. Logical properties
+   keep the layout correct in right-to-left. */
+
+.discovery-content .ga-article{overflow-wrap:break-word}
+
+/* Breadcrumbs */
+.discovery-content .ga-crumbs ol{display:flex;flex-wrap:wrap;gap:0 .5em;margin:0;padding:0;list-style:none}
+.discovery-content .ga-crumbs li+li::before{content:"/";margin-inline-end:.5em;color:#55585b}
+.discovery-content .ga-crumbs [aria-current="page"]{color:#25272a}
+
+/* Header: H1, the direct answer ("בקיצור"), byline */
+.discovery-content .ga-header h1{margin-block:24px 18px}
+.discovery-content .ga-summary{margin:0 0 14px;padding:18px 22px;background:#fff;border:1px solid #e2e2db;border-inline-start:6px solid #ceef00;border-radius:12px}
+.discovery-content .ga-summary-label{margin:0 0 2px;font-size:14px;font-weight:700;color:#3d4a00}
+.discovery-content .ga-summary-text{margin:0;font-size:19px;line-height:1.8;color:#151719}
+.discovery-content .ga-byline{margin:0 0 6px;font-size:14px;color:#55585b}
+.discovery-content .ga-author{font-weight:600}
+
+/* In-page navigation */
+.discovery-content .ga-toc{margin:22px 0 6px;padding:16px 22px;background:#fff;border:1px solid #e2e2db;border-radius:12px}
+.discovery-content .ga-toc-title{margin:0 0 8px;font-weight:700}
+.discovery-content .ga-toc ol{margin:0;padding-inline-start:1.5em;columns:2;column-gap:36px}
+.discovery-content .ga-toc li{break-inside:avoid;padding-block:2px}
+.discovery-content .ga-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.discovery-content .ga-chips a{display:inline-block;padding:3px 13px;background:#f6f5ef;border:1px solid #d9dad1;border-radius:18px;text-decoration:none}
+.discovery-content .ga-chips a:hover{background:#ceef00;color:#151719}
+
+/* Sections */
+.discovery-content .ga-article [id]{scroll-margin-top:20px}
+.discovery-content .ga-answer{font-size:19px;line-height:1.8;font-weight:500;color:#151719}
+.discovery-content .ga-list{margin-block:14px;padding-inline-start:1.5em}
+.discovery-content .ga-list li{margin-block:6px}
+.discovery-content .ga-table th,.discovery-content .ga-table td{padding:12px 14px}
+.discovery-content .ga-table caption{font-weight:600;color:#25272a}
+
+/* FAQ groups (/faq) */
+.discovery-content .ga-qa{margin-block:0;padding-block:18px;border-bottom:1px solid #d9dad1}
+.discovery-content .ga-qa h3{margin:0 0 8px;font-size:19px;line-height:1.5}
+.discovery-content .ga-qa p{margin:0}
+
+/* Glossary (/glossary) */
+.discovery-content .ga-glossary{margin-block:10px}
+.discovery-content .ga-term{padding-block:18px;border-bottom:1px solid #d9dad1}
+.discovery-content .ga-term dt{margin:0 0 6px;font-size:20px;line-height:1.5}
+.discovery-content .ga-term dd{margin:0 0 6px}
+.discovery-content .ga-practical strong{color:#3d4a00}
+
+/* Guides index (/guides) */
+.discovery-content .ga-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:14px 0;padding:0;list-style:none}
+.discovery-content .ga-card{max-width:none;padding:20px;background:#fff;border:1px solid #e2e2db;border-radius:12px}
+.discovery-content .ga-card h3{margin:0 0 8px;font-size:20px;line-height:1.45}
+.discovery-content .ga-card p{margin:0 0 8px}
+.discovery-content .ga-card .ga-card-meta{margin:0;font-size:14px;color:#55585b}
+
+/* Closing blocks: call to action, sources, note, related reading, operator details */
+.discovery-content .ga-actions{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;max-width:none;margin:34px 0 10px;padding:22px 24px;background:#fff;border:1px solid #e2e2db;border-radius:14px}
+.discovery-content .ga-actions .discovery-cta{margin-inline-end:0}
+.discovery-content .ga-secondary{display:inline-block;padding:10px 20px;border:2px solid #151719;border-radius:10px;color:#151719;font-weight:600;text-decoration:none}
+.discovery-content .ga-secondary:hover{background:#ceef00;color:#151719}
+.discovery-content .ga-sources ul{margin:10px 0;padding-inline-start:1.4em}
+.discovery-content .ga-sources li{margin-block:8px}
+.discovery-content .ga-checked{font-size:15px;color:#55585b}
+.discovery-content .ga-disclaimer{margin-block:26px;padding:16px 20px;background:#fbf6dc;border:1px solid #d6c98a;border-radius:12px;color:#3b3510}
+.discovery-content .ga-disclaimer p{margin:0}
+.discovery-content .ga-related ul{display:grid;gap:10px;margin:12px 0 0;padding:0;list-style:none}
+.discovery-content .ga-related li{max-width:none;padding:12px 16px;background:#fff;border:1px solid #e2e2db;border-radius:10px}
+.discovery-content .ga-operator{margin-block:30px 8px;padding:18px 22px;background:#fff;border:1px solid #e2e2db;border-radius:12px}
+.discovery-content .ga-operator dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 18px;margin:0}
+.discovery-content .ga-operator dt{margin:0;font-weight:700}
+.discovery-content .ga-operator dd{margin:0}
+
+@media(max-width:760px){
+  .discovery-content .ga-toc ol{columns:1}
+  .discovery-content .ga-summary{padding:16px 18px}
+  .discovery-content .ga-summary-text,.discovery-content .ga-answer{font-size:18px}
+  .discovery-content .ga-cards{grid-template-columns:1fr}
+  .discovery-content .ga-actions{padding:18px}
+  .discovery-content .ga-operator dl{grid-template-columns:1fr;gap:2px}
+  .discovery-content .ga-operator dd{margin-bottom:8px}
+  /* discovery.css prints the stacked cell labels left-to-right (written for Latin product names); guide tables use Hebrew labels. */
+  .discovery-content .ga-table td::before{direction:inherit;color:#3d4a00}
+  /* The stacked table is a block, so a table-caption box inside it shrinks to one word per line; make it a full-width block. */
+  .discovery-content .ga-table caption{display:block;padding:12px 14px}
+}
+
+@media print{
+  .discovery-content .ga-toc,.discovery-content .ga-actions{display:none}
+}

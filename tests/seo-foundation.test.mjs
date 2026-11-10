@@ -206,7 +206,7 @@ test('registry resolves related paths of guides and skills, and only complete sk
   const skill = (slug, over = {}) => ({ slug, name: slug, aliases: [], category: 'design', title: `כישור בדיקה ארוך מספיק ${slug}`, description: 'ת'.repeat(80), definition: longText, whenNeeded: longText, deliverables: ['א', 'ב', 'ג', 'ד'], howToChoose: ['א', 'ב', 'ג', 'ד'], priceDrivers: ['א', 'ב', 'ג'], questions: [{ question: longText, answer: longText }, { question: 'ש', answer: 'ת' }, { question: 'ש2', answer: 'ת2' }], related: [], published: '2026-11-01', modified: '2026-11-02', ...over });
   const skillsModule = load('src/lib/seo/skills.ts');
   assert.equal(skillsModule.skillCompleteness(skill('full')).complete, true);
-  assert.deepEqual(Object.keys(skillsModule.skills), [], 'stub stays empty in the foundation package');
+  assert.ok(skillsModule.skills.length > 0, 'the catalogue aggregates the skill data modules and is no longer empty');
   for (const [name, over, issue] of [
     ['short', { definition: 'קצר' }, /definition/], ['deliv', { deliverables: ['א'] }, /deliverables/],
     ['choose', { howToChoose: ['א'] }, /selection/], ['price', { priceDrivers: ['א'] }, /price drivers/],

@@ -17,7 +17,8 @@ const footer = loadModule('src/components/site-footer.tsx', { stubs: linkStub, e
 test('footer renders every link group from the registry with resolvable links and no empty groups', () => {
   const groups = footer.footerGroups();
   const known = new Set(registry.allPages().map((page) => page.path));
-  assert.deepEqual(plain(groups.map((group) => group.id)), ['categories', 'guides', 'product', 'legal'], 'skills group is hidden while no skill page is indexable');
+  assert.ok(registry.indexablePages().some((page) => page.kind === 'skill'), 'the catalogue holds at least one indexable skill page (wordpress is the reference entry)');
+  assert.deepEqual(plain(groups.map((group) => group.id)), ['categories', 'skills', 'guides', 'product', 'legal'], 'the skills group appears once a skill page is registered and indexable');
   for (const group of groups) {
     assert.ok(group.links.length > 0, `${group.id} is not empty`);
     for (const link of group.links) {

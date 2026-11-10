@@ -12,8 +12,10 @@ const user={uid:'expired-freelancer',name:'Test',email:'test@example.com'};
 await mock.module('../src/lib/auth/session.ts',{namedExports:{getCurrentUser:async()=>user,isSameOrigin:()=>true}});
 await mock.module('../src/lib/membership/access.ts',{namedExports:{requireMarketplaceAccess:async()=>{gates++;return Response.json({code:'MEMBERSHIP_REQUIRED'},{status:402});}}});
 const query={where:()=>query,limit:()=>query,get:async()=>({docs:[]}),doc:()=>({create:async()=>{created++;}})};
-await mock.module('../src/lib/db/firestore.ts',{namedExports:{firestore:()=>({collection:()=>query,runTransaction:async fn=>fn({get:async()=>({exists:true,get:field=>({ownerUid:user.uid,status:'open'})[field]}),update:()=>{closed++;}})})}});
+await mock.module('../src/lib/db/firestore.ts',{namedExports:{firestore:()=>({collection:()=>query,runTransaction:async fn=>fn({get:async()=>({exists:true,get:field=>({ownerUid:user.uid,status:'open'})[field],data:()=>({ownerUid:user.uid,status:'open'})}),update:()=>{closed++;}})})}});
 await mock.module('../src/lib/db/projects.ts',{namedExports:{listOpenProjects:async()=>[],listFeedProjects:async()=>[],toPublicProject:(slug,data)=>({slug,title:data.title})}});
+// The lifecycle hooks need Next's request scope (revalidateTag, after); tests/seo-indexnow.test.mjs covers them and the route wiring.
+await mock.module('../src/lib/projects/events.ts',{namedExports:{onProjectPublished:()=>{},onProjectClosed:()=>{}}});
 const projects=await import('../src/app/api/marketplace/projects/route.ts');
 const proposals=await import('../src/app/api/marketplace/proposals/route.ts');
 const conversations=await import('../src/app/api/marketplace/conversations/route.ts');

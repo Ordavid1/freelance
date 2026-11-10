@@ -24,6 +24,21 @@ The legal pages from current `main` are retained, including privacy/terms sitema
 - `/projects/[slug]`: project-specific metadata (the description is shortened at a word or sentence boundary), canonical URL, and a breadcrumb that includes the category level when the project's category or skills map to a known category. The WebPage markup carries `datePublished`/`dateModified` when the stored timestamps exist and the project's skills as `keywords`.
 - Every page renders `SiteFooter` (server component, RTL, responsive): link groups for categories, skills (indexable skill pages only, at most 8), guides (at most 6), Freelance Place pages (home, comparison, hub and info pages) and legal (privacy, terms, contact e-mail). A group with no items is not rendered.
 
+### Content hub and programmatic pages
+
+- **Guides and information pages** share one answer-first template (`src/components/discovery/guide-article.tsx`): H1, a short answer ("בקיצור"), a byline whose date is the structured-data `dateModified`, contents, sections, FAQ, sources with check dates, an optional disclaimer and related reading. Routes hold no copy; text lives in `src/lib/seo/guides/<slug>.ts`, `info-content.ts` and `glossary-data.ts`. Pages: `/guides` (index grouped by audience), `/guides/<slug>` (eight guides for clients and freelancers, next to the older hand-built `/guides/project-brief`), `/pricing`, `/about`, `/how-it-works`, `/faq` and `/glossary` (25 terms, `DefinedTermSet`). `/pricing` and `/faq` read the facts per request, and `Service`/`Offer` markup appears only while billing is available. A FAQPage is emitted once per page, from the questions that are visible on it.
+- **Skills**: `/skills` (hub) and `/skills/<slug>` (23 skills across the four categories, from `src/lib/seo/skills.ts` and `skill-data/*.ts`). A skill that fails the content quality gate is `noindex` and unlinked. `src/lib/seo/skill-match.ts` links projects to skills by exact alias, or by a Latin alias of three letters or more as a whole word in the title; a category alone never matches.
+- **Projects**: `/projects` is a crawlable index. Page 1 is `/projects`; later pages (`?page=n`) are indexable with their own canonical. With no readable projects it renders an empty state and is `noindex`. It paginates the data layer's 100-project window (see the Firestore index note in the plan). Category and project pages show real counts, related projects (ranked by category and shared skills, then newest), skill links and a category breadcrumb. AI-agent projects stay labelled.
+- `src/app/not-found.tsx` is a Hebrew 404 inside the site layout (`noindex`, links to projects, skills and categories).
+- Content rules are enforced by `tests/seo-content.test.mjs`: no superlatives or guarantees, no currency amounts except those from `facts.ts`, every external source has an https URL and a check date, answers stay within length limits. Every claim about the product was checked against the code and the Terms and Privacy Policy.
+
+### Home rendering and speed
+
+- `src/app/page.tsx` reads the public feed on the server (`listFeedProjects()`), so the first HTML contains the project cards; if the read fails the client fetches it once, as before. Anonymous visitors see a short welcome panel instead of placeholders. The page has one `h1` and workspace panel headings are not `h2`s.
+- `ViewerProvider` (`src/components/viewer-context.tsx`) fetches `/api/auth/session` once. Requests that need an account (access, profile, proposals, saved projects, `?mine=1`, billing) run only for signed-in viewers.
+- Firebase Auth loads when the sign-in button is hovered, focused or touched, on the visitor's first pointer, key, touch or wheel event, or after 5 s idle, so crawlers and lab runs never pay for it. The sign-in popup is still opened synchronously in the click handler.
+- Heavy views (composer, profile setup, inbox, bid form, proposals) load with `next/dynamic`. Public project reads (`listOpenProjects`, `listFeedProjects`, `getOpenProject`) use `unstable_cache` for 60 s with the tags `projects` and `project:<slug>`. `next.config.ts` sends `Strict-Transport-Security: max-age=31536000` (no `includeSubDomains`, no `preload`).
+
 These pages use per-page titles, descriptions, canonicals, `he-IL`/`x-default` hreflang alternates (self-referencing, because only Hebrew exists), Open Graph, Twitter cards, Hebrew document language and RTL direction. The home `<title>` is the absolute `Freelance Place — פרויקטים לפרילנסרים ופרסום פרויקט בחינם`; other titles use the `| Freelance Place` template. The root layout also sets the browser `theme-color` to the page background. The approved yellow-green logo is used in the app, public header, browser icon, Apple touch icon, and 1200 × 630 social preview. The logo has no tagline.
 
 Root HTML renders dynamically so runtime indexing and verification settings do not get frozen into a container build. CSS, fonts, images, and Next.js rendering assets remain crawlable. Only Hebrew pages currently exist; no invented English URLs or hreflang translations are advertised.
@@ -51,7 +66,14 @@ The sitemap reads published projects in 1,000-document batches rather than reusi
 
 JSON-LD serialization escapes script delimiters and Unicode line separators. No invented ratings, reviews, awards, job salaries, live payment offers, affiliation, or superiority measurements are published. FAQ markup is semantic context; this marketplace is not promised Google's restricted FAQ rich results.
 
-Robots rules allow search and answer-engine access to public content under the same wildcard policy. `/llms.txt` provides a small, source-linked navigation aid and current product facts generated from `facts.ts`. It is supplemental: it does not create ranking privileges, compel citations, or override robots/privacy rules.
+### AI crawler access, llms files and IndexNow
+
+- `src/lib/seo/crawlers.ts` is a typed registry of the crawler tokens that `robots.txt` names, each checked against the operator's own documentation on a stated date. Three groups: **search-index** (`Googlebot`, `bingbot`, `OAI-SearchBot`, `PerplexityBot`, `Claude-SearchBot`, `Amzn-SearchBot`, `meta-webindexer`, `Applebot`, `DuckAssistBot`, `YouBot`, `MistralAI-Index`), **user-triggered** (`ChatGPT-User`, `Claude-User`, `Perplexity-User`, `meta-externalfetcher`, `MistralAI-User`, `Amzn-User`) and **training** (`GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `CCBot`, `meta-externalagent`, `Amazonbot`, `MistralAI-Training`). A token without official documentation (for example `cohere-ai`, `Bytespider`) is not listed.
+- `src/app/robots.ts` emits the `*` group plus one group per token. A crawler obeys only its most specific group, so every named group repeats `Disallow: /api/`. Search and user-triggered crawlers are allowed. Training crawlers are allowed by default; set `AI_TRAINING_CRAWLERS=disallow` to opt out of all of them (the whole site is then disallowed for those tokens). Preview and other non-production deployments emit only `User-agent: *` with `Disallow: /`.
+- `/llms.txt` and `/llms-full.txt` are generated from the registry and `facts.ts` (`src/lib/seo/llms.ts`), so they cannot drift from the pages. `llms.txt` follows the llms.txt layout (title, summary, then link sections with one-line notes, `Optional` last); `llms-full.txt` carries the facts, FAQ, category summaries, skills and guides as one markdown document. Both are plain text with `X-Robots-Tag: noindex`. They are navigation aids: they create no ranking privilege and no citation guarantee.
+- IndexNow (`src/lib/seo/indexnow.ts`, `src/lib/projects/events.ts`): the key file is `public/937d6e4c8033ee12864f2c5c27fcf898.txt` (served at `/937d6e4c8033ee12864f2c5c27fcf898.txt`, content equal to the key). `INDEXNOW_KEY` can override the key for rotation, and the matching file must then exist in `public/`. Creating or closing a project (`POST` and `PATCH /api/marketplace/projects`) expires the public project cache tags (`projects`, `project:<slug>`) and, after the response, announces the project page, its category page and the `/projects` hub, but only for projects that search engines may index. The submission is a no-op outside production, never throws, has a 3 s timeout, only announces URLs on the site's own origin and logs the HTTP status and URL count, never URLs. Cloud Run keeps this cache per instance, so the immediate expiry helps the instance that handled the write; other instances catch up within the 60 s cache window. Proposal-count changes and `seed:projects --retire` are not hooked.
+- `npm run seo:indexnow` bulk-submits every URL of the live sitemap (`--dry-run` prints without sending; `SITE_URL` must be set). Google does not take part in IndexNow; it uses the sitemap.
+
 
 ### XPlace.com positioning
 
@@ -61,24 +83,34 @@ The membership statements on the comparison page follow `facts.ts`: when billing
 
 ## Configuration and launch
 
-1. Deploy the reviewed application and infrastructure, point apex and www DNS to the load balancer, and confirm the managed TLS certificate is active. Preserve unrelated email records. No deployment or DNS mutation was performed by this SEO work.
+1. Production is served from Cloud Run behind the managed domain and is deployed by pushing to `main` (see the deploy workflow). The SEO work ships through that pipeline and changes no DNS, Terraform or workflow file. Preserve unrelated DNS records (email) whenever DNS is edited.
 2. Confirm `NEXT_PUBLIC_SITE_URL=https://freelance-place.com` and `SITE_INDEXABLE=true` on production. If changing the `NEXT_PUBLIC_` origin for another environment, rebuild the application; Next.js can inline public variables. All preview environments must use `SITE_INDEXABLE=false`.
-3. Inspect `/robots.txt`, `/sitemap.xml`, canonical tags, redirects and response headers on the actual domain. Confirm the sitemap can read Firestore with the production runtime identity, including after private/closed status changes.
-4. Verify ownership of the domain in Google Search Console and Bing Webmaster Tools. DNS verification covers apex and www; alternatively supply the exact HTML verification values as `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` in the runtime, then restart. The optional tokens are not fabricated or provisioned by this change.
-5. Submit `https://freelance-place.com/sitemap.xml` to both consoles and inspect the home, comparison, category, guide and one real public project URL. This requires ownership access and cannot be accomplished by metadata alone.
-6. Check structured data in Schema.org Validator and Google's Rich Results Test. Monitor page indexing, real search queries, canonical selection, sitemap errors and response status codes.
-7. Measure mobile Core Web Vitals on production: LCP at most 2.5s, INP at most 200ms, CLS at most 0.1 at the 75th percentile. These are targets, not measured results from this change. The original workspace bundle can be split further if field measurements justify it.
-8. Review comparison claims, category guidance, billing status and FAQs whenever product behavior changes. Build useful original resources and real public inventory before expanding the page count. Earn relevant editorial links; avoid manufactured reviews and duplicate doorway pages.
+3. After every deploy inspect `/robots.txt`, `/sitemap.xml`, `/llms.txt`, canonical tags, redirects and response headers on the actual domain. The sitemap deliberately answers 500 when Firestore cannot be read, so a healthy `200` also proves the production runtime identity can read the projects collection.
+4. **Google Search Console.** Add a *Domain* property for `freelance-place.com`; DNS verification covers apex and www. DNS is hosted at Squarespace, so the TXT record goes there. A Google verification TXT record already exists on the domain; the property verifies at once for the Google account that created it, and otherwise needs its own record. A *URL prefix* property is the fallback: supply the exact HTML-tag value as `GOOGLE_SITE_VERIFICATION` in the runtime and restart. Tokens are never fabricated by this code.
+5. In Search Console open *Sitemaps*, submit `sitemap.xml` and expect status *Success* with the discovered URL count. Then use *URL inspection* on the home page, `/guides`, `/skills`, one category, one guide and one real project, and *Request indexing* for the first few (Google rate-limits requests; the sitemap carries the rest). Watch *Pages* for "Discovered, currently not indexed" and canonical selection, and *Performance* for real queries.
+6. **Bing Webmaster Tools.** Use *Import from Google Search Console* once Google is verified (it brings the sitemap with it), or supply `BING_SITE_VERIFICATION`. Bing's index underpins Copilot and other search products, so this is also an AEO step.
+7. **IndexNow.** Confirm `https://freelance-place.com/937d6e4c8033ee12864f2c5c27fcf898.txt` returns the key, then run `SITE_URL=https://freelance-place.com npm run seo:indexnow -- --dry-run` and once without `--dry-run` for the initial bulk submission. Later project publish and close events submit themselves. Google ignores IndexNow.
+8. **AI crawler policy.** Search-index and user-triggered AI crawlers are always allowed. Training crawlers are allowed by default; set `AI_TRAINING_CRAWLERS=disallow` on the runtime to opt out of all of them. Changing it needs only a restart.
+9. Check structured data in Schema.org Validator and Google's Rich Results Test. Monitor page indexing, real search queries, canonical selection, sitemap errors and response status codes. Ask the assistants you care about (ChatGPT search, Perplexity, Gemini, Copilot) the questions the pages answer and note which pages are cited; that is the AEO feedback loop.
+10. Measure mobile Core Web Vitals on production: LCP at most 2.5s, INP at most 200ms, CLS at most 0.1 at the 75th percentile. These are targets, not measured results from this change.
+11. Review comparison claims, category guidance, billing status and FAQs whenever product behavior changes; the trial length and price come from code, but authored prose is checked by the content lint. Build useful original resources and real public inventory before expanding the page count. Earn relevant editorial links; avoid manufactured reviews and duplicate doorway pages.
 
 No code setting guarantees first place, a “best” designation in every comparison, search inclusion, or an AI citation. The implementation provides discoverable, consistent source content; rankings and citations remain external outcomes.
 
 ## Checks
 
-- `npm run test:seo` (runs every `tests/seo*.test.mjs`): publication/privacy, pagination beyond 100 records, database failure behavior, preview controls, canonicals, redirects and JSON-LD escaping; `seo-foundation` (facts and billing-dependent copy, metadata v2, `summarize`, registry invariants, sitemap `lastModified` policy, footer) and `seo-schema` (builder policy, absolute URLs, Organization fields). New tests use `loadModule` from `tests/helpers/load-ts.mjs`.
+- `npm run test:seo` runs every `tests/seo*.test.mjs`:
+  - `seo` and `seo-schema`: publication and privacy rules, pagination beyond 100 records, database failure behavior, preview controls, canonicals, redirects, JSON-LD builders (policy, absolute URLs, escaping, Organization fields).
+  - `seo-foundation`: facts and billing-dependent copy, metadata v2, registry invariants, sitemap `lastModified` policy, footer.
+  - `seo-content`: the content lint for authored data (skills, guides, glossary, info pages, category questions). It rejects banned superlatives, hand-typed prices and durations (only the values from `facts.ts` are allowed, and they are read from the code constants), Latin text glued to Hebrew, URLs outside `sources`, unknown related links, missing check dates, placeholders, and an incomplete catalogue.
+  - `seo-taxonomy`, `seo-guide-article`, `seo-pages`: category, skill, guide, glossary, `/projects` and info page rendering, FAQ markup equal to the visible text, breadcrumbs, pagination and listing rules.
+  - `seo-crawlers`, `seo-llms`, `seo-indexnow`, `seo-footer`, `seo-loader`: the crawler registry and `robots.txt`, the llms files, IndexNow behavior and lifecycle hooks, the footer, and the TypeScript test loader itself.
+  New tests use `loadModule` from `tests/helpers/load-ts.mjs`.
+- `npm run test:home` (server-rendered home feed) and the other suites keep their own scripts.
 - `npm run typecheck`
 - `npm run build`
 
-A running-server check should additionally inspect rendered HTML and HTTP headers with a canonical Host header, then repeat with a preview host. Test the production domain after DNS/TLS deployment; localhost results do not establish live indexing.
+A running-server check should additionally inspect rendered HTML and HTTP headers with a canonical Host header, then repeat with a preview host. Test the production domain after each deploy; localhost results do not establish live indexing.
 
 ### Verification in this checkout
 
@@ -88,4 +120,16 @@ Chromium checks at 1440px desktop and 390px mobile confirmed the comparison page
 
 Terraform formatting and validation passed without applying infrastructure or accessing remote Terraform state. A missing Linux checksum for the already pinned Google Beta provider was added from HashiCorp's signed release metadata; no provider version changed.
 
-The production Firestore-backed sitemap was tested through a mocked data boundary for publication policy, pagination, errors and URL-limit handling. It has not been verified against the live domain or production Firestore by this change.
+The Firestore-backed sitemap was tested through a mocked data boundary for publication policy, pagination, errors and URL-limit handling. After the foundation package deployed on 10 November 2026, the live `/sitemap.xml` answered 200 with 24 URLs, including the project pages, which confirms the production runtime identity reads Firestore.
+
+#### Second increment (10 November 2026)
+
+Checked on the branch after merging the latest `main`, which by then carried another change that moved the trial from 14 to 60 days:
+
+- All suites pass: 175 SEO tests, 31 billing, 12 home, 9 seed and 3 proposal tests. The type check and the production build pass.
+- A crawl of the built app with billing on followed every internal link from `/` and visited 53 URLs: all answered 200, every indexable page has exactly one `<h1>` and an absolute canonical on the site origin, account pages answer `X-Robots-Tag: noindex, nofollow`, and every JSON-LD block parses.
+- `/pricing`, `/faq` and `/llms.txt` print the trial length from the code constant (60 days) and no stale 14-day text remains. The content lint now reads the allowed trial and price numbers from the same constants and requires the whole planned catalogue (skills, guides, glossary, category questions) on every run.
+- `robots.txt` lists the search-index, user-triggered and training crawler groups, each repeating `Disallow: /api/`.
+- Chromium layout checks at 390 and 1440 px (run before that merge, which touched no layout) found no horizontal overflow on the new page families.
+
+Not verifiable from the checkout, and so still open: Search Console and Bing ownership and sitemap submission, live indexing of the new pages, citations by AI assistants, and field Core Web Vitals. The checkout has no Firestore, so the project listings and project pages were exercised with test data, and the sitemap's project URLs only on production.

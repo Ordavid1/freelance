@@ -52,6 +52,8 @@ export function webPageNode(input: WebPageInput): JsonLdNode {
   return {
     '@type': input.type ?? 'WebPage', '@id': `${url}#page`, url, name: input.name, description: input.description,
     inLanguage: LANGUAGE, isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
+    // An about page is about the organization that operates the site (its node is in the site graph).
+    ...(input.type === 'AboutPage' ? { mainEntity: { '@id': ORGANIZATION_ID } } : {}),
     ...(input.published ? { datePublished: input.published } : {}),
     ...(input.modified ? { dateModified: input.modified } : {}),
     ...(input.keywords?.length ? { keywords: input.keywords.join(', ') } : {}),
@@ -74,11 +76,29 @@ export function itemListNode(items: readonly ListItemInput[]): JsonLdNode {
   return { '@type': 'ItemList', itemListElement: items.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, url: absoluteUrl(item.path) })) };
 }
 
-export function collectionPageNode(input: { path: string; name: string; description?: string; items: readonly ListItemInput[] }): JsonLdNode {
+export function collectionPageNode(input: { path: string; name: string; description?: string; modified?: string; items: readonly ListItemInput[] }): JsonLdNode {
   return {
     '@type': 'CollectionPage', name: input.name, url: absoluteUrl(input.path), inLanguage: LANGUAGE,
     ...(input.description ? { description: input.description } : {}),
+    ...(input.modified ? { dateModified: input.modified } : {}),
     isPartOf: { '@id': WEBSITE_ID }, mainEntity: itemListNode(input.items),
+  };
+}
+
+// A glossary page: one DefinedTermSet whose terms point at their anchors on the page. `anchor` is the
+// id of the term's element (ASCII, taken from the term's position, never from its Hebrew text).
+export type DefinedTermInput = { name: string; description: string; anchor: string };
+export function definedTermSetNode(input: { path: string; name: string; description?: string; terms: readonly DefinedTermInput[] }): JsonLdNode {
+  const url = absoluteUrl(input.path);
+  const setId = `${url}#terms`;
+  return {
+    '@type': 'DefinedTermSet', '@id': setId, name: input.name, url, inLanguage: LANGUAGE,
+    ...(input.description ? { description: input.description } : {}),
+    isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
+    hasDefinedTerm: input.terms.map((term) => {
+      const termUrl = `${url}#${encodeURIComponent(term.anchor)}`;
+      return { '@type': 'DefinedTerm', '@id': termUrl, name: term.name, description: term.description, url: termUrl, inDefinedTermSet: { '@id': setId } };
+    }),
   };
 }
 

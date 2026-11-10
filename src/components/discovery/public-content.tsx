@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Project } from '@/lib/data';
+import { AI_AGENT_BADGE } from '@/lib/projects/presentation';
 import { categories, type Question } from '@/lib/seo/content';
+import { isAiAgentProject } from '@/lib/seo/listing';
 import { collectionPageNode, faqNode, withContext } from '@/lib/seo/schema';
 import { StructuredData } from './structured-data';
 
@@ -16,7 +18,7 @@ export function PublicHeader() {
 }
 export function ProjectLinks({ projects }: { projects: Project[] }) {
   const realProjects = projects.filter((project) => !project.sample || project.ownerKind === 'ai-agent');
-  return <section><h2>פרויקטים שפורסמו באתר</h2>{realProjects.length ? <ul className="discovery-projects">{realProjects.map((project) => <li key={project.slug}><Link href={`/projects/${encodeURIComponent(project.slug)}`}>{project.title}</Link><p>{project.category} · {project.budget}</p></li>)}</ul> : <p>רשימת הפרויקטים מתעדכנת עם פרסומים חדשים. אפשר לחזור למרחב העבודה כדי לבדוק זמינות או לפרסם פרויקט.</p>}</section>;
+  return <section><h2>פרויקטים שפורסמו באתר</h2>{realProjects.length ? <ul className="discovery-projects">{realProjects.map((project) => <li key={project.slug}><Link href={`/projects/${encodeURIComponent(project.slug)}`}>{project.title}</Link><p>{project.category} · {project.budget}{isAiAgentProject(project) && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</p></li>)}</ul> : <p>רשימת הפרויקטים מתעדכנת עם פרסומים חדשים. אפשר לחזור למרחב העבודה כדי לבדוק זמינות או לפרסם פרויקט.</p>}</section>;
 }
 export function CollectionData({ title, path, projects }: { title: string; path: string; projects: Project[] }) {
   const items = projects.filter((project) => !project.sample || project.ownerKind === 'ai-agent').map((project) => ({ name: project.title, path: `/projects/${encodeURIComponent(project.slug)}` }));
