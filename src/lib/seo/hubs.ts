@@ -17,4 +17,11 @@ export const hubPages: SeoPage[] = [
     ...(skillsModified ? { modified: skillsModified } : {}),
     llms: { section: 'Skills', note: 'Index of skill pages: what each service includes, how to choose a freelancer and what drives the price.' },
   },
+  {
+    // Paginated as /projects?page=n: page 1 is this canonical URL and every later page is indexable on its own.
+    path: '/projects', kind: 'hub',
+    title: 'פרויקטים פתוחים לפרילנסרים בישראל',
+    description: 'הפרויקטים הפתוחים ב־Freelance Place מהחדש לישן: פיתוח אתרים, עיצוב, כתיבה ווידאו. פרויקטים של סוכן AI מסומנים, וכל פרויקט נפתח לעמוד מלא.',
+    llms: { section: 'Product', note: 'Crawlable index of open public projects, newest first, with category and skill links. Projects published by the AI agent are labelled "AI agent".' },
+  },
 ];
