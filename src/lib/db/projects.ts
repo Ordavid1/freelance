@@ -1,4 +1,5 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import type { Project } from '@/lib/data';
 import { firestore } from './firestore';
 import { isDiscoverableProject, isListableProject } from '@/lib/seo/publication';
@@ -33,17 +34,33 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
   };
 }
 
-export async function listOpenProjects(): Promise<Project[]> {
+// Public reads are cached for 60 seconds (tag `projects`, plus `project:<slug>`). Cached values
+// are plain JSON: toPublicProject already turns Firestore Timestamps into millisecond numbers.
+const PUBLIC_PROJECT_REVALIDATE_SECONDS = 60;
+const newestFirst = (a: Project, b: Project) => (b.createdAt || 0) - (a.createdAt || 0);
+
+export const listOpenProjects = unstable_cache(async (): Promise<Project[]> => {
   const snapshot = await firestore().collection('projects').where('status', '==', 'open').limit(100).get();
   return snapshot.docs
     .filter((doc) => isDiscoverableProject(doc.data()))
-    .map((doc) => ({ project: toPublicProject(doc.id, doc.data() as ProjectDocument), createdAt: (doc.data() as ProjectDocument).createdAt as { toMillis?: () => number } | undefined }))
-    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-    .map(({ project }) => project);
-}
+    .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument))
+    .sort(newestFirst);
+}, ['public-projects-open'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects'] });
 
-export async function getOpenProject(slug: string): Promise<Project | null> {
-  const snapshot = await firestore().collection('projects').doc(slug).get();
-  if (!snapshot.exists || !(snapshot.get('status') === 'open' && isListableProject(snapshot.data() || {}))) return null;
-  return toPublicProject(snapshot.id, snapshot.data() as ProjectDocument);
+// The feed shown on the home page and returned by the public GET /api/marketplace/projects:
+// open and closed listable projects, newest first.
+export const listFeedProjects = unstable_cache(async (): Promise<Project[]> => {
+  const snapshot = await firestore().collection('projects').where('status', 'in', ['open', 'closed']).limit(100).get();
+  return snapshot.docs
+    .filter((doc) => isListableProject(doc.data()))
+    .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument))
+    .sort(newestFirst);
+}, ['public-projects-feed'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects'] });
+
+export function getOpenProject(slug: string): Promise<Project | null> {
+  return unstable_cache(async (): Promise<Project | null> => {
+    const snapshot = await firestore().collection('projects').doc(slug).get();
+    if (!snapshot.exists || !(snapshot.get('status') === 'open' && isListableProject(snapshot.data() || {}))) return null;
+    return toPublicProject(snapshot.id, snapshot.data() as ProjectDocument);
+  }, ['public-project', slug], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', `project:${slug}`] })();
 }
