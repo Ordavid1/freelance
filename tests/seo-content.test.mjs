@@ -17,13 +17,14 @@ const STATIC_PATHS = ['/', '/pricing', '/about', '/how-it-works', '/faq', '/glos
 
 const BANNED_PHRASES = ['הכי טוב', 'מס׳ 1', 'מספר 1', 'מוביל', 'מובטח', 'מבטיחים', '100%', 'ללא סיכון', 'אחריות מלאה', 'כולם', 'תמיד'];
 // Facts that may appear as numbers because facts.ts owns them (membership price, trial length).
-const ALLOWED_NUMBER_SNIPPETS = ['14 ימי ניסיון', '14 ימי', '₪19.99', '19.99'];
+// They are read from the same code constants the pages use, so a change of the trial or the
+// price can never leave a stale hand-typed number passing this lint.
+const BASE_FACTS = loadModule('src/lib/seo/facts.ts', { env: { SITE_INDEXABLE: 'true' } }).membershipFacts({});
+const ALLOWED_NUMBER_SNIPPETS = [`${BASE_FACTS.trialDays} ימי ניסיון`, `${BASE_FACTS.trialDays} ימי`, BASE_FACTS.priceLabel, String(BASE_FACTS.priceIls)];
 const UNIT_AFTER_DIGITS = /\d[\d.,]*\s*(?:ימים|יום|שבועות|שבוע|חודשים|חודש|שנים|שנה|שעות|שעה|דקות|דקה|אחוז|%|₪|ש״ח|שקלים|דולר|אירו|\$|€)/;
 const CURRENCY_BEFORE_DIGITS = /(?:₪|\$|€)\s*\d/;
 const NUMBER_WORD_UNIT = /(?:שני|שניים|שתי|שתיים|שלושה|שלוש|ארבעה|ארבע|חמישה|חמש|שישה|שש|שבעה|שבע|שמונה|תשעה|תשע|עשרה|עשר|עשרים)\s+(?:ימים|שבועות|חודשים|שנים|שעות|דקות)/;
 
-// SEO_CONTENT_COMPLETE=1 additionally requires the whole planned catalogue and rejects placeholders.
-const STRICT = process.env.SEO_CONTENT_COMPLETE === '1';
 const hasPlaceholder = (value) => JSON.stringify(value ?? null).includes('PLACEHOLDER');
 
 const isDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
@@ -64,7 +65,7 @@ function collectInfo() {
   const file = 'src/lib/seo/info-content.ts';
   if (!existsSync(path.join(projectRoot, file))) return [];
   const mod = loadModule(file);
-  const facts = (billingAvailable) => ({ priceIls: 19.99, priceLabel: '₪19.99', trialDays: 14, billingAvailable });
+  const facts = (billingAvailable) => ({ ...BASE_FACTS, billingAvailable });
   const out = [];
   for (const billing of [true, false]) {
     out.push({ name: `pricing (billing ${billing})`, content: mod.pricingContent(facts(billing)), kind: 'page' });
@@ -264,7 +265,7 @@ test('info page content satisfies the contract in both billing states', () => {
   const problems = [];
   const skillSlugs = new Set(skills.map((skill) => skill.slug));
   for (const { name, content, kind } of info) {
-    if (hasPlaceholder(content)) { if (STRICT) problems.push(`${name}: placeholder content`); continue; }
+    if (hasPlaceholder(content)) { problems.push(`${name}: placeholder content`); continue; }
     const at = `info ${name}`;
     if (!content.h1) problems.push(`${at}: missing h1`);
     if (!content.summary || content.summary.length < 40 || content.summary.length > 320) problems.push(`${at}: summary must be 40-320 chars (is ${content.summary?.length})`);
@@ -321,7 +322,7 @@ test('category questions and the glossary intro are complete and pass the lint',
   assert.deepEqual(problems, []);
 });
 
-test('the planned catalogue is complete (SEO_CONTENT_COMPLETE=1)', { skip: !STRICT && 'set SEO_CONTENT_COMPLETE=1 to require the full catalogue' }, () => {
+test('the planned catalogue is complete and has no placeholders', () => {
   const problems = [];
   if (skills.length < 20) problems.push(`needs at least 20 skills (has ${skills.length})`);
   for (const category of CATEGORY_SLUGS) if (!skills.some((skill) => skill.category === category)) problems.push(`no skill in category ${category}`);

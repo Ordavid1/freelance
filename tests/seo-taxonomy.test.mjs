@@ -338,7 +338,7 @@ test('category FAQ: the category question first, extra questions after, nothing 
   for (const category of categories) assert.ok(categoryPage.categoryFaqItems(category, categoryQuestions[category.slug]).length >= 1, category.slug);
 });
 
-test('every category page lists at least three questions once the planned content exists (SEO_CONTENT_COMPLETE=1)', { skip: process.env.SEO_CONTENT_COMPLETE === '1' ? false : 'set SEO_CONTENT_COMPLETE=1 to require the planned category questions' }, () => {
+test('every category page lists at least three questions', () => {
   const { categoryQuestions } = load('src/lib/seo/category-faq.ts');
   for (const category of categories) assert.ok(categoryPage.categoryFaqItems(category, categoryQuestions[category.slug]).length >= 3, category.slug);
 });
