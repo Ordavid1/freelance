@@ -69,6 +69,18 @@ test('real and AI-agent cards link to their project page; demo cards and buttons
   assert.doesNotMatch(markup, /<button[^>]*>(?:(?!<\/button>)[\s\S])*<a[\s>]/);
 });
 
+test('closed projects stay in the feed but get no page link, because their page answers 404', () => {
+  const closed = { ...base, slug: 'closed-project-3', title: 'פרויקט שנסגר', status: 'closed', createdAt: Date.now() - 3000 };
+  const markup = html({ initialProjects: [human, closed] });
+  const cards = markup.split('<article class="studio-project').slice(1);
+  const closedCard = cards.find((card) => card.includes('פרויקט שנסגר'));
+  assert.ok(closedCard, 'closed project is still listed');
+  assert.ok(closedCard.includes('project-closed-badge'));
+  assert.ok(!closedCard.includes('studio-open-page') && !closedCard.includes('has-page-link'));
+  assert.ok(!markup.includes('/projects/closed-project-3'));
+  assert.match(markup, /href="\/projects\/real-human-1" class="studio-open-page"/);
+});
+
 test('without server data (read failed) only the demo cards render and the client may fetch once', () => {
   const markup = html({ initialProjects: null });
   assert.ok(!markup.includes('אתר לסטודיו אמיתי'));
