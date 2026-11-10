@@ -260,3 +260,11 @@
 
 .workspace-legal-links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 13px; color: #493d62; }
 .workspace-legal-links a { text-decoration: underline; text-underline-offset: 3px; }
+.workspace-feed-footer { display: none; }
+@media (min-width: 761px) {
+  html:has(.studio), body:has(.studio) { height: 100%; overflow: hidden; }
+  body:has(.studio) > .site-footer { display: none; }
+  .workspace-feed-footer { display: block; }
+  .personal .panel-view { scrollbar-width: none; scrollbar-gutter: auto; }
+  .personal .panel-view::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}

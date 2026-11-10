@@ -24,3 +24,14 @@
 .ai-agent-badge{display:inline-block;margin-inline-start:6px;padding:1px 7px;border-radius:999px;background:var(--mineral);border:1px solid var(--pine);color:var(--pine);font-size:11px;font-weight:700;vertical-align:middle}
 
 .structured-brief p + p{margin-top:12px}.structured-brief .brief-heading{margin-top:16px;font-weight:700}.structured-brief .brief-heading:first-child{margin-top:0}.structured-brief p{max-width:80ch}.expand-project .structured-brief{max-width:none}
+
+/* Preserve native wheel, touch and keyboard scrolling without visible tracks. */
+html, body, body * {
+  scrollbar-width: none !important;
+  scrollbar-gutter: auto !important;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
