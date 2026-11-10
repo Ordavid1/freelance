@@ -46,9 +46,9 @@ test('facts follow the code constants: no price or trial number is typed in the 
 });
 
 test('pricing answer matches the required copy for both billing states', () => {
-  assert.equal(factsModule.membershipAnswer(factsOn), 'פרסום פרויקטים חינם. פרילנסרים מקבלים 14 ימי ניסיון להגשת הצעות אחרי שמירת פרופיל שהושלם, ואחריהם אפשר להצטרף לחברות ב־₪19.99 לחודש (כולל מע״מ ככל שחל), שמתחדשת אוטומטית עד לביטול. ללא הצטרפות אין חיוב בסיום הניסיון. התנאים המלאים מופיעים בתנאי השימוש.');
+  assert.equal(factsModule.membershipAnswer(factsOn), 'פרסום פרויקטים חינם. פרילנסרים מקבלים 60 ימי ניסיון להגשת הצעות אחרי שמירת פרופיל שהושלם, ואחריהם אפשר להצטרף לחברות ב־₪19.99 לחודש (כולל מע״מ ככל שחל), שמתחדשת אוטומטית עד לביטול. ללא הצטרפות אין חיוב בסיום הניסיון. התנאים המלאים מופיעים בתנאי השימוש.');
   const off = factsModule.membershipAnswer(factsOff);
-  assert.match(off, /^פרסום פרויקטים חינם\. פרילנסרים מקבלים 14 ימי ניסיון להגשת הצעות אחרי שמירת פרופיל שהושלם/);
+  assert.match(off, /^פרסום פרויקטים חינם\. פרילנסרים מקבלים 60 ימי ניסיון להגשת הצעות אחרי שמירת פרופיל שהושלם/);
   assert.match(off, /מחיר החברות המתוכנן הוא ₪19\.99 לחודש; התשלום עדיין אינו זמין ולא מופעל חיוב\.$/);
   assert.doesNotMatch(off, /מתחדשת אוטומטית|ללא הצטרפות/, 'no paid-offer claims while billing is unavailable');
   assert.match(factsModule.aiAgentAnswer, /סוכן AI/);
@@ -74,7 +74,7 @@ test('home FAQ is truthful for both billing states and never claims showcase pro
 test('comparison copy follows the billing state and keeps the no-escrow statement', () => {
   const on = content.comparisonPaymentsParagraph(factsOn);
   const off = content.comparisonPaymentsParagraph(factsOff);
-  assert.match(on, /14 ימי ניסיון/);
+  assert.match(on, /60 ימי ניסיון/);
   assert.match(on, /₪19\.99 לחודש/);
   assert.match(on, /חידוש אוטומטי עד לביטול/);
   assert.doesNotMatch(on, /עדיין אינו זמין|מתוכנן/);
@@ -103,7 +103,7 @@ test('llms.txt product facts follow the billing state', () => {
     assert.match(off, /Payment is not yet available/);
     assert.match(off, /ILS 19\.99 per month/);
     for (const text of [on, off]) {
-      assert.match(text, /14-day trial/);
+      assert.match(text, /60-day trial/);
       assert.match(text, /labeled "AI agent"/);
       assert.doesNotMatch(text, /not in the sitemap|not indexed/i);
     }

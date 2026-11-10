@@ -21,7 +21,7 @@ function PublisherProfileSetup() {
       const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { profileType: 'publisher', name } }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
       window.dispatchEvent(new CustomEvent('fz-profile-updated'));
-      setNotice(data.access?.state === 'trial' ? 'הפרופיל מוכן. 14 ימי הפעילות המלאה שלך התחילו!' : 'הפרופיל נשמר.');
+      setNotice(data.access?.state === 'trial' ? 'הפרופיל מוכן. חודשיים של פעילות מלאה התחילו!' : 'הפרופיל נשמר.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'לא הצלחנו לשמור. נסו שוב.'); } finally { setBusy(false); }
   }
   return <form className="publisher-setup" onSubmit={save}><h2>שם אחד, ואפשר להתחיל.</h2><p>הקמת פרופיל למפרסמי פרויקטים פשוטה במיוחד. איך תרצו להופיע בפני הפרילנסרים?</p><label>שם או שם העסק<input required maxLength={200} value={name} onChange={e => setName(e.target.value)} autoComplete="organization" /></label><button type="submit" disabled={busy || !name.trim()}>{busy ? 'שומרים…' : 'שמירת הפרופיל והמשך'}</button><p role="status">{notice}</p></form>;

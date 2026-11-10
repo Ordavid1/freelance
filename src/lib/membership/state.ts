@@ -1,4 +1,5 @@
-export const TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
+// Beta: two-month (60-day) freelancer trial.
+export const TRIAL_MS = 60 * 24 * 60 * 60 * 1000;
 export type MembershipAccess = { profileType?: 'publisher' | 'freelancer'; state: 'legacy' | 'preview' | 'trial' | 'paid' | 'expired'; paidUntil: number | null; trialStartedAt: number | null; trialEndsAt: number | null; canUseMarketplace: boolean; canStartTrial: boolean };
 export function accessFromRecord(record: { state?: unknown; trialStartedAt?: number | null; trialEndsAt?: number | null; paidUntil?: number | null }, now = Date.now()): MembershipAccess {
   const start = record.trialStartedAt ?? null;

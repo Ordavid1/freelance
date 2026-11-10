@@ -337,9 +337,9 @@
   align-items: center;
 }
 
-.primary,
-.secondary,
-.danger {
+.panel .primary,
+.panel .secondary,
+.panel .danger {
   min-height: 44px;
   max-width: 100%;
   padding: 10px 18px;
@@ -352,7 +352,7 @@
   cursor: pointer;
 }
 
-.primary {
+.panel .primary {
   justify-self: start;
   border: 1px solid var(--ink);
   background: var(--lime);
@@ -360,9 +360,9 @@
   box-shadow: 0 2px 0 var(--ink);
 }
 
-.primary:hover:not(:disabled) { background: var(--lime-bright); }
+.panel .primary:hover:not(:disabled) { background: var(--lime-bright); }
 
-.primary:disabled {
+.panel .primary:disabled {
   background: #e2eea3;
   border-color: #a4b45a;
   color: #454a29;
@@ -370,21 +370,21 @@
   cursor: not-allowed;
 }
 
-.secondary {
+.panel .secondary {
   border: 1px solid var(--ink);
   background: #fff;
   color: var(--ink);
 }
 
-.secondary:hover:not(:disabled) { background: var(--lime-soft); }
+.panel .secondary:hover:not(:disabled) { background: var(--lime-soft); }
 
-.danger {
+.panel .danger {
   border: 1px solid #b4372a;
   background: #b4372a;
   color: #fff;
 }
 
-.link {
+.panel .link {
   padding: 4px 0;
   border: 0;
   background: none;
@@ -396,18 +396,18 @@
   cursor: pointer;
 }
 
-.link:hover:not(:disabled) { color: var(--ink); }
+.panel .link:hover:not(:disabled) { color: var(--ink); }
 
-.secondary:disabled,
-.danger:disabled,
-.link:disabled {
+.panel .secondary:disabled,
+.panel .danger:disabled,
+.panel .link:disabled {
   opacity: .55;
   cursor: not-allowed;
 }
 
-.primary[aria-busy='true'],
-.secondary[aria-busy='true'],
-.danger[aria-busy='true'] { cursor: wait; }
+.panel .primary[aria-busy='true'],
+.panel .secondary[aria-busy='true'],
+.panel .danger[aria-busy='true'] { cursor: wait; }
 
 .panel button:focus-visible,
 .panel a:focus-visible,
@@ -430,5 +430,5 @@
   .card { width: 100%; max-width: 260px; justify-self: start; }
   .history li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
   .history li > :last-child { grid-column: 1 / -1; justify-self: start; }
-  .primary { width: 100%; justify-self: stretch; }
+  .panel .primary { width: 100%; justify-self: stretch; }
 }
