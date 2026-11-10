@@ -2,19 +2,22 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useViewer } from './viewer-context';
 
 type Proposal = { id: string; conversationId: string; freelancerName: string; amount: number; currency: string; pricingType: string; delivery: string; message: string; status: string };
 
 export function ProjectProposals({ projectSlug, initialStatus = 'open', onClosed }: { projectSlug: string; initialStatus?: string; onClosed?: () => void }) {
+  const viewer = useViewer();
   const [status, setStatus] = useState(initialStatus);
   const [closing, setClosing] = useState(false);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {
+    if (viewer.status !== 'signed-in') return;
     fetch(`/api/marketplace/proposals?projectSlug=${encodeURIComponent(projectSlug)}`, { cache: 'no-store' })
       .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error); setProposals(data.proposals || []); })
       .catch((cause) => setError(cause instanceof Error ? cause.message : 'לא ניתן לטעון הצעות.'));
-  }, [projectSlug]);
+  }, [projectSlug, viewer.status]);
   async function closeProject() {
     setClosing(true); setError('');
     try { const response = await fetch('/api/marketplace/projects', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: projectSlug, status: 'closed' }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setStatus('closed'); onClosed?.(); }

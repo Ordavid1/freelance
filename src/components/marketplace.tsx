@@ -7,12 +7,18 @@ import Image from 'next/image';
 import { useState } from 'react';
 import type { Project } from '@/lib/data';
 import { AuthControl } from '@/components/auth-control';
+import { ViewerProvider } from './viewer-context';
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <Link className="brand" href="/" aria-label="Freelance Place"><Image src="/freelance-place-logo.svg" width={compact ? 32 : 44} height={compact ? 32 : 44} alt="Freelance Place" /></Link>;
 }
 
-export function AppShell({ children, active = 'discover' }: { children: React.ReactNode; active?: string }) {
+// One viewer (session) lookup is shared by everything inside the shell.
+export function AppShell(props: { children: React.ReactNode; active?: string }) {
+  return <ViewerProvider><AppShellContent {...props} /></ViewerProvider>;
+}
+
+function AppShellContent({ children, active = 'discover' }: { children: React.ReactNode; active?: string }) {
   const [role, setRole] = useState('פרילנסר/ית');
   const links = [{ href: '/', label: 'הבית שלי', icon: '⌂', key: 'home' }, { href: '/', label: 'גילוי פרויקטים', icon: '⌕', key: 'discover' }, { href: '/messages', label: 'הודעות', icon: '▤', key: 'messages' }, { href: '/profile/import', label: 'הפרופיל שלי', icon: '◉', key: 'profile' }, { href: '/membership', label: 'מנוי ותשלומים', icon: '₪', key: 'membership' }];
   return <div className="app-shell" dir="rtl">
