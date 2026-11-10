@@ -9,6 +9,7 @@ export function isVertexConfigured() {
 export type VertexDiagnostics = { responseId?: string; modelVersion?: string; finishReason?: string; inputTokens?: number; outputTokens?: number; thoughtTokens?: number; totalTokens?: number; urls: { url: string; status: string }[] };
 
 export async function generateWithVertex(prompt: string, options: { file?: { mimeType: string; data: string }; urls?: string[]; files?: { mimeType: string; data: string }[]; systemInstruction?: string; responseJsonSchema?: unknown; maxOutputTokens?: number; onDiagnostics?: (diagnostics: VertexDiagnostics) => void } = {}) {
+  if (process.env.AI_GENERATION_ENABLED === 'false') throw new Error('AI generation is temporarily disabled.');
   if (!isVertexConfigured()) throw new Error('Vertex AI is not configured.');
   const ai = new GoogleGenAI({ vertexai: true, enterprise: true, project: process.env.GOOGLE_CLOUD_PROJECT!, location: process.env.GOOGLE_CLOUD_LOCATION || 'global' });
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
@@ -19,7 +20,7 @@ export async function generateWithVertex(prompt: string, options: { file?: { mim
     model: process.env.VERTEX_MODEL_ID || 'gemini-3.8-flash',
     contents: [{ role: 'user', parts }],
     config: { tools, responseMimeType: 'application/json', systemInstruction: options.systemInstruction,
-      responseJsonSchema: options.responseJsonSchema, maxOutputTokens: options.maxOutputTokens,
+      responseJsonSchema: options.responseJsonSchema, maxOutputTokens: options.maxOutputTokens ?? 4096,
       httpOptions: { timeout: 45_000, retryOptions: { attempts: 1 } } },
   });
   const candidate = response.candidates?.[0];

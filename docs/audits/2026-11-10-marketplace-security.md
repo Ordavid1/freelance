@@ -177,3 +177,11 @@ Terraform additionally prepares a TLS 1.2 minimum/MODERN profile, attached Cloud
 - Local built-server smoke: sign-in 200; session 200; anonymous conversations/billing status 401; browser-security and API no-store headers present.
 - `git diff --check` and deployment shell syntax check passed. Dependency advisories remain as stated above.
 - **Not performed:** production deployment, Terraform plan/apply, live account/processor tests, restoration, sustained load tests or independent red-team validation. Cloud controls and the sign-in configuration issue remain unchanged in production.
+
+## PR continuation after owner authorization
+
+The owner authorized the program and requested one PR, retaining Google secret setup. They requested UI mockups before any application-screen changes. The branch was rebased onto `origin/main` (`4475e89`) so the source/deployment mismatch above is a historical inspection boundary, not a claim that the branch still omits those changes.
+
+Additional prepared controls: billing checkout/card/confirmation and Nango session/import quotas, an AI generation emergency switch with output-token defaults, sanitized renewal-batch failure logging, Monitoring policy definitions with owner-supplied notification channels, and pinned CodeQL scanning. The direct Google authentication library was upgraded to 11.3.4 and exercised by the suite; six moderate transitive advisories remain. This supersedes the earlier statement that the dependency lockfile was unchanged.
+
+UI proposals are in `docs/security-mockups/index.html`; they are not application routes and are not connected to APIs. Reporting/blocking/appeal/privacy implementations remain gated by owner review of these flows. See `docs/security-operations.md` for explicit remaining operational gates. GitHub branch-protection inspection returned HTTP 403; no protection settings were silently assumed or changed. No production apply, key retirement or real payment test has been performed.

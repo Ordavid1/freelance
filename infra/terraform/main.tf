@@ -322,6 +322,10 @@ resource "google_cloud_run_v2_service" "engine" {
         value = "global"
       }
       env {
+        name  = "AI_GENERATION_ENABLED"
+        value = tostring(var.ai_generation_enabled)
+      }
+      env {
         name  = "VERTEX_MODEL_ID"
         value = "gemini-3.8-flash"
       }

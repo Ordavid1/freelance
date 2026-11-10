@@ -15,6 +15,7 @@ function load(path, stubs = {}) {
     NANGO_API_KEY: 'test-key', NANGO_GITHUB_INTEGRATION_ID: 'github', NANGO_LINKEDIN_INTEGRATION_ID: 'linkedin',
   } }, require(name) {
     if (name === '@/lib/security/request-body') return loadModule('src/lib/security/request-body.ts');
+    if (name === '@/lib/security/rate-limit') return { enforceActionLimit: async () => null };
     if (name === 'server-only') return {};
     if (name in stubs) return stubs[name];
     throw new Error(`Unexpected dependency: ${name}`);
