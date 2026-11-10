@@ -10,6 +10,17 @@ The site has a Hebrew, RTL support conversation that works for guests and signed
 4. Resend emits `email.received` to `POST /api/support/webhook`. The server verifies the raw body with the webhook signing secret, retrieves the received email through the Resend API, checks that the sender is your inbox or an explicitly allowed team address, extracts the new reply, and appends it to the matching chat exactly once.
 5. A visible, open chat checks for replies every 8 seconds. An existing, minimized chat checks every 45 seconds. Hidden tabs stop polling. No typing, online presence, or read receipts are fabricated. Visitors must return to the same browser to see replies; this version does not email notifications to visitors.
 
+## Automatic acknowledgment of inbox email
+
+Every email that arrives at `SUPPORT_INBOX_EMAIL` (customer@freelance-place.com) receives an instant, friendly acknowledgment that a person will answer within a few minutes. It uses the same `email.received` webhook as the chat bridge, so no new secrets, webhooks or DNS records are needed.
+
+- **Language:** Hebrew when at least 20% of the message letters are Hebrew, otherwise English (RTL layout for Hebrew). Add a language in `COPY` in `src/lib/support/autoreply.ts`.
+- **Threading:** subject `Re: <original>`, `In-Reply-To` and `References` point at the received message; `Reply-To` is the inbox, so the customer's answer lands back in it.
+- **Loop and abuse protection:** never replies to our own addresses/domain, `no-reply`/daemon senders, `Auto-Submitted`, `Precedence: bulk/list/junk`, list or vendor auto-response headers, delivery reports, empty return-path, SPF/DKIM/DMARC failures, or auto-reply/out-of-office subjects. The reply carries `Auto-Submitted: auto-replied`.
+- **Limits:** one acknowledgment per provider email id and per RFC Message-ID; at most 3 per sender per rolling 24h; at most 200 per hour site-wide. Only hashes of sender addresses are stored (`supportAutoReplies`, `supportAutoReplyLimits`, `supportRateLimits/autoreply-hour`). Failed sends return 503 so Resend redelivers, without spending the sender's allowance.
+- **Kill switch:** set the optional runtime variable `SUPPORT_AUTOREPLY=off` (also `false`, `0`, `disabled`) to stop replies without a code change. Unset means on.
+- Replies to a private `chat+…` alias still go to the chat bridge, never to the responder.
+
 ## Runtime variables
 
 All settings are server-only. Do not use `NEXT_PUBLIC_*` for Resend keys.

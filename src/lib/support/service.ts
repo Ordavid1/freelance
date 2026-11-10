@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
-import { Resend } from 'resend';
+import { Resend, type GetReceivingEmailResponseSuccess } from 'resend';
 import EmailReplyParser from 'email-reply-parser';
 import { convert } from 'html-to-text';
 import { firestore } from '@/lib/db/firestore';
@@ -106,18 +106,23 @@ export function extractSupportReply(text: string | null, html: string | null) {
   const beforeQuote = plain.split(/\n\s*(?:בתאריך\s[^\n]{0,500}(?:כתב|כתבה)|מאת:\s|From:\s|_{5,}|-{2,}\s*Original Message)/i)[0];
   return new EmailReplyParser().parseReply(beforeQuote).replace(/\x00/g, '').trim().slice(0, SUPPORT_MAX_TEXT);
 }
-function replyRoute(recipients: string[], domain: string) {
+export function replyRoute(recipients: string[], domain: string) {
   const tokens = recipients.map((recipient) => mailbox(recipient)).filter((email) => email?.endsWith(`@${domain}`)).map((email) => email!.split('@')[0].match(/^chat\+([a-f0-9]{32})$/)?.[1]).filter((token): token is string => Boolean(token));
   return [...new Set(tokens)];
 }
-export async function receiveSupportReply(config: SupportConfig, emailId: string) {
+export type ReceivedEmail = GetReceivingEmailResponseSuccess;
+// Webhooks contain metadata only; fetch the body directly from Resend.
+export async function fetchReceivedEmail(config: SupportConfig, emailId: string): Promise<ReceivedEmail> {
+  const { data: email, error } = await new Resend(config.apiKey).emails.receiving.get(emailId, { html_format: 'cid' }, { signal: AbortSignal.timeout(15_000) });
+  if (error || !email) throw new SupportError('RECEIVE_FAILED', 503, 'לא ניתן לקרוא את התשובה כרגע.');
+  return email;
+}
+export async function receiveSupportReply(config: SupportConfig, emailId: string, preloaded?: ReceivedEmail) {
   if (!/^[a-f0-9-]{36}$/i.test(emailId)) return { ignored: true };
   const db = firestore();
   const receiptRef = db.collection('supportInboundReceipts').doc(emailId);
   if ((await receiptRef.get()).exists) return { duplicate: true };
-  // Webhooks contain metadata only; fetch the body directly from Resend.
-  const { data: email, error } = await new Resend(config.apiKey).emails.receiving.get(emailId, { html_format: 'cid' }, { signal: AbortSignal.timeout(15_000) });
-  if (error || !email) throw new SupportError('RECEIVE_FAILED', 503, 'לא ניתן לקרוא את התשובה כרגע.');
+  const email = preloaded ?? await fetchReceivedEmail(config, emailId);
   const sender = mailbox(email.from);
   if (!sender || !config.allowedSenders.includes(sender)) return { ignored: true };
   const headers = Object.fromEntries(Object.entries(email.headers || {}).map(([key, value]) => [key.toLowerCase(), value]));

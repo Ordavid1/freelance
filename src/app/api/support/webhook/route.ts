@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { supportConfig } from '@/lib/support/config';
 import { limitedBody, SupportError, supportFailure, supportJson } from '@/lib/support/http';
-import { receiveSupportReply } from '@/lib/support/service';
+import { handleInboundEmail } from '@/lib/support/autoreply';
 
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
@@ -14,6 +14,6 @@ export async function POST(request: Request) {
       event = new Resend(config.apiKey).webhooks.verify({ payload, headers: { id: request.headers.get('svix-id') || '', timestamp: request.headers.get('svix-timestamp') || '', signature: request.headers.get('svix-signature') || '' }, webhookSecret: config.webhookSecret });
     } catch { throw new SupportError('SIGNATURE', 401, 'Invalid webhook signature.'); }
     if (event.type !== 'email.received') return supportJson({ ignored: true });
-    return supportJson(await receiveSupportReply(config, event.data.email_id));
+    return supportJson(await handleInboundEmail(config, event.data.email_id));
   } catch (error) { return supportFailure(error); }
 }
