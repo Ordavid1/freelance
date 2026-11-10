@@ -1,4 +1,5 @@
 'use client';
+import { trackEvent } from '@/lib/analytics';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -311,6 +312,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   }
 
   async function generate() {
+    trackEvent('profile_generation_started');
     setBusy(true);
     setNotice('');
     try {
@@ -325,6 +327,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const response = await fetch('/api/ai/profile', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
+      trackEvent(data.demo ? 'profile_generation_demo' : 'profile_generation_completed');
       setProfile({ ...blank, ...data, website: links.Website || '', portfolio: links.Website || '' });
       setNotice(data.demo ? 'המידע מוכן, אבל Vertex AI עדיין לא הוגדר ליצירת טיוטה.' : ['הטיוטה מוכנה לבדיקה. השלימו או תקנו כל פרט לפני שמירה.', ...(Array.isArray(data.warnings) ? data.warnings : [])].join(' '));
     } catch (error) {
@@ -341,6 +344,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { ...profile, profileType: 'freelancer' } }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
+      trackEvent('profile_saved');
       window.dispatchEvent(new CustomEvent('fz-profile-updated', { detail: profile }));
       setNotice(data.access?.state === 'trial' ? 'הפרופיל נשמר ותקופת הניסיון שלך פעילה. תאריך הסיום מופיע בחברות שלך.' : 'הפרופיל נשמר. להפעלת הניסיון השלימו שם, משפט על עצמכם וכישור אחד.');
     } catch (error) {

@@ -8,7 +8,7 @@ export function contentSecurityPolicy(nonce: string, development = false) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.nango.dev wss://api.nango.dev",
+    "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.nango.dev https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://www.googletagmanager.com wss://api.nango.dev",
     "frame-src https://freelance-514118.firebaseapp.com https://connect.nango.dev",
     "frame-ancestors 'none'",
     "object-src 'none'",

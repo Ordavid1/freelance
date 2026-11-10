@@ -12,6 +12,8 @@ import { SiteFooter } from '@/components/site-footer';
 import { SupportChatProvider } from '@/components/support-chat';
 import { supportContactEmail } from '@/lib/support/config';
 import Script from 'next/script';
+import { headers } from 'next/headers';
+import { Analytics } from '@/components/analytics';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
@@ -29,6 +31,7 @@ export const metadata: Metadata = {
   verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined, other: process.env.BING_SITE_VERIFICATION ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } : undefined },
   referrer: 'strict-origin-when-cross-origin',
 };
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Script src="https://www.googletagmanager.com/gtm.js?id=GTM-54NQ7CCV" strategy="afterInteractive" /><Script id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date());`}</Script><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get('x-nonce') || undefined;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Analytics /><Script nonce={nonce} id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-CM5KEE7G13', {send_page_view: false});`}</Script><Script nonce={nonce} src="https://www.googletagmanager.com/gtag/js?id=G-CM5KEE7G13" strategy="afterInteractive" /><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
 }
