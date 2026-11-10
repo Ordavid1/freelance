@@ -52,6 +52,8 @@ export function webPageNode(input: WebPageInput): JsonLdNode {
   return {
     '@type': input.type ?? 'WebPage', '@id': `${url}#page`, url, name: input.name, description: input.description,
     inLanguage: LANGUAGE, isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
+    // An about page is about the organization that operates the site (its node is in the site graph).
+    ...(input.type === 'AboutPage' ? { mainEntity: { '@id': ORGANIZATION_ID } } : {}),
     ...(input.published ? { datePublished: input.published } : {}),
     ...(input.modified ? { dateModified: input.modified } : {}),
     ...(input.keywords?.length ? { keywords: input.keywords.join(', ') } : {}),

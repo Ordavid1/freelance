@@ -16,6 +16,7 @@ import './guide-article.css';
 export const articleLabels = {
   summary: 'בקיצור', by: 'מאת', author: 'צוות Freelance Place', updated: 'עודכן ב־', contents: 'תוכן העמוד',
   faq: 'שאלות ותשובות', sources: 'מקורות', checked: 'נבדק ב־', note: 'הבהרה', related: 'קריאה נוספת',
+  operatorDetails: 'פרטי המפעיל', operator: 'המפעיל', contact: 'יצירת קשר',
   guideNotFound: 'המדריך לא נמצא',
 } as const;
 

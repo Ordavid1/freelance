@@ -8,6 +8,34 @@ const CREATED = '2026-11-10';
 
 export const infoPages: SeoPage[] = [
   {
+    path: '/how-it-works', kind: 'info',
+    title: 'איך עובד Freelance Place: ללקוחות ולפרילנסרים',
+    description: 'שני מסלולים: לקוחות מפרסמים פרויקט, מקבלים הצעות ומנהלים שיחה; פרילנסרים בונים פרופיל, מוצאים פרויקטים ושולחים הצעה רק אחרי אישור.',
+    published: CREATED, modified: CREATED,
+    llms: { section: 'Product', note: 'Step-by-step flows for clients and for freelancers, limited to features that exist today.' },
+  },
+  {
+    path: '/pricing', kind: 'info',
+    title: 'כמה עולה Freelance Place? פרסום, ניסיון וחברות',
+    description: 'מה עולה פרסום פרויקט, מה כולל הניסיון לפרילנסרים ומה כוללת החברות: מחיר, חידוש וביטול, ומה אינו כלול. תשובה ישירה ושאלות נפוצות.',
+    published: CREATED, modified: CREATED,
+    llms: { section: 'Product', note: 'Cost of posting, the freelancer trial and the membership, generated from the live product rules.' },
+  },
+  {
+    path: '/faq', kind: 'info',
+    title: 'שאלות ותשובות על Freelance Place: לקוחות ופרילנסרים',
+    description: 'תשובות קצרות לשאלות נפוצות: פרסום פרויקט, הגשת הצעות, חברות ותשלום, פרויקטים של סוכן AI ופרטיות. כל תשובה עומדת בפני עצמה.',
+    published: CREATED, modified: CREATED,
+    llms: { section: 'Product', note: 'Grouped questions and answers on posting, proposals, membership, trust and privacy.' },
+  },
+  {
+    path: '/about', kind: 'info',
+    title: 'אודות Freelance Place: מי מפעיל ואיך יוצרים קשר',
+    description: 'מי מפעיל את Freelance Place, איך מסומנים פרויקטים שמפרסם סוכן AI, איך נכתב התוכן ואיך פונים אלינו. השירות עצמאי ואינו קשור ל־XPlace.',
+    published: CREATED, modified: CREATED,
+    llms: { section: 'Product', note: 'Who operates the service, independence from XPlace, labelling of AI-agent projects, editorial policy and contact.' },
+  },
+  {
     path: '/guides', kind: 'hub',
     title: 'מדריכים לשכירת פרילנסרים ולעבודה עצמאית',
     description: 'מדריכים מעשיים בעברית ללקוחות ולפרילנסרים: איך כותבים בריף, משווים הצעות, מתמחרים פרויקט ומסכמים תנאי עבודה. כל מדריך נפתח בתשובה ישירה.',

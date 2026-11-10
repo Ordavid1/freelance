@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { formatHebrewDate } from '@/lib/seo/dates';
 import type { GuideGroup } from '@/lib/seo/guides-index';
-import { articleLabels } from './guide-article';
+import type { FaqGroup } from '@/lib/seo/info-content';
+import { faqNode, withContext } from '@/lib/seo/schema';
+import { PageContents, articleLabels } from './guide-article';
+import { StructuredData } from './structured-data';
 import './guide-article.css';
 
 // Page-specific blocks of the information pages. Like guide-article.tsx they render data only:
@@ -21,4 +24,36 @@ export function GuideIndex({ groups }: { groups: readonly GuideGroup[] }) {
       </li>)}</ul>
     </section>;
   })}</>;
+}
+
+// The questions page: answers are visible (not collapsed), grouped by topic with an anchor per
+// group and per question. One FAQPage carries every question and is built from the same items
+// that are rendered, so the markup and the visible text are identical. Groups without
+// questions are skipped.
+export function FaqGroups({ groups }: { groups: readonly FaqGroup[] }) {
+  const filled = groups.filter((group) => group.items.length > 0);
+  const all = filled.flatMap((group) => group.items);
+  return <>
+    <PageContents items={filled.map((group) => ({ id: group.id, label: group.heading }))} />
+    {filled.map((group, groupIndex) => <section key={group.id} id={group.id} className="ga-section" aria-labelledby={`${group.id}-heading`}>
+      <h2 id={`${group.id}-heading`}>{group.heading}</h2>
+      {group.items.map((item, itemIndex) => <div key={itemIndex} id={`q-${groupIndex + 1}-${itemIndex + 1}`} className="ga-qa">
+        <h3>{item.question}</h3>
+        <p>{item.answer}</p>
+      </div>)}
+    </section>)}
+    {all.length ? <StructuredData data={withContext(faqNode(all))} /> : null}
+  </>;
+}
+
+// Who operates the service and how to reach them, from the contact facts (never typed here).
+export function OperatorContact({ operator, email }: { operator: string; email: string }) {
+  return <section className="ga-operator" aria-label={articleLabels.operatorDetails}>
+    <dl>
+      <dt>{articleLabels.operator}</dt>
+      <dd><bdi lang="en">{operator}</bdi></dd>
+      <dt>{articleLabels.contact}</dt>
+      <dd><a href={`mailto:${email}`}><bdi>{email}</bdi></a></dd>
+    </dl>
+  </section>;
 }
