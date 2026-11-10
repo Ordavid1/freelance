@@ -85,6 +85,23 @@ export function collectionPageNode(input: { path: string; name: string; descript
   };
 }
 
+// A glossary page: one DefinedTermSet whose terms point at their anchors on the page. `anchor` is the
+// id of the term's element (ASCII, taken from the term's position, never from its Hebrew text).
+export type DefinedTermInput = { name: string; description: string; anchor: string };
+export function definedTermSetNode(input: { path: string; name: string; description?: string; terms: readonly DefinedTermInput[] }): JsonLdNode {
+  const url = absoluteUrl(input.path);
+  const setId = `${url}#terms`;
+  return {
+    '@type': 'DefinedTermSet', '@id': setId, name: input.name, url, inLanguage: LANGUAGE,
+    ...(input.description ? { description: input.description } : {}),
+    isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
+    hasDefinedTerm: input.terms.map((term) => {
+      const termUrl = `${url}#${encodeURIComponent(term.anchor)}`;
+      return { '@type': 'DefinedTerm', '@id': termUrl, name: term.name, description: term.description, url: termUrl, inDefinedTermSet: { '@id': setId } };
+    }),
+  };
+}
+
 export function breadcrumbNode(items: { name: string; path: string }[]): JsonLdNode {
   const { '@context': _context, ...node } = breadcrumbs(items);
   return node as JsonLdNode;

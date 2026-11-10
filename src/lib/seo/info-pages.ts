@@ -43,4 +43,11 @@ export const infoPages: SeoPage[] = [
     published: CREATED, modified: newestDate(CREATED, guides.map((guide) => guide.modified)),
     llms: { section: 'Guides', note: 'Index of all guides, grouped by audience: clients, freelancers and both.' },
   },
+  {
+    path: '/glossary', kind: 'info',
+    title: 'מילון מונחים לעבודה עם פרילנסרים ופרויקטים',
+    description: 'הגדרה קצרה וטיפ מעשי לכל מונח שנתקלים בו בפרויקט עם פרילנסר: בריף, היקף עבודה, אבן דרך, סבב תיקונים, זכויות שימוש ועוד.',
+    published: CREATED, modified: CREATED,
+    llms: { section: 'Guides', note: 'Plain-language definitions of terms used in freelance projects, each with a practical tip.' },
+  },
 ];

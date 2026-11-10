@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { formatHebrewDate } from '@/lib/seo/dates';
+import type { GlossaryTerm } from '@/lib/seo/glossary-data';
 import type { GuideGroup } from '@/lib/seo/guides-index';
 import type { FaqGroup } from '@/lib/seo/info-content';
 import { faqNode, withContext } from '@/lib/seo/schema';
@@ -43,6 +44,23 @@ export function FaqGroups({ groups }: { groups: readonly FaqGroup[] }) {
       </div>)}
     </section>)}
     {all.length ? <StructuredData data={withContext(faqNode(all))} /> : null}
+  </>;
+}
+
+// A term's element id comes from its position, never from its Hebrew text, so anchors stay ASCII.
+export const glossaryTermId = (index: number) => `term-${index + 1}`;
+
+// The glossary as a definition list: the term, its one-sentence definition and the practical sentence,
+// with an anchor per term and a jump list at the top.
+export function GlossaryList({ terms }: { terms: readonly GlossaryTerm[] }) {
+  if (!terms.length) return null;
+  return <>
+    <PageContents titleId="glossary-terms-title" title={articleLabels.terms} chips items={terms.map((term, index) => ({ id: glossaryTermId(index), label: term.term }))} />
+    <dl className="ga-glossary">{terms.map((term, index) => <div key={index} id={glossaryTermId(index)} className="ga-term">
+      <dt>{term.term}</dt>
+      <dd>{term.definition}</dd>
+      <dd className="ga-practical"><strong>{articleLabels.practical}: </strong>{term.practical}</dd>
+    </div>)}</dl>
   </>;
 }
 
