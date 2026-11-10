@@ -11,6 +11,7 @@ const load = (entry, env = { SITE_INDEXABLE: 'true' }) => loadModule(entry, { en
 
 const factsModule = load('src/lib/seo/facts.ts');
 const content = load('src/lib/seo/content.ts');
+const comparison = load('src/lib/seo/comparison.ts');
 const site = load('src/lib/seo/site.ts');
 const registry = load('src/lib/seo/registry.ts');
 const cardcom = load('src/lib/billing/cardcom.ts');
@@ -51,14 +52,13 @@ test('pricing answer matches the required copy for both billing states', () => {
   assert.match(off, /^פרסום פרויקטים חינם\. פרילנסרים מקבלים 60 ימי ניסיון להגשת הצעות אחרי שמירת פרופיל שהושלם/);
   assert.match(off, /מחיר החברות המתוכנן הוא ₪19\.99 לחודש; התשלום עדיין אינו זמין ולא מופעל חיוב\.$/);
   assert.doesNotMatch(off, /מתחדשת אוטומטית|ללא הצטרפות/, 'no paid-offer claims while billing is unavailable');
-  assert.match(factsModule.aiAgentAnswer, /סוכן AI/);
-  assert.match(factsModule.aiAgentAnswer, /^לא\./);
+  assert.equal(factsModule.aiAgentAnswer, undefined, 'there is no public answer about AI-agent projects: showcase projects are not part of the SEO copy');
 });
 
 const inactivePhrase = /עדיין אינ|אינם פעילים|אינה פעילה|מתוכנן|לא מופעל חיוב/;
 const stale = /לא נכללים במפת האתר|לא מאונדקסים|אינם נכללים במפת האתר|not indexed/i;
 
-test('home FAQ is truthful for both billing states and never claims showcase projects are unindexed', () => {
+test('home FAQ is truthful for both billing states and says nothing about AI-agent or sample projects', () => {
   for (const [facts, available] of [[factsOn, true], [factsOff, false]]) {
     const questions = content.getHomeQuestions(facts);
     const text = questions.map((item) => `${item.question} ${item.answer}`).join('\n');
@@ -67,7 +67,12 @@ test('home FAQ is truthful for both billing states and never claims showcase pro
     assert.equal(price.answer, factsModule.membershipAnswer(facts));
     assert.equal(inactivePhrase.test(price.answer), !available, `billing ${available ? 'available' : 'unavailable'}`);
     assert.doesNotMatch(text, stale);
-    assert.match(questions.find((item) => item.question.startsWith('האם כל פרויקט')).answer, /מסומנים "סוכן AI"/);
+    assert.doesNotMatch(text, /סוכן AI|סוכני AI|פרויקט אמיתי|פרויקטים אמיתיים|דוגמה|הדגמה|AI agent/i, 'no showcase-project wording in the home FAQ');
+    assert.equal(questions.some((item) => item.question.startsWith('האם כל פרויקט')), false, 'the "is every project real" question was removed');
+    const comparisonQuestion = questions.find((item) => item.question === 'במה Freelance Place טוב יותר מ־XPlace.com?');
+    assert.ok(comparisonQuestion, 'the XPlace comparison question is on the home page');
+    assert.equal(comparisonQuestion.answer, comparison.homeComparisonAnswer(facts));
+    assert.equal(new Set(questions.map((item) => item.question)).size, questions.length);
   }
 });
 
@@ -85,9 +90,11 @@ test('comparison copy follows the billing state and keeps the no-escrow statemen
     assert.match(paragraph, /הגנת תשלום אינם מוצעים/);
     assert.doesNotMatch(paragraph, stale);
   }
-  assert.match(content.comparisonMembershipCell(factsOn), /₪19\.99 לחודש בחידוש אוטומטי/);
-  assert.doesNotMatch(content.comparisonMembershipCell(factsOn), inactivePhrase);
-  assert.match(content.comparisonMembershipCell(factsOff), /מחיר מתוכנן: ₪19\.99 לחודש\. התשלום עדיין אינו זמין\./);
+  const rowOn = comparison.comparisonRows(factsOn).find((row) => row.label === 'מחיר לפרילנסרים').freelancePlace;
+  const rowOff = comparison.comparisonRows(factsOff).find((row) => row.label === 'מחיר לפרילנסרים').freelancePlace;
+  assert.match(rowOn, /₪19\.99 לחודש כולל מע״מ ככל שחל/);
+  assert.doesNotMatch(rowOn, inactivePhrase);
+  assert.match(rowOff, /מחיר מתוכנן: ₪19\.99 לחודש\. התשלום עדיין אינו זמין ולא מופעל חיוב\./);
   for (const facts of [factsOn, factsOff]) {
     assert.doesNotMatch(content.getComparisonQuestions(facts).map((item) => item.answer).join(' '), stale);
   }
@@ -104,8 +111,7 @@ test('llms.txt product facts follow the billing state', () => {
     assert.match(off, /ILS 19\.99 per month/);
     for (const text of [on, off]) {
       assert.match(text, /60-day trial/);
-      assert.match(text, /labeled "AI agent"/);
-      assert.doesNotMatch(text, /not in the sitemap|not indexed/i);
+      assert.doesNotMatch(text, /AI agent|sample project|demo project|not in the sitemap|not indexed/i, 'llms.txt says nothing about showcase projects');
     }
   });
 });
@@ -244,8 +250,20 @@ test('sitemap lastModified comes only from declared page dates', async () => {
   assert.equal(byUrl.get(`${ORIGIN}/`).lastModified, undefined, 'home has no real date');
   assert.equal(byUrl.get(`${ORIGIN}/terms`).lastModified, load('src/lib/legal/identity.ts').legalUpdated);
   assert.equal(byUrl.get(`${ORIGIN}/guides/project-brief`).lastModified, '2026-11-08');
-  assert.equal(byUrl.get(`${ORIGIN}/alternatives/xplace`).lastModified, '2026-11-08');
-  assert.equal(entries.length, registry.indexablePages().length);
+  assert.equal(byUrl.get(`${ORIGIN}/alternatives/xplace`).lastModified, '2026-11-10');
+  // The project index is noindex while nothing is listed, so the sitemap does not advertise it.
+  assert.equal(byUrl.has(`${ORIGIN}/projects`), false, 'no /projects URL while there are no public projects');
+  assert.equal(entries.length, registry.indexablePages().filter((page) => !page.listsProjects).length);
+
+  const withProjects = loadModule('src/app/sitemap.ts', {
+    env: { SITE_INDEXABLE: 'true' },
+    stubs: { '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-one', updatedAt: '2026-11-09' }] } },
+  });
+  const listed = await withProjects.default();
+  const listedUrls = new Set(listed.map((entry) => entry.url));
+  assert.ok(listedUrls.has(`${ORIGIN}/projects`), 'the project index is advertised once a public project exists');
+  assert.ok(listedUrls.has(`${ORIGIN}/projects/real-one`));
+  assert.equal(listed.length, registry.indexablePages().length + 1);
 });
 
 test('new code does not hard-code the production origin or localhost', () => {

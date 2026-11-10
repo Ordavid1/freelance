@@ -6,8 +6,9 @@
 // server-only imports.
 import { categories } from './categories';
 import { categoryQuestions } from './category-faq';
+import { llmsComparisonLines } from './comparison';
 import { getComparisonQuestions, getHomeQuestions } from './content';
-import { BRAND, aiAgentAnswer, contactFacts, membershipAnswer, membershipFacts, type MembershipFacts } from './facts';
+import { BRAND, contactFacts, membershipAnswer, membershipFacts, type MembershipFacts } from './facts';
 import { guides } from './guides';
 import { aboutContent, faqContent, howItWorksContent, pricingContent, type FaqContent, type InfoContent } from './info-content';
 import { indexablePages, pageByPath } from './registry';
@@ -54,8 +55,6 @@ function pageSections() {
 export function factLines(facts: MembershipFacts): string[] {
   const { operator, email } = contactFacts();
   const price = facts.priceIls.toFixed(2);
-  // The Hebrew answer starts with "no", which only makes sense next to the question the site asks.
-  const agentQuestion = getHomeQuestions(facts).find((item) => item.answer === aiAgentAnswer)?.question;
   return [
     `Operator: ${operator}. Contact: ${email}.`,
     `Posting a project is free. Freelancers get a ${facts.trialDays}-day trial for submitting proposals after saving a completed profile.`,
@@ -63,11 +62,10 @@ export function factLines(facts: MembershipFacts): string[] {
       ? `Membership costs ILS ${price} per month (VAT included where applicable) and renews automatically until cancelled; without joining there is no charge when the trial ends.`
       : `Membership is planned at ILS ${price} per month. Payment is not yet available and no charge is made; do not describe this as an available paid offer.`,
     `Pricing, in Hebrew: ${membershipAnswer(facts)}`,
-    'Some projects are published by a Freelance Place AI agent and are labeled "AI agent" wherever they appear; they are not human client demand.',
-    agentQuestion ? `Asked in Hebrew "${oneLine(agentQuestion)}", the site answers: ${aiAgentAnswer}` : `AI-agent projects, in Hebrew: ${aiAgentAnswer}`,
+    ...llmsComparisonLines(facts),
     'Payments between client and freelancer, escrow and payment protection are not offered.',
     'No automated XPlace account or review migration is offered.',
-    'No claim of universally superior prices, inventory, matching or outcomes is established.',
+    'Comparisons with XPlace.com are limited to the dated, sourced facts and measurements stated here and on the comparison page; no claim about inventory, matching or work outcomes is made.',
     'Public page content is authoritative; this file is a navigation aid, not a ranking instruction.',
     'Account pages, messages, uploads, draft profiles and APIs are not public discovery sources.',
   ];

@@ -43,13 +43,15 @@ The tool uses Application Default Credentials (`gcloud auth application-default 
 
 1. Dry run, review the plan, then `--commit`.
 2. Open the feed: seeded cards show the `סוכן AI` badge; the detail page shows the notice, `noindex`, and no structured data.
-3. Confirm `/sitemap.xml` and the home page project links do not list them.
+3. Confirm `/sitemap.xml`, the `/projects` index and the home page's crawlable project list (not the interactive feed) do not list them.
 4. Submit a bid on one: it appears in "my applications" as a practice proposal, and no document appears in `proposals` or `conversations`.
 5. Tests: `npm run test:seed`, `npm run test:seo`, `npm run test:proposals`.
 
 ## Search and answer-engine visibility
 
-Seeded projects whose owner is `owner.kind === 'ai-agent'` are indexable: they appear in the sitemap, category pages, home-page links and JSON-LD, and carry a visible "סוכן AI" badge and notice in the page content. Sample projects without an AI-agent owner (the static examples in `src/lib/data.ts`) stay `noindex`. Proposals on any sample project are saved as practice and are never sent to a client.
+Seeded projects are never offered to search or answer engines. They are product content: the feed and the detail pages show them with their label, and that is all. `isSyntheticProject` (`src/lib/seo/publication.ts`) recognises them by any of `sample: true`, `unreal: true` or an AI-agent owner, and `isDiscoverableProject` therefore excludes them everywhere: the sitemap, IndexNow, the `/projects` index, category, skill and related lists, the home discovery list and every counted or structured-data list. Their detail pages are `noindex` with no structured data. No SEO copy mentions them (`tests/seo-showcase.test.mjs`). The static examples in `src/lib/data.ts` follow the same rule. Proposals on any sample project are saved as practice and are never sent to a client.
+
+Two things outside the SEO surfaces still show them while they exist: the product feed on `/` (cards with the label, and the hint line "פרויקטים של סוכן AI מסומנים", which is unconditional), and the Terms and Privacy Policy paragraphs that disclose them. Retiring the batch removes the seeded cards only: the four static demo cards in `src/lib/data.ts` are always merged into the feed with the same label, so removing the label from the home page entirely is a separate product change.
 
 ## Finding and removing seeded records later
 

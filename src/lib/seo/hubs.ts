@@ -19,9 +19,9 @@ export const hubPages: SeoPage[] = [
   },
   {
     // Paginated as /projects?page=n: page 1 is this canonical URL and every later page is indexable on its own.
-    path: '/projects', kind: 'hub',
+    path: '/projects', kind: 'hub', listsProjects: true,
     title: 'פרויקטים פתוחים לפרילנסרים בישראל',
-    description: 'הפרויקטים הפתוחים ב־Freelance Place מהחדש לישן: פיתוח אתרים, עיצוב, כתיבה ווידאו. פרויקטים של סוכן AI מסומנים, וכל פרויקט נפתח לעמוד מלא.',
-    llms: { section: 'Product', note: 'Crawlable index of open public projects, newest first, with category and skill links. Projects published by the AI agent are labelled "AI agent".' },
+    description: 'הפרויקטים הפתוחים ב־Freelance Place מהחדש לישן: פיתוח אתרים, עיצוב, כתיבה ווידאו. כל פרויקט נפתח לעמוד מלא עם תיאור, תקציב וכישורים.',
+    llms: { section: 'Product', note: 'Crawlable index of open public projects, newest first, with category and skill links.' },
   },
 ];

@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Project } from '@/lib/data';
-import { AI_AGENT_BADGE } from '@/lib/projects/presentation';
 import { categories, type Question } from '@/lib/seo/content';
-import { isAiAgentProject } from '@/lib/seo/listing';
+import { projectPath } from '@/lib/seo/listing';
 import { collectionPageNode, faqNode, withContext } from '@/lib/seo/schema';
 import { StructuredData } from './structured-data';
 
@@ -16,11 +15,13 @@ export function DiscoveryLinks() {
 export function PublicHeader() {
   return <header className="discovery-header"><Link href="/" aria-label="Freelance Place — דף הבית"><Image src="/freelance-place-logo.svg" width={52} height={52} alt="Freelance Place" /></Link><span lang="en" dir="ltr">Freelance Place</span><Link href="/signin">כניסה לחשבון</Link></header>;
 }
+// Both receive discoverable projects only (see publication.ts). With none to list, neither renders:
+// a heading or an empty ItemList with nothing under it adds no value for readers or crawlers.
 export function ProjectLinks({ projects }: { projects: Project[] }) {
-  const realProjects = projects.filter((project) => !project.sample || project.ownerKind === 'ai-agent');
-  return <section><h2>פרויקטים שפורסמו באתר</h2>{realProjects.length ? <ul className="discovery-projects">{realProjects.map((project) => <li key={project.slug}><Link href={`/projects/${encodeURIComponent(project.slug)}`}>{project.title}</Link><p>{project.category} · {project.budget}{isAiAgentProject(project) && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</p></li>)}</ul> : <p>רשימת הפרויקטים מתעדכנת עם פרסומים חדשים. אפשר לחזור למרחב העבודה כדי לבדוק זמינות או לפרסם פרויקט.</p>}</section>;
+  if (projects.length === 0) return null;
+  return <section><h2>פרויקטים שפורסמו באתר</h2><ul className="discovery-projects">{projects.map((project) => <li key={project.slug}><Link href={projectPath(project.slug)}>{project.title}</Link><p>{project.category} · {project.budget}</p></li>)}</ul></section>;
 }
 export function CollectionData({ title, path, projects }: { title: string; path: string; projects: Project[] }) {
-  const items = projects.filter((project) => !project.sample || project.ownerKind === 'ai-agent').map((project) => ({ name: project.title, path: `/projects/${encodeURIComponent(project.slug)}` }));
-  return <StructuredData data={withContext(collectionPageNode({ path, name: title, items }))} />;
+  if (projects.length === 0) return null;
+  return <StructuredData data={withContext(collectionPageNode({ path, name: title, items: projects.map((project) => ({ name: project.title, path: projectPath(project.slug) })) }))} />;
 }

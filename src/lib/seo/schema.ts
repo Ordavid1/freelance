@@ -45,10 +45,12 @@ export type WebPageInput = {
   type?: 'WebPage' | 'AboutPage';
   published?: string; modified?: string;
   keywords?: readonly string[];
-  citation?: string;
+  // The public pages a comparison relies on: one URL, or several.
+  citation?: string | readonly string[];
 };
 export function webPageNode(input: WebPageInput): JsonLdNode {
   const url = absoluteUrl(input.path);
+  const citations = (typeof input.citation === 'string' ? [input.citation] : [...(input.citation ?? [])]).filter(Boolean);
   return {
     '@type': input.type ?? 'WebPage', '@id': `${url}#page`, url, name: input.name, description: input.description,
     inLanguage: LANGUAGE, isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
@@ -57,7 +59,7 @@ export function webPageNode(input: WebPageInput): JsonLdNode {
     ...(input.published ? { datePublished: input.published } : {}),
     ...(input.modified ? { dateModified: input.modified } : {}),
     ...(input.keywords?.length ? { keywords: input.keywords.join(', ') } : {}),
-    ...(input.citation ? { citation: input.citation } : {}),
+    ...(citations.length > 0 ? { citation: citations.length === 1 ? citations[0] : citations } : {}),
   };
 }
 

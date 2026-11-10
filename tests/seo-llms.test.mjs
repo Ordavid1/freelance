@@ -101,15 +101,15 @@ test('llms.txt facts follow the billing state and come from the shared facts', (
     assert.equal(text.includes('Payment is not yet available'), !available);
     assert.equal(text.includes('Membership is planned at ILS'), !available);
     assert.ok(text.includes(facts.membershipAnswer(membership)), 'the Hebrew pricing answer is the one the site shows');
-    assert.ok(text.includes(facts.aiAgentAnswer));
-    // The Hebrew answer begins with "no", so it is printed with the home FAQ question it answers.
-    const agentQuestion = loadModule('src/lib/seo/content.ts', { env }).getHomeQuestions(membership).find((item) => item.answer === facts.aiAgentAnswer)?.question;
-    assert.ok(agentQuestion, 'the home FAQ asks the question the AI-agent answer belongs to');
-    assert.ok(text.includes(`Asked in Hebrew "${agentQuestion}", the site answers: ${facts.aiAgentAnswer}`));
-    assert.match(text, /labeled "AI agent"/);
+    assert.doesNotMatch(text, /AI agent|AI-agent|sample project|demo project|סוכן AI/i, 'llms.txt says nothing about showcase projects');
     assert.ok(text.includes(facts.contactFacts().email));
     assert.ok(text.includes(facts.contactFacts().operator));
     assert.doesNotMatch(text, /not in the sitemap|not indexed/i);
+    // The XPlace comparison lines come from the dated, sourced comparison data; the price line needs an available paid offer.
+    const lines = loadModule('src/lib/seo/comparison.ts', { env }).llmsComparisonLines(membership);
+    assert.equal(lines.some((line) => /ILS \d+ per month/.test(line) && /before VAT/.test(line)), available, 'the price comparison appears only while billing is available');
+    assert.ok(lines.some((line) => /Lighthouse/.test(line)), 'the speed comparison is stated with its tool and date');
+    for (const line of lines) assert.ok(text.includes(line), line.slice(0, 60));
   }
   // Nothing is typed by hand: other numbers flow straight through.
   const text = llmsFor().llmsTxt({ priceIls: 24.5, priceLabel: '₪24.50', trialDays: 30, billingAvailable: true });

@@ -158,13 +158,14 @@ test('rendered structured data components emit parseable, escaped JSON-LD from t
   assert.equal(faq['@context'], 'https://schema.org');
   assert.equal(faq['@type'], 'FAQPage');
   assert.doesNotMatch(faqHtml.match(/<script[^>]*>(.*?)<\/script>/)[1], /[<>&]/);
+  // Callers pass discoverable projects only (publication.ts); the component lists exactly those, and nothing when there are none.
   const projects = [
-    { slug: 'real', title: 'אמיתי', sample: false, skills: [] },
-    { slug: 'agent', title: 'סוכן', sample: true, ownerKind: 'ai-agent', skills: [] },
-    { slug: 'demo', title: 'דמו', sample: true, skills: [] },
+    { slug: 'real', title: 'פרויקט א', skills: [] },
+    { slug: 'second one', title: 'פרויקט ב', skills: [] },
   ];
   const [collection] = blocks(renderToStaticMarkup(CollectionData({ title: 'פרויקטים', path: '/', projects })));
-  assert.deepEqual(collection.mainEntity.itemListElement.map((item) => item.url), [`${ORIGIN}/projects/real`, `${ORIGIN}/projects/agent`]);
+  assert.deepEqual(collection.mainEntity.itemListElement.map((item) => item.url), [`${ORIGIN}/projects/real`, `${ORIGIN}/projects/second%20one`]);
+  assert.equal(renderToStaticMarkup(CollectionData({ title: 'פרויקטים', path: '/', projects: [] })), '', 'no empty ItemList when there is nothing to list');
 });
 
 test('pages build structured data only through the builders', () => {
@@ -185,6 +186,7 @@ test('toPublicProject exposes createdAt and updatedAt as milliseconds', () => {
     env,
     stubs: {
       './firestore': { firestore: () => { throw new Error('not used'); } },
+      'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } },
       'next/cache': { unstable_cache: (fn) => fn },
     },
   });

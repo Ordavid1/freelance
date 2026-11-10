@@ -70,9 +70,9 @@ Each guide: summary ("בקיצור", direct answer, <= 320 chars), >= 4 sections
 
 ### Info pages (`src/lib/seo/info-pages.ts`, routes under `src/app/`)
 - `/pricing` — H1 "כמה עולה Freelance Place?". Direct answer from `membershipAnswer(facts)`. Sections: posting is free; freelancer trial (14 days after a completed profile); membership after the trial (price, auto-renewal, cancellation as described in the Terms, link to `/terms#payments`); what membership is and is not (permission to submit proposals; not payment for work; no guarantee of work; no escrow or payment protection); FAQ. `membershipServiceNode(facts)` JSON-LD only when billing is available. Must match `terms` exactly in substance.
-- `/about` — entity page: what Freelance Place is, who operates it (`contactFacts()`), independence from XPlace, how AI-agent projects are labelled, editorial policy (who writes content, how often reviewed, how corrections are handled), contact. `AboutPage` JSON-LD.
+- `/about` — entity page: what Freelance Place is, who operates it (`contactFacts()`), independence from XPlace, editorial policy (who writes content, how often reviewed, how corrections are handled), contact. `AboutPage` JSON-LD.
 - `/how-it-works` — two flows: clients (post a project, receive proposals, message, decide) and freelancers (build a profile, 14-day trial, find projects, prepare and approve a proposal, message, membership). Only existing features. `WebPage` JSON-LD.
-- `/faq` — 15-20 questions grouped (clients, freelancers, membership and pricing, trust and AI-agent projects, privacy and data). Every answer consistent with Terms and Privacy; membership answers use `facts.ts`. `FAQPage` JSON-LD with the same text.
+- `/faq` — 15-20 questions grouped (clients, freelancers, membership and pricing, trust, privacy and data; no AI-agent or sample-project questions: showcase projects are never part of SEO copy, since 2026-11-10). Every answer consistent with Terms and Privacy; membership answers use `facts.ts`. `FAQPage` JSON-LD with the same text.
 - `/glossary` — ~20 terms (בריף, ריטיינר, אבן דרך, סבב תיקונים, היקף עבודה, קובץ מקור, זכויות שימוש, NDA, הצעת מחיר, מקדמה, חשבונית, עוסק, SLA, ועוד), each a one-sentence definition then one practical sentence. `DefinedTermSet` JSON-LD.
 - `/guides` — index of all guides grouped by audience; `CollectionPage` + `ItemList`.
 

@@ -21,7 +21,7 @@ const content = loadModule('src/lib/seo/content.ts');
 const registry = loadModule('src/lib/seo/registry.ts');
 const publicRecord = { status: 'open', title: 'A real project', description: 'A complete brief' };
 
-test('publication excludes drafts, private/member-only records, samples and empty content', () => {
+test('publication excludes drafts, private/member-only records, showcase projects and empty content', () => {
   assert.equal(publication.isDiscoverableProject(publicRecord), true);
   assert.equal(publication.isDiscoverableProject({ ...publicRecord, visibility: 'public' }), true);
   for (const change of [{ status: 'draft' }, { status: 'closed' }, { visibility: 'private' }, { visibility: 'members' }, { sample: true }, { title: '' }, { description: ' ' }]) {
@@ -29,11 +29,36 @@ test('publication excludes drafts, private/member-only records, samples and empt
   }
 });
 
+// Showcase projects (seeded, published by an AI agent) are product content, never SEO content. Every
+// marker the seeding uses, alone or together, keeps a record out of the index, on a stored record and on
+// the public model alike.
+test('showcase projects are never discoverable, however they are marked', () => {
+  const showcase = [
+    { sample: true },
+    { sample: true, owner: { kind: 'ai-agent' } },
+    { sample: true, unreal: true, owner: { kind: 'ai-agent', name: 'x' } },
+    { owner: { kind: 'ai-agent' } },
+    { unreal: true },
+    { ownerKind: 'ai-agent' },
+    { sample: true, ownerKind: 'ai-agent' },
+  ];
+  for (const marker of showcase) {
+    assert.equal(publication.isSyntheticProject({ ...publicRecord, ...marker }), true, JSON.stringify(marker));
+    assert.equal(publication.isDiscoverableProject({ ...publicRecord, ...marker }), false, JSON.stringify(marker));
+    // Inside the product they stay listable, with their label.
+    assert.equal(publication.isListableProject({ ...publicRecord, ...marker }), true, JSON.stringify(marker));
+  }
+  for (const marker of [{}, { sample: false }, { owner: { kind: 'human' } }, { owner: null }, { ownerKind: undefined }]) {
+    assert.equal(publication.isSyntheticProject({ ...publicRecord, ...marker }), false, JSON.stringify(marker));
+    assert.equal(publication.isDiscoverableProject({ ...publicRecord, ...marker }), true, JSON.stringify(marker));
+  }
+});
+
 test('listable projects include samples and closed records but never private or empty ones', () => {
   assert.equal(publication.isListableProject(publicRecord), true);
   assert.equal(publication.isListableProject({ ...publicRecord, sample: true }), true);
   assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true }), false);
-  assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true, owner: { kind: 'ai-agent' } }), true);
+  assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true, owner: { kind: 'ai-agent' } }), false);
   assert.equal(publication.isDiscoverableProject({ ...publicRecord, sample: true, owner: { kind: 'human' } }), false);
   assert.equal(publication.isListableProject({ ...publicRecord, status: 'closed' }), true);
   assert.equal(publication.isDiscoverableProject({ ...publicRecord, status: 'closed' }), false);
@@ -90,7 +115,7 @@ test('canonical host redirects preserve path/query and account or alternate host
   assert.equal(proxy(request('freelance-place.com', '/?utm_source=test')).headers.get('x-robots-tag'), null);
 });
 
-function projectModule(batches, failure = false) {
+function projectModule(batches, failure = false, open = []) {
   let calls = 0;
   const query = {
     where: () => query, orderBy: () => query, limit: () => query,
@@ -101,7 +126,7 @@ function projectModule(batches, failure = false) {
     'server-only': {}, react: { cache: (fn) => fn },
     'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } },
     '@/lib/db/firestore': { firestore: () => ({ collection: () => query }) },
-    '@/lib/db/projects': { getOpenProject: async () => null, listOpenProjects: async () => [] },
+    '@/lib/db/projects': { getOpenProject: async () => null, listOpenProjects: async () => open },
     '@/lib/data': { getProject: () => undefined }, './publication': publication,
   });
   return { ...helpers, count: () => calls };
@@ -118,6 +143,33 @@ test('sitemap reads beyond the feed limit, paginates, and excludes private/demo 
   assert.equal(entries.length, 1001);
   assert.equal(entries.at(-1).slug, 'last');
   assert.equal(helpers.count(), 2);
+});
+
+test('sitemap leaves out every kind of showcase record, however it is marked', async () => {
+  const helpers = projectModule([{ size: 7, docs: [
+    doc('real'),
+    doc('seed-sample', { sample: true }),
+    doc('seed-unreal', { unreal: true }),
+    doc('seed-agent', { sample: true, unreal: true, owner: { kind: 'ai-agent', name: 'סוכן' } }),
+    doc('owner-only', { owner: { kind: 'ai-agent' } }),
+    doc('human-owner', { owner: { kind: 'human' } }),
+    doc('closed', { status: 'closed' }),
+  ] }]);
+  assert.deepEqual(Array.from(await helpers.sitemapProjects(), (entry) => entry.slug), ['real', 'human-owner']);
+});
+
+test('public discovery lists drop showcase projects even if the data layer returns them', async () => {
+  const real = { slug: 'real', title: 'A real project', description: 'A complete brief', status: 'open', skills: [] };
+  const open = [
+    real,
+    { ...real, slug: 'sample', sample: true },
+    { ...real, slug: 'agent', sample: true, ownerKind: 'ai-agent' },
+    { ...real, slug: 'agent-only', ownerKind: 'ai-agent' },
+    { ...real, slug: 'closed', status: 'closed' },
+    { ...real, slug: 'untitled', title: ' ' },
+  ];
+  assert.deepEqual(Array.from(await projectModule([], false, open).discoveryProjects(), (project) => project.slug), ['real']);
+  assert.equal((await projectModule([], false, []).discoveryProjects()).length, 0);
 });
 
 test('sitemap failures propagate and preview never touches the database', async () => {

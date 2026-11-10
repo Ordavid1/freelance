@@ -114,11 +114,25 @@ function loadProjects(documents) {
   const cached = [];
   const queries = [];
   const snapshot = (id, data) => ({ id, exists: true, data: () => data, get: (key) => data[key] });
+  // A chainable query that honours orderBy (document ID), startAfter and limit, like Firestore does.
+  const query = (where, state = {}) => ({
+    orderBy: (field) => query(where, { ...state, order: field }),
+    startAfter: (cursor) => query(where, { ...state, after: cursor }),
+    limit: (n) => query(where, { ...state, limit: n }),
+    get: async () => {
+      queries.push({ where, order: state.order, after: state.after, limit: state.limit });
+      let docs = [...documents];
+      if (state.order) docs.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      if (state.after !== undefined) docs = docs.filter(([id]) => id > state.after);
+      if (state.limit !== undefined) docs = docs.slice(0, state.limit);
+      return { size: docs.length, docs: docs.map(([id, data]) => snapshot(id, data)) };
+    },
+  });
   const firestore = () => ({ collection: () => ({
-    where: (...args) => ({ limit: (n) => ({ get: async () => { queries.push({ where: args, limit: n }); return { docs: documents.map(([id, data]) => snapshot(id, data)) }; } }) }),
+    where: (...args) => query(args),
     doc: (id) => ({ get: async () => { const found = documents.find(([key]) => key === id); return found ? snapshot(...found) : { exists: false, get: () => undefined, data: () => undefined }; } }),
   }) });
-  const module = loadModule('src/lib/db/projects.ts', { stubs: { './firestore': { firestore }, 'next/cache': { unstable_cache: (fn, keys, options) => { cached.push({ keys, options }); return fn; } } } });
+  const module = loadModule('src/lib/db/projects.ts', { stubs: { './firestore': { firestore }, 'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } }, 'next/cache': { unstable_cache: (fn, keys, options) => { cached.push({ keys, options }); return fn; } } } });
   return { module, cached, queries };
 }
 const stamp = (ms) => ({ toMillis: () => ms });
@@ -138,6 +152,42 @@ test('listFeedProjects mirrors the public feed: open and closed, listable, newes
   assert.deepEqual(plain(items.map((item) => item.slug)), ['new-closed', 'sample', 'old']);
   assert.deepEqual(plain(items), items.map((item) => ({ ...item })).map(plain), 'cached value survives a JSON round trip');
   assert.equal(typeof items[0].createdAt, 'number');
+});
+
+test('listOpenProjects counts only discoverable projects against its cap, so showcase records cannot crowd real ones out', async () => {
+  const showcase = (index, kind) => [`a-${String(index).padStart(3, '0')}`, record({ createdAt: stamp(index), ...(kind === 'sample' ? { sample: true, owner: { kind: 'ai-agent', name: 'סוכן' } } : kind === 'unreal' ? { unreal: true } : { owner: { kind: 'ai-agent' } }) })];
+  const kinds = ['sample', 'unreal', 'owner'];
+  const documents = [
+    // 120 showcase records whose IDs sort before every real one: they would fill a plain limit(100).
+    ...Array.from({ length: 120 }, (_, index) => showcase(index + 1, kinds[index % 3])),
+    ['real-1', record({ createdAt: stamp(9001) })],
+    ['real-2', record({ createdAt: stamp(9002) })],
+    ['real-private', record({ visibility: 'private', createdAt: stamp(9003) })],
+    ['real-closed', record({ status: 'closed', createdAt: stamp(9004) })],
+  ];
+  const { module, queries } = loadProjects(documents);
+  const items = await module.listOpenProjects();
+  assert.deepEqual(Array.from(items, (item) => item.slug), ['real-2', 'real-1']);
+  assert.ok(items.every((item) => item.ownerKind === undefined && item.sample === undefined));
+  // Two pages: the first holds 100 showcase records, the second continues after the last ID of the first.
+  assert.equal(queries.length, 2);
+  assert.deepEqual(Array.from(queries, (query) => [query.order, query.after, query.limit]), [['__name__', undefined, 100], ['__name__', 'a-100', 100]]);
+  for (const query of queries) assert.deepEqual(Array.from(query.where), ['status', '==', 'open']);
+});
+
+test('listOpenProjects stops at 100 discoverable projects and reads no more pages than that needs', async () => {
+  const documents = Array.from({ length: 250 }, (_, index) => [`real-${String(index).padStart(3, '0')}`, record({ createdAt: stamp(index) })]);
+  const { module, queries } = loadProjects(documents);
+  const items = await module.listOpenProjects();
+  assert.equal(items.length, 100);
+  assert.equal(queries.length, 1, 'a full first page of real projects needs no second read');
+  assert.deepEqual(Array.from(items.slice(0, 2), (item) => item.slug), ['real-099', 'real-098'], 'newest first within the page');
+});
+
+test('listOpenProjects returns an empty list, not an error, when every open record is a showcase record', async () => {
+  const { module, queries } = loadProjects([['seed-a', record({ sample: true, owner: { kind: 'ai-agent' } })], ['seed-b', record({ unreal: true })]]);
+  assert.deepEqual(Array.from(await module.listOpenProjects()), []);
+  assert.equal(queries.length, 1);
 });
 
 test('public project reads are cached for 60 seconds with project tags', async () => {
