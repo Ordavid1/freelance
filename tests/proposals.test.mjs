@@ -49,6 +49,7 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
     },
   };
   const stubs = {
+    '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
     '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
     '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 1_000, increment: (amount) => amount } },

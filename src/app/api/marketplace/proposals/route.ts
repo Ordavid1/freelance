@@ -1,3 +1,4 @@
+import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
 import { enforceActionLimit } from '@/lib/security/rate-limit';
 import { readJsonBody } from '@/lib/security/request-body';
 import { requireMarketplaceAccess } from '@/lib/membership/access';
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
   const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
   const limited = await enforceActionLimit(user.uid, 'proposal.create');
   if (limited) return limited;
+  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
   const parsedBody = await readJsonBody(request, 16_000);
   if (!parsedBody.ok) return parsedBody.response;
   const body = parsedBody.value as Record<string, unknown> | null;
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
       if (project.get('sample') === true) throw new Error('SAMPLE_PROJECT');
       if (project.get('ownerUid') === user.uid) throw new Error('OWN_PROJECT');
       if (existing.exists) throw new Error('DUPLICATE_PROPOSAL');
+      await assertContactAllowed(transaction, user.uid, project.get('ownerUid'));
       const proposal = {
         projectSlug, projectTitle: project.get('title'), clientUid: project.get('ownerUid'), freelancerUid: user.uid,
         freelancerName: user.name || user.email?.split('@')[0] || 'פרילנסר/ית', amount, currency: 'ILS', pricingType,
@@ -155,6 +158,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
+    if (error instanceof ContactUnavailable) return NextResponse.json({ code: 'CONTACT_UNAVAILABLE', error: 'לא ניתן ליצור קשר זה כרגע.' }, { status: 403 });
     const reason = error instanceof Error ? error.message : '';
     if (reason === 'DUPLICATE_PROPOSAL') return NextResponse.json({ error: 'כבר שלחתם הצעה לפרויקט הזה.' }, { status: 409 });
     if (reason === 'OWN_PROJECT') return NextResponse.json({ error: 'אי אפשר להציע הצעה לפרויקט שפרסמתם.' }, { status: 403 });

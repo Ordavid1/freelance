@@ -1,3 +1,5 @@
+**Owner decision:** Blocking/unblocking, account restrictions and appeals are approved for implementation. The report form and privacy-request flows are explicitly deferred. Screens 4–5 below remain archived proposals only.
+
 # Safety and privacy UX proposal
 
 Open [index.html](index.html) in a browser. This standalone Hebrew RTL prototype covers secondary report/block actions, block confirmation, restricted-account access, privacy requests and a focused report form. It uses the existing light surfaces, ink and chartreuse palette; it does not modify application components.

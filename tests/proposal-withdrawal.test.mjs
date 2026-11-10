@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server.js';
 function fixture({ uid = 'owner', status = 'submitted', sameOrigin = true, signedIn = true } = {}) {
   const writes = [];
   const stubs = {
+    '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
     '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
     '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     '@/lib/auth/session': { getCurrentUser: async () => signedIn ? { uid: 'owner' } : null, isSameOrigin: () => sameOrigin },

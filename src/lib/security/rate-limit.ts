@@ -8,6 +8,8 @@ const DAY = 24 * 60 * MINUTE;
 // Limits are per verified account, shared by all Cloud Run instances. Membership
 // and role changes never reset them. These are abuse budgets, not paid features.
 export const actionLimits = {
+  'safety.change': [{ windowMs: 10 * MINUTE, max: 20 }, { windowMs: DAY, max: 100 }],
+  'safety.appeal': [{ windowMs: DAY, max: 3 }],
   'oauth.session': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 50 }],
   'oauth.import': [{ windowMs: 10 * MINUTE, max: 20 }, { windowMs: DAY, max: 100 }],
   'billing.checkout': [{ windowMs: 10 * MINUTE, max: 5 }, { windowMs: DAY, max: 30 }],

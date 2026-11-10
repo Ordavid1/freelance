@@ -1,3 +1,4 @@
+import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
 import { enforceActionLimit } from '@/lib/security/rate-limit';
 import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לפרסם פרויקט.' }, { status: 401 });
   const limited = await enforceActionLimit(user.uid, 'project.create');
   if (limited) return limited;
+  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
   const parsedBody = await readJsonBody(request, 24_000);
   if (!parsedBody.ok) return parsedBody.response;
   const body = parsedBody.value as Record<string, unknown> | null;

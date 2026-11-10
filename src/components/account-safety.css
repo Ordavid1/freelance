@@ -1,0 +1,12 @@
+.account-safety { margin:16px; padding:18px; background:#f7f9ed; border-inline-start:4px solid #ceef00; border-radius:12px; color:#151719; }
+.account-safety p,.contact-safety p { line-height:1.65; }
+.safety-actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.account-safety button,.contact-safety button { font:inherit; padding:9px 14px; border:1px solid #cbd0c3; border-radius:8px; background:white; color:#151719; cursor:pointer; }
+.account-safety textarea { display:block; width:100%; min-height:100px; margin:8px 0; font:inherit; }
+.account-safety form { margin-top:16px; max-width:650px; }
+.account-safety small { display:block; }
+.contact-safety .safety-secondary { background:transparent; border:0; text-decoration:underline; padding-inline:0; }
+.contact-safety dialog { width:min(440px,calc(100% - 32px)); border:1px solid #d9ddd2; border-radius:16px; padding:24px; color:#151719; }
+.contact-safety dialog::backdrop { background:#15171966; }
+.contact-safety button:disabled { opacity:.55; cursor:wait; }
+.account-safety { overflow-wrap:anywhere; }

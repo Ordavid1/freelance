@@ -2,7 +2,7 @@
 
 ## Review boundary
 
-This PR prepares application/infra controls and UI mockups. Production UI must stay unchanged until the mockups in `docs/security-mockups/index.html` are approved. Google secrets/provider configuration remain with the owner. No keys are disabled and no production resources are applied by opening this PR.
+This PR prepares application/infra controls and UI mockups. The owner approved blocking/unblocking, restricted-account notices and appeals. Report forms and privacy-request flows are on hold; do not implement or activate them. Google secrets/provider configuration remain with the owner. No keys are disabled and no production resources are applied by opening this PR.
 
 Monitoring channels are deliberately not invented: set `security_notification_channels` to verified channel resource names, send a test notification, and assign a responding person. Policies with empty channel lists do not page anyone. CodeQL upload on private repositories requires the corresponding GitHub entitlement. Branch-protection inspection returned HTTP 403 with the connected integration; an administrator must configure required checks and reviews.
 
@@ -28,7 +28,7 @@ Inventory each active agent key's consumer, scopes and last use. Establish short
 
 ## Privacy and evidence
 
-Document active-data, archived-generation, soft-delete, backup and processor retention separately. A privacy request must authenticate the requester, exclude another party's private data, preserve required financial/evidence holds and return a request receipt. Do not promise immediate purge. Reports, blocking, appeals, export/deletion workers, moderator authorization/MFA and evidence access still need implementation after the proposed user journeys are approved. Current mockups are not connected to any data or API.
+Document active-data, archived-generation, soft-delete, backup and processor retention separately. A privacy request must authenticate the requester, exclude another party's private data, preserve required financial/evidence holds and return a request receipt. Do not promise immediate purge. Report forms and export/deletion workers are intentionally deferred. Blocking and restriction enforcement, appeals, audited moderator APIs and recent-MFA authorization are implemented in this PR; they still need designated-user production validation. Current mockups are not connected to any data or API.
 
 ## Release checklist
 
@@ -49,3 +49,11 @@ This PR does not claim a completed four-week marketplace program. The audit's re
 `node scripts/security/reconcile-billing.mjs internal.json processor.json report.json` compares authorized normalized exports. Each input is an array of `{terminal: positive integer, transactionId: digit string, amountAgorot: integer, currency: uppercase ISO code, status: paid|refunded|declined}`. Use the provider's actual transaction identity, not a card token or checkout ID. Map partial refunds/voids explicitly in a reviewed normalization step; unsupported states must not be silently relabeled.
 
 The helper rejects duplicates, flags missing/mismatched records and writes a new owner-readable report containing references/reasons, excluding customer identities and raw rows. Exit 0 means matching exports, 2 means exceptions, 1 means invalid input/output. It never calls the processor or changes financial records. Secure and delete source exports according to retention policy; never commit them. This is a review aid, not an automated provider reconciliation integration.
+
+## Approved safety implementation
+
+`GET/POST /api/marketplace/safety` authorizes participants against a real existing conversation. Blocking is a canonical peer-pair record, affects future proposals across projects and messages in both directions, and unblocking removes only the caller's block. Existing history and billing access remain available. Relationship and account state are read in the same transaction as message/proposal writes. Project publication checks account state before creation.
+
+`POST /api/marketplace/appeals` accepts one immutable pending request per own restriction version. `GET/POST /api/moderation/accounts` require a verified, non-revoked moderator session with trusted `moderator=true` claim, second-factor evidence and authentication within five minutes. Configure moderator onboarding/MFA through the trusted Auth administrator; ordinary Google login does not automatically grant this authority. The API cannot be used for self-modification. Supply `appealId` to resolve only the matching current pending appeal; stale/foreign appeals return 409. Decisions, block changes, appeals and queue access append restricted audit records. No moderator dashboard or report/privacy form has been added.
+
+Run `python3 tests/browser/security_ui.py` with the built app listening on 127.0.0.1:3100 and Python Playwright/Chromium installed. It intercepts APIs with synthetic test data, verifies mobile confirmation, block/unblock, repeated sends, restriction, appeal and retained membership navigation, and saves review screenshots. Backend authorization is separately exercised in `security-contact-policy` and `security-safety-routes` unit tests. These do not replace live Firestore contention/rules and designated-user acceptance checks.

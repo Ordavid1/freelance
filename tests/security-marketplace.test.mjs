@@ -6,6 +6,7 @@ import { loadModule } from './helpers/load-ts.mjs';
 
 const user = { uid: 'viewer' };
 const baseStubs = {
+    '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
   'next/server': { NextResponse },
   'node:crypto': { createHash, randomUUID },
   'firebase-admin/firestore': { FieldValue: { serverTimestamp: () => 1 } },
@@ -62,5 +63,17 @@ test('conversation content and messages stay within the two participants for rea
     const write = await route.POST(new Request('https://example.test/api/test', { method: 'POST', body: JSON.stringify({ conversationId: id, text: 'message' }) }));
     assert.equal(write.status, participant ? 201 : 404);
     assert.equal(writes.length, participant ? 2 : 0);
+  }
+});
+
+test('restricted accounts cannot publish, propose or send even with a valid session', async () => {
+  for (const route of ['projects', 'proposals', 'conversations']) {
+    const module = loadModule(`src/app/api/marketplace/${route}/route.ts`, { stubs: { ...baseStubs,
+      '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
+      '@/lib/security/marketplace-policy': { accountWriteDenied: async () => Response.json({ code: 'ACCOUNT_RESTRICTED' }, { status: 403 }), assertContactAllowed: async () => { throw new Error('Unexpected downstream contact'); }, ContactUnavailable: class extends Error {} },
+    } });
+    const response = await module.POST(new Request('https://example.test/api/test', { method: 'POST', body: '{}' }));
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).code, 'ACCOUNT_RESTRICTED');
   }
 });

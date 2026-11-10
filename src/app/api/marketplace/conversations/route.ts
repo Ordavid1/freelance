@@ -1,3 +1,4 @@
+import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
 import { enforceActionLimit } from '@/lib/security/rate-limit';
 import { readJsonBody } from '@/lib/security/request-body';
 import { randomUUID } from 'node:crypto';
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשלוח הודעה.' }, { status: 401 });
   const limited = await enforceActionLimit(user.uid, 'message.send');
   if (limited) return limited;
+  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
   const parsedBody = await readJsonBody(request, 8_000);
   if (!parsedBody.ok) return parsedBody.response;
   const body = parsedBody.value as { conversationId?: unknown; text?: unknown } | null;
@@ -68,11 +70,13 @@ export async function POST(request: Request) {
       const conversation = await transaction.get(conversationRef);
       const data = conversation.data();
       if (!data || !belongsTo(data, user.uid)) throw new Error('NOT_FOUND');
+      await assertContactAllowed(transaction, user.uid, data.clientUid === user.uid ? data.freelancerUid : data.clientUid);
       transaction.create(messageRef, { senderUid: user.uid, senderName, text: text.trim(), kind: 'message', createdAt: FieldValue.serverTimestamp() });
       transaction.update(conversationRef, { lastMessage: text.trim(), lastMessageAt: FieldValue.serverTimestamp() });
     });
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
+    if (error instanceof ContactUnavailable) return NextResponse.json({ code: 'CONTACT_UNAVAILABLE', error: 'לא ניתן לשלוח הודעות בקשר זה כרגע.' }, { status: 403 });
     if (error instanceof Error && error.message === 'NOT_FOUND') return NextResponse.json({ error: 'השיחה לא נמצאה.' }, { status: 404 });
     return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההודעה.' }, { status: 503 });
   }
