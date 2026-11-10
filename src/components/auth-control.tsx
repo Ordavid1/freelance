@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useViewer } from './viewer-context';
 
 // Firebase Auth (SDK, gapi and the auth iframe) is only needed when someone signs in, so it
-// loads on sign-in intent (pointer, focus or touch on the button) with an idle fallback.
+// loads on sign-in intent (pointer, focus or touch on the button), on the visitor's first sign of
+// life anywhere on the page, or after an idle fallback. Crawlers and lab runs never interact, so
+// none of this weighs on the first load.
 const AUTH_IDLE_FALLBACK_MS = 5000;
+const AUTH_WARMUP_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel'] as const;
 
 async function loadFirebaseAuth() {
   const [sdk, { getClientAuth }] = await Promise.all([import('@firebase/auth'), import('@/lib/auth/firebase-client')]);
@@ -33,11 +36,16 @@ export function AuthControl() {
   const anonymous = viewer.status === 'anonymous';
   useEffect(() => {
     if (!anonymous) return;
+    // The first pointer, key, touch or wheel event anywhere starts the download, so by the time the
+    // button is tapped the client is normally ready and the first tap signs in.
+    const stopWarmup = () => AUTH_WARMUP_EVENTS.forEach((name) => window.removeEventListener(name, onFirstInteraction, true));
+    function onFirstInteraction() { stopWarmup(); void prepareSignIn(); }
+    AUTH_WARMUP_EVENTS.forEach((name) => window.addEventListener(name, onFirstInteraction, { capture: true, passive: true }));
     const timer = window.setTimeout(() => {
       if ('requestIdleCallback' in window) window.requestIdleCallback(() => void prepareSignIn(), { timeout: 2000 });
       else void prepareSignIn();
     }, AUTH_IDLE_FALLBACK_MS);
-    return () => window.clearTimeout(timer);
+    return () => { stopWarmup(); window.clearTimeout(timer); };
   }, [anonymous, prepareSignIn]);
 
   async function signOut() {
