@@ -1,5 +1,6 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
+import { FieldPath, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { Project } from '@/lib/data';
 import { firestore } from './firestore';
 import { isDiscoverableProject, isListableProject } from '@/lib/seo/publication';
@@ -40,10 +41,30 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
 const PUBLIC_PROJECT_REVALIDATE_SECONDS = 60;
 const newestFirst = (a: Project, b: Project) => (b.createdAt || 0) - (a.createdAt || 0);
 
+// Discovery lists are capped at 100 projects, and the cap counts discoverable projects only. Showcase
+// and incomplete documents are skipped while paging (document-ID order, the order the plain query
+// returned), so they can never use up the cap and push real projects out of a public list.
+const DISCOVERY_LIMIT = 100;
+const DISCOVERY_PAGE_SIZE = 100;
+const DISCOVERY_MAX_PAGES = 50;
+async function discoverableDocuments() {
+  const found: QueryDocumentSnapshot[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < DISCOVERY_MAX_PAGES && found.length < DISCOVERY_LIMIT; page++) {
+    let query = firestore().collection('projects').where('status', '==', 'open').orderBy(FieldPath.documentId()).limit(DISCOVERY_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const batch = await query.get();
+    for (const doc of batch.docs) {
+      if (found.length < DISCOVERY_LIMIT && isDiscoverableProject(doc.data())) found.push(doc);
+    }
+    if (batch.size < DISCOVERY_PAGE_SIZE) break;
+    cursor = batch.docs[batch.docs.length - 1].id;
+  }
+  return found;
+}
+
 export const listOpenProjects = unstable_cache(async (): Promise<Project[]> => {
-  const snapshot = await firestore().collection('projects').where('status', '==', 'open').limit(100).get();
-  return snapshot.docs
-    .filter((doc) => isDiscoverableProject(doc.data()))
+  return (await discoverableDocuments())
     .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument))
     .sort(newestFirst);
 }, ['public-projects-open'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects'] });
