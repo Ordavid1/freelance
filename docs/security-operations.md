@@ -43,3 +43,9 @@ Document active-data, archived-generation, soft-delete, backup and processor ret
 ## Remaining release gates
 
 This PR does not claim a completed four-week marketplace program. The audit's reporting/blocking/moderation/privacy flows await UX review; production restore/reconciliation drills, recipient setup, key retirement, processor reconciliation integration, historical secret scanning and organization policies require operational follow-through. Keep these visible when reviewing/merging rather than treating a green build as signoff.
+
+## Offline reconciliation helper
+
+`node scripts/security/reconcile-billing.mjs internal.json processor.json report.json` compares authorized normalized exports. Each input is an array of `{terminal: positive integer, transactionId: digit string, amountAgorot: integer, currency: uppercase ISO code, status: paid|refunded|declined}`. Use the provider's actual transaction identity, not a card token or checkout ID. Map partial refunds/voids explicitly in a reviewed normalization step; unsupported states must not be silently relabeled.
+
+The helper rejects duplicates, flags missing/mismatched records and writes a new owner-readable report containing references/reasons, excluding customer identities and raw rows. Exit 0 means matching exports, 2 means exceptions, 1 means invalid input/output. It never calls the processor or changes financial records. Secure and delete source exports according to retention policy; never commit them. This is a review aid, not an automated provider reconciliation integration.
