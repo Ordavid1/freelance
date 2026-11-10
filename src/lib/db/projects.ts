@@ -1,4 +1,5 @@
 import 'server-only';
+import { projectSkills } from '@/lib/projects/skills';
 import { unstable_cache } from 'next/cache';
 import { FieldPath, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { Project } from '@/lib/data';
@@ -24,7 +25,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     posted: 'פרויקט חדש',
     client: name,
     clientHistory: record.sample === true ? SAMPLE_CLIENT_HISTORY : 'פרויקט ראשון ב־Freelance Place',
-    skills: Array.isArray(record.skills) ? record.skills : [],
+    skills: projectSkills({title:record.title||'',description:record.description||'',skills:Array.isArray(record.skills)?record.skills:[]}),
     fit: 'בדקו אם הפרויקט מתאים לכם',
     activity: 'פתוח להצעות',
     proposals: Number(record.proposals) || 0,

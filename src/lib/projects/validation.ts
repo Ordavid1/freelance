@@ -1,3 +1,4 @@
+import { projectSkills } from './skills.ts';
 // Shared project-input validation (no server-only imports so scripts can use it).
 export type ProjectInput = { title: string; category: string; description: string; budget: string; deadline: string; skills: string[] };
 export type ProjectInputResult = { ok: true; value: ProjectInput } | { ok: false; error: string };
@@ -21,7 +22,7 @@ export function validateProjectInput(body: unknown): ProjectInputResult {
       description: input.description.trim(),
       budget: input.budget.trim(),
       deadline: input.deadline.trim(),
-      skills: [...new Set((input.skills as string[]).map((skill) => skill.trim()).filter(Boolean))],
+      skills: projectSkills({ title: input.title as string, description: input.description as string, skills: input.skills as string[] }),
     },
   };
 }

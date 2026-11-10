@@ -24,3 +24,5 @@
 .studio-open-page:hover{color:#7060e8}
 .studio-open-page:focus-visible{outline:2px solid #7060e8;outline-offset:2px}
 .project-summary.has-page-link .project-category{padding-left:78px}
+.skill-filter-summary{font-size:12px;line-height:1.8;color:var(--ink);overflow-wrap:anywhere}.skill-filter-summary button{border:0;background:none;text-decoration:underline;color:inherit;font:inherit;cursor:pointer}.tag-filter:disabled{opacity:.6;cursor:not-allowed}
+.adjacent-work-choice{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:14px;line-height:1.7}.adjacent-work-choice input{accent-color:#6a7900;width:16px;height:16px;flex:none}.skill-match-badge{display:inline-block;border-radius:8px;padding:5px 10px;font-size:11px;margin:0 0 8px;background:#edf5e4;color:#3c5928;max-width:100%;overflow-wrap:anywhere}.skill-match-badge.adjacent{background:#f6f2df;color:#725c20}
