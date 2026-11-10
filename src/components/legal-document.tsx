@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-export const legalOperator = 'Or David AI Assimilation Services';
-export const legalEmail = 'or@ailead.work';
-export const legalUpdated = '2026-11-09';
+import { legalEmail, legalOperator, legalUpdated } from '@/lib/legal/identity';
+
+export { legalEmail, legalOperator, legalUpdated };
+
+export function LegalFooter() {
+  return <footer className="legal-footer"><span>Freelance Place</span><nav aria-label="מידע משפטי"><Link href="/privacy">מדיניות פרטיות</Link><Link href="/terms">תנאי שימוש</Link><a href={`mailto:${legalEmail}`}>יצירת קשר</a></nav></footer>;
+}
 
 export function LegalContact() {
   return <p>המפעיל ובעל השליטה במידע: <bdi lang="en">{legalOperator}</bdi> (אור דוד). לשאלות, בקשות פרטיות, דיווחים והודעות משפטיות: <a href={`mailto:${legalEmail}`}><bdi>{legalEmail}</bdi></a>.</p>;
@@ -22,8 +26,4 @@ export function LegalDocument({ title, intro, sections }: {
     <article>{sections.map((section, index) => <section className="legal-section" id={section.id} key={section.id} aria-labelledby={`${section.id}-title`}><h2 id={`${section.id}-title`}>{index + 1}. {section.title}</h2>{section.content}</section>)}</article>
     <p className="legal-end"><a href="#legal-content">חזרה לראש העמוד ↑</a></p>
   </main>;
-}
-
-export function LegalFooter() {
-  return <footer className="legal-footer"><span>Freelance Place</span><nav aria-label="מידע משפטי"><Link href="/privacy">מדיניות פרטיות</Link><Link href="/terms">תנאי שימוש</Link><a href={`mailto:${legalEmail}`}>יצירת קשר</a></nav></footer>;
 }

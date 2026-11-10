@@ -1,6 +1,7 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Heebo, Space_Grotesk } from 'next/font/google';
-import { SITE_NAME, SITE_URL, SITE_DESCRIPTION, siteGraph } from '@/lib/seo/site';
+import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from '@/lib/seo/site';
+import { siteGraph } from '@/lib/seo/schema';
 import { StructuredData } from '@/components/discovery/structured-data';
 import './globals.css';
 import './discovery.css';
@@ -12,6 +13,8 @@ const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', di
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
 // Runtime configuration (including search verification) must not be frozen into a Docker build.
 export const dynamic = 'force-dynamic';
+// Browser UI colour: the page background defined in globals.css (--mineral).
+export const viewport: Viewport = { themeColor: '#f4f6f2' };
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: `${SITE_NAME} — פרויקטים לפרילנסרים בישראל`, template: `%s | ${SITE_NAME}` },
@@ -23,5 +26,5 @@ export const metadata: Metadata = {
   referrer: 'strict-origin-when-cross-origin',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph} />{children}<LegalFooter /></body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><StructuredData data={siteGraph()} />{children}<LegalFooter /></body></html>;
 }

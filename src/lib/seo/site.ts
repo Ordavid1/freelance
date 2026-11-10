@@ -19,17 +19,54 @@ export function absoluteUrl(path = '/') {
   return `${SITE_URL}${path}`;
 }
 export const noIndex: Metadata['robots'] = { index: false, follow: false, nocache: true };
-export function pageMetadata(title: string, description: string, path: string, indexable = true): Metadata {
+
+export type PageMetadataOptions = {
+  type?: 'website' | 'article';
+  published?: string;
+  modified?: string;
+  // The title is already complete (it carries the brand), so the layout's title template is skipped.
+  absoluteTitle?: boolean;
+};
+export function pageMetadata(title: string, description: string, path: string, indexable = true, options: PageMetadataOptions = {}): Metadata {
+  const { type = 'website', published, modified, absoluteTitle = false } = options;
+  const canonical = absoluteUrl(path);
+  const socialTitle = absoluteTitle ? title : `${title} | ${SITE_NAME}`;
+  const image = absoluteUrl('/opengraph-image');
   return {
-    title,
+    title: absoluteTitle ? { absolute: title } : title,
     description,
-    alternates: { canonical: absoluteUrl(path) },
+    // The site is Hebrew-only today: hreflang is self-referencing and must grow with real translations.
+    alternates: { canonical, languages: { 'he-IL': canonical, 'x-default': canonical } },
     robots: indexable && indexingEnabled()
       ? { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } }
       : noIndex,
-    openGraph: { title: `${title} | ${SITE_NAME}`, description, url: absoluteUrl(path), siteName: SITE_NAME, type: 'website', locale: 'he_IL', images: [{ url: absoluteUrl('/opengraph-image'), width: 1200, height: 630, alt: SITE_NAME }] },
-    twitter: { card: 'summary_large_image', title: `${title} | ${SITE_NAME}`, description, images: [absoluteUrl('/opengraph-image')] },
+    openGraph: {
+      title: socialTitle, description, url: canonical, siteName: SITE_NAME, locale: 'he_IL',
+      images: [{ url: image, width: 1200, height: 630, alt: title }],
+      ...(type === 'article'
+        ? { type: 'article' as const, ...(published ? { publishedTime: published } : {}), ...(modified ? { modifiedTime: modified } : {}) }
+        : { type: 'website' as const }),
+    },
+    twitter: { card: 'summary_large_image', title: socialTitle, description, images: [{ url: image, alt: title }] },
   };
+}
+
+// Shortens text for a snippet without cutting a word in half: prefers the last full
+// sentence inside the limit (when it keeps at least half the allowance), otherwise the
+// last word, and marks the cut with an ellipsis. The result never exceeds `max`.
+export function summarize(text: string, max: number) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const limit = Math.max(1, max - 1);
+  let end = -1;
+  for (let index = Math.min(limit, clean.length) - 1; index >= Math.floor(max / 2); index--) {
+    if (/[.!?]/.test(clean[index]) && (index + 1 === clean.length || clean[index + 1] === ' ')) { end = index + 1; break; }
+  }
+  if (end === -1) {
+    const space = clean[limit] === ' ' ? limit : clean.lastIndexOf(' ', limit);
+    end = space > 0 ? space : limit;
+  }
+  return `${clean.slice(0, end).replace(/[\s,;:־–—-]+$/u, '')}…`;
 }
 export function serializeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -37,10 +74,3 @@ export function serializeJsonLd(value: unknown) {
 export function breadcrumbs(items: { name: string; path: string }[]) {
   return { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, item: absoluteUrl(item.path) })) };
 }
-export const siteGraph = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    { '@type': 'Organization', '@id': absoluteUrl('/#organization'), name: SITE_NAME, url: SITE_URL, logo: { '@type': 'ImageObject', url: absoluteUrl('/freelance-place-logo.png'), width: 512, height: 512 } },
-    { '@type': 'WebSite', '@id': absoluteUrl('/#website'), name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, inLanguage: 'he-IL', publisher: { '@id': absoluteUrl('/#organization') } },
-  ],
-};
