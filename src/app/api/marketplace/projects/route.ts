@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { listFeedProjects, toPublicProject } from '@/lib/db/projects';
+import { onProjectClosed, onProjectPublished, type ProjectEventRecord } from '@/lib/projects/events';
 import { validateProjectInput } from '@/lib/projects/validation';
 
 export const runtime = 'nodejs';
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
   };
   try {
     await firestore().collection('projects').doc(slug).create(record);
+    onProjectPublished(slug, record);
     return NextResponse.json({ project: toPublicProject(slug, record), ok: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });
@@ -56,16 +58,21 @@ export async function PATCH(request: Request) {
   if (typeof body?.slug !== 'string' || body.slug.length > 80 || body.status !== 'closed') return NextResponse.json({ error: 'פרטי סגירת הפרויקט לא תקינים.' }, { status: 400 });
   try {
     const ref = firestore().collection('projects').doc(body.slug);
+    // The project as it was when this request closed it (not set when it was already closed).
+    let closing: ProjectEventRecord | undefined;
     const result = await firestore().runTransaction(async transaction => {
+      closing = undefined;
       const project = await transaction.get(ref);
       if (!project.exists || project.get('ownerUid') !== user.uid) return 'NOT_FOUND';
       if (project.get('status') === 'closed') return 'CLOSED';
       if (project.get('status') !== 'open') return 'UNAVAILABLE';
       transaction.update(ref, { status: 'closed', updatedAt: FieldValue.serverTimestamp() });
+      closing = project.data();
       return 'CLOSED';
     });
     if (result === 'NOT_FOUND') return NextResponse.json({ error: 'הפרויקט לא נמצא.' }, { status: 404 });
     if (result === 'UNAVAILABLE') return NextResponse.json({ error: 'אי אפשר לסגור את הפרויקט במצבו הנוכחי.' }, { status: 409 });
+    if (closing) onProjectClosed(body.slug, closing);
     return NextResponse.json({ ok: true, status: 'closed' });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לסגור את הפרויקט.' }, { status: 503 });

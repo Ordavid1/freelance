@@ -12,7 +12,8 @@
     "test:proposals": "node --test tests/proposals.test.mjs",
     "test:seed": "node --experimental-transform-types --test tests/seed-projects.test.mjs",
     "test:home": "node --test tests/home-render.test.mjs",
-    "seed:projects": "node --experimental-transform-types scripts/seed-projects/seed-projects.ts --catalog scripts/seed-projects/catalog.he.json"
+    "seed:projects": "node --experimental-transform-types scripts/seed-projects/seed-projects.ts --catalog scripts/seed-projects/catalog.he.json",
+    "seo:indexnow": "node scripts/indexnow-submit.mjs"
   },
   "dependencies": {
     "@firebase/app": "0.14.9",
