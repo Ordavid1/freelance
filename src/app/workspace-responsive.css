@@ -257,3 +257,6 @@
   flex: 0 0 56px;
   object-fit: contain;
 }
+
+.workspace-legal-links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 13px; color: #493d62; }
+.workspace-legal-links a { text-decoration: underline; text-underline-offset: 3px; }
