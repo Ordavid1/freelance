@@ -6,7 +6,7 @@ import { legalEmail, legalOperator, legalUpdated } from '@/lib/legal/identity';
 export { legalEmail, legalOperator, legalUpdated };
 
 export function LegalContact() {
-  return <p>המפעיל ובעל השליטה במידע: <bdi lang="en">{legalOperator}</bdi> (אור דוד). לשאלות, בקשות פרטיות, דיווחים והודעות משפטיות: <a href={`mailto:${legalEmail}`}><bdi>{legalEmail}</bdi></a>.</p>;
+  return <p>המפעיל ובעל השליטה במידע: <bdi lang="en">{legalOperator}</bdi>. לשאלות, בקשות פרטיות, דיווחים והודעות משפטיות: <a href={`mailto:${legalEmail}`}><bdi>{legalEmail}</bdi></a>.</p>;
 }
 
 export function LegalDocument({ title, intro, sections }: {
