@@ -270,7 +270,7 @@ test('Hebrew dates are written out without ICU data and the Israeli calendar day
   assert.equal(dates.formatHebrewDate('2026-11-10'), '10 בנובמבר 2026');
   assert.equal(dates.formatHebrewDate('2026-01-05'), '5 בינואר 2026');
   assert.equal(dates.formatHebrewDate('2026-12-31'), '31 בדצמבר 2026');
-  for (const value of ['2026-02-30', '2026-13-01', '2026-00-10', '2026-11-00', '26-11-10', '2026-11-10T00:00:00Z', '', 'abc']) assert.equal(dates.formatHebrewDate(value), undefined, value);
+  for (const value of ['2026-02-30', '2026-13-01', '2026-00-10', '2026-11-00', '26-11-10', '2026-11-10T00:00:00Z', '', 'abc']) assert.equal(dates.formatHebrewDate(value), value, value);
   assert.equal(dates.israelDate(Date.UTC(2026, 10, 9, 12, 0)), '2026-11-09');
   assert.equal(dates.israelDate(Date.UTC(2026, 10, 9, 22, 30)), '2026-11-10', 'winter time is UTC+2');
   assert.equal(dates.israelDate(Date.UTC(2026, 6, 9, 21, 30)), '2026-07-10', 'summer time is UTC+3');

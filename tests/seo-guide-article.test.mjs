@@ -209,6 +209,12 @@ test('InfoArticle copes with empty optional fields', () => {
 
 test('Breadcrumbs link every level but the current page, which is marked', () => {
   const crumbs = load('src/components/discovery/breadcrumbs.tsx');
-  const html = render(createElement(crumbs.Breadcrumbs, { items: [{ name: 'דף הבית', path: '/' }, { name: 'מדריכים', path: '/guides' }, { name: 'מדריך', path: '/guides/x' }] }));
+  const items = [{ name: 'דף הבית', path: '/' }, { name: 'מדריכים', path: '/guides' }, { name: 'מדריך', path: '/guides/x' }];
+  // Guide and information pages style the trail as ga-crumbs and emit their own BreadcrumbList.
+  const html = render(createElement(crumbs.Breadcrumbs, { items, structured: false, className: 'ga-crumbs' }));
   assert.equal(html, '<nav class="ga-crumbs" aria-label="פירורי לחם"><ol><li><a href="/">דף הבית</a></li><li><a href="/guides">מדריכים</a></li><li><span aria-current="page">מדריך</span></li></ol></nav>');
+  // By default the same items also produce the BreadcrumbList, so the visible trail and the markup cannot differ.
+  const withData = render(createElement(crumbs.Breadcrumbs, { items }));
+  assert.match(withData, /^<nav class="disc-crumbs"/);
+  assert.deepEqual(plain(ofType(withData, 'BreadcrumbList')[0].itemListElement.map((item) => item.name)), items.map((item) => item.name));
 });
