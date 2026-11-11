@@ -202,12 +202,17 @@ Integration (coordinator): `npm test`, `npm run typecheck`, `npm run build`, ind
 ## 7. Status
 
 - [x] Evidence gathered and recorded (§1)
-- [x] WP-0 foundation (types, errors, flag, URL parser + tests, rate-limit action, env flag)
-- [ ] WP-A importer core
-- [ ] WP-B API + publish
-- [ ] WP-C UI
-- [x] WP-D docs (`docs/xplace-import.md`, written by the coordinator, includes the privacy-wording proposal)
-- [ ] Integration, review, PR
+- [x] WP-0 foundation (types, errors, flags, URL parser, publisher match, rate-limit actions, env flags)
+- [x] WP-A importer core (link fetch and parsers; live-checked against three real public pages, no personal data in the output)
+- [x] WP-B API routes and publish path (provenance, idempotency, publisher rules)
+- [x] WP-C paste-link UI (profile studio and composer)
+- [x] WP-D docs (`docs/xplace-import.md`, `docs/xplace-extension-store-listing.md`)
+- [x] WP-E extension v0.2.0 (`extensions/xplace-import/`, 81 tests, Playwright end-to-end run, deterministic package; content-script matches are four patterns: two XPlace, two bridge)
+- [x] WP-F website receiver and hand-off (ingest API, pasted-text kind, hand-off client, three-option XPlace panel, sign-in `next` allowlist)
+- [x] Live check of the final extractor on a real logged-in XPlace profile and project page (found and fixed two bugs: location and doubled dates)
+- [x] Independent reviews (website and extension, no critical or high findings); all medium and low findings fixed and re-tested
+- [ ] PR opened, merged by Or
+- [ ] `[!]` Or: legal view on enabling `XPLACE_LINK_IMPORT_ENABLED`, `XPLACE_IMPORT_ENABLED=true`, Chrome Web Store decisions (see `docs/xplace-extension-store-listing.md`)
 
 ## 8. Follow-ups (not in this PR)
 

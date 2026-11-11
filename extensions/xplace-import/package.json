@@ -1,0 +1,16 @@
+{
+  "name": "freelance-place-xplace-import",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Freelance Place - XPlace Import (Chrome extension, Manifest V3). Not part of the app workspace.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "package": "node scripts/package.mjs",
+    "build:dev": "node scripts/package.mjs --dev",
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "playwright": "^1.65.0"
+  }
+}
