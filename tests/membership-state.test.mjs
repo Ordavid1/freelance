@@ -18,8 +18,8 @@ test('malformed trials fail closed without starting another trial', () => {
   assert.equal(access.canUseMarketplace, false);
   assert.equal(access.canStartTrial, false);
 });
-test('publisher setup only needs a name, freelancer setup needs meaningful matching data', () => {
-  assert.equal(profileIsComplete({ profileType: 'publisher', name: 'Studio' }), true);
+test('freelancer completeness depends on details regardless of legacy profile type', () => {
+  assert.equal(profileIsComplete({ profileType: 'publisher', name: 'Studio' }), false);
   assert.equal(profileIsComplete({ profileType: 'publisher', name: '  ' }), false);
   assert.equal(profileIsComplete({ name: 'Or', headline: 'Developer', skills: [] }), false);
   assert.equal(profileIsComplete({ name: 'Or', headline: ' ', skills: ['React'] }), false);
@@ -33,7 +33,7 @@ test('verified paid access expires at the boundary without resetting the trial',
   assert.equal(accessFromRecord(record, 1000).canStartTrial, false);
   assert.equal(accessFromRecord({ ...record, paidUntil: Infinity }, 999).canUseMarketplace, false);
 });
-test('publisher profiles never start a freelancer trial; completing a freelancer profile does', async () => {
+test('completed freelancer details start a trial independently of saved role', async () => {
   const { shouldStartFreelancerTrial } = await import('../src/lib/membership/state.ts');
   const publisher = { profileType: 'publisher', name: 'Studio' };
   const freelancer = { profileType: 'freelancer', name: 'Or', headline: 'Developer', skills: ['React'] };
@@ -41,5 +41,7 @@ test('publisher profiles never start a freelancer trial; completing a freelancer
   assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'preview' }, publisher), true);
   assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'trial', freelancerTrialStarted: true }, publisher), false);
   assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'expired', freelancerTrialStarted: true }, publisher), false);
-  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'trial' }, publisher), true);
+  assert.equal(shouldStartFreelancerTrial(freelancer, { state: 'trial' }, publisher), false);
 });
+
+test('legacy publisher role does not suppress completed freelancer details', async()=>{ const {shouldStartFreelancerTrial}=await import('../src/lib/membership/state.ts');const profile={profileType:'publisher',name:'Or',headline:'Developer',skills:['React']};assert.equal(profileIsComplete(profile),true);assert.equal(shouldStartFreelancerTrial(profile,{state:'preview'}),true);});

@@ -16,7 +16,7 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
   if (consent !== true) throw new BillingError('CONSENT_REQUIRED', 400);
   const access = await getMembershipAccess(user.uid);
   // Trial signups vault a card; the first debit is scheduled after the free trial.
-  if (access.profileType === 'publisher' || !['trial', 'expired'].includes(access.state)) throw new BillingError('NOT_ELIGIBLE', 409);
+  if (!['trial', 'expired'].includes(access.state)) throw new BillingError('NOT_ELIGIBLE', 409);
   const setupOnly = access.state === 'trial';
   if (setupOnly && (!access.trialEndsAt || access.trialEndsAt <= Date.now())) throw new BillingError('NOT_ELIGIBLE', 409);
   const profile = (await firestore().collection('profiles').doc(user.uid).get()).data();

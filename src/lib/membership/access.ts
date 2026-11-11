@@ -23,10 +23,8 @@ export async function getMembershipAccess(uid: string) {
     snapshot = await ref.get();
   }
   const data = snapshot.data()!;
-  const profile = (await firestore().collection('profiles').doc(uid).get()).data();
-  const profileType = profile?.profileType === 'publisher' ? 'publisher' as const : 'freelancer' as const;
   const access = accessFromRecord({ state: data.state, paidUntil: data.paidUntil?.toMillis?.() ?? null, trialStartedAt: data.trialStartedAt?.toMillis?.() ?? null, trialEndsAt: data.trialEndsAt?.toMillis?.() ?? null });
-  return { ...access, profileType, canUseMarketplace: profileType !== 'publisher' && access.canUseMarketplace };
+  return access;
 }
 export async function requireMarketplaceAccess(uid: string) {
   try {

@@ -5,7 +5,7 @@ import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 
 import { getMembershipAccess } from '@/lib/membership/access';
-import { shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/membership/state';
+import { profileIsComplete, shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/membership/state';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +33,8 @@ export async function PUT(request: Request) {
   if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
   const input = profile as Record<string, unknown>;
   if (input.profileType !== undefined && input.profileType !== 'freelancer' && input.profileType !== 'publisher') return NextResponse.json({ error: 'סוג הפרופיל לא תקין.' }, { status: 400 });
-  const clean: Record<string, unknown> = { profileType: input.profileType || 'freelancer' };
+  // Accept legacy clients, but never store an exclusive account role.
+  const clean: Record<string, unknown> = {};
   for (const key of textFields) {
     const value = input[key];
     if (value !== undefined && typeof value !== 'string') return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
@@ -52,11 +53,11 @@ export async function PUT(request: Request) {
       const membershipRef = db.collection('memberships').doc(user.uid);
       const [saved, membership] = await Promise.all([transaction.get(profileRef), transaction.get(membershipRef)]);
       const merged = { ...saved.data(), ...clean };
-      transaction.set(profileRef, { ...clean, ownerUid: user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      transaction.set(profileRef, { ...clean, profileType: FieldValue.delete(), ownerUid: user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       if (shouldStartFreelancerTrial(merged, membership.data() || {}, saved.data() || {})) {
         const now = Timestamp.now();
         transaction.update(membershipRef, { state: 'trial', freelancerTrialStarted: true, trialStartedAt: now, trialEndsAt: Timestamp.fromMillis(now.toMillis() + TRIAL_MS) });
-      } else if (saved.data()?.profileType !== 'publisher' && membership.get('state') === 'trial') {
+      } else if (membership.get('state') === 'trial' && profileIsComplete(merged)) {
         transaction.update(membershipRef, { freelancerTrialStarted: true });
       }
     });

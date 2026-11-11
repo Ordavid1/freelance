@@ -61,7 +61,7 @@ function project(id, patch = {}) { rows.set(`projects/${id}`, { title: '<React p
 
 test('eligibility, profile tag defaults and strict preference validation', () => {
   assert.equal(rules.eligibleProfile(profile), true);
-  assert.equal(rules.eligibleProfile({ ...profile, profileType: 'publisher' }), false);
+  assert.equal(rules.eligibleProfile({ ...profile, profileType: 'publisher' }), true);
   assert.equal(rules.eligibleProfile({ ...profile, skills: [] }), false);
   assert.deepEqual(rules.defaultPreferences(profile).tags, ['React', 'Figma']);
   for (const bad of [{ ...pref, minBudget: '-1' }, { ...pref, minBudget: 'Infinity' }, { ...pref, tags: [12] }, { ...pref, interval: 'hourly' }]) assert.equal(rules.parsePreferences(bad), null);
@@ -111,7 +111,7 @@ test('daily batching, no replay, incomplete-profile suppression, and stale batch
   const time = mock.method(Date, 'now', () => Date.parse(new Date(now).toISOString().slice(0, 10) + 'T20:00:00Z') + 86400000);
   await worker.dispatchNotifications(); assert.equal(sends.length, 1); assert.ok(sends[0].payload.text.includes('/projects/a')); assert.ok(sends[0].payload.text.includes('/projects/b'));
   await worker.dispatchNotifications(); assert.equal(sends.length, 1); time.mock.restore();
-  setup(); subscribe(); project('a'); rows.set('profiles/user1', { ...profile, profileType: 'publisher' }); await worker.dispatchNotifications(); assert.equal(sends.length, 0); assert.equal(rows.get('projectMailPreferences/user1').enabled, false);
+  setup(); subscribe(); project('a'); rows.set('profiles/user1', { ...profile, skills: [] }); await worker.dispatchNotifications(); assert.equal(sends.length, 0); assert.equal(rows.get('projectMailPreferences/user1').enabled, false);
   setup(); subscribe(); project('a'); failSend = true; await worker.dispatchNotifications();
   rows.get('projectMailPreferences/user1').pending.created = Date.now() - 24 * 3600000;
   failSend = false; await worker.dispatchNotifications(); assert.equal(sends.length, 1); assert.equal(rows.get('projectMailPreferences/user1').reviewRequired, true);

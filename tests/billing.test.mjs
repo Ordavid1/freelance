@@ -125,8 +125,8 @@ test('payment history returns only the current members paid records and no payme
  const status=await service.billingStatus('u');assert.equal(status.historyAvailable,true);assert.equal(status.payments.length,1);assert.equal(status.payments[0].documentNumber,10);assert.equal(JSON.stringify(status).includes('private-token'),false);
 });
 
-test('trial signup opens token-only card validation without a captured charge or invoice',async()=>{
- setup();accessRecord={state:'trial',trialEndsAt:Date.now()+86400000,profileType:'freelancer'};
+test('trial signup works despite a legacy publisher label without capturing a charge or invoice',async()=>{
+ setup();accessRecord={state:'trial',trialEndsAt:Date.now()+86400000,profileType:'publisher'};
  let payload;const transport=fakeFetch(body=>{payload=body;return {ResponseCode:0,LowProfileId:lp,Url:'https://secure.cardcom.solutions/test-checkout'};});
  const session=await service.startCheckout({uid:'u',name:'Test',email:'test@example.com'},true);
  assert.equal(payload.Operation,'CreateTokenOnly');assert.equal(payload.Amount,1);assert.equal(payload.AdvancedDefinition.JValidateType,5);assert.equal(payload.Document,undefined);

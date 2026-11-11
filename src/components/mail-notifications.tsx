@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import type { MailPreferences as Preferences } from '@/lib/notifications/preferences';
+import { useViewMode } from './view-mode';
 import { useViewer } from './viewer-context';
 
 const defaults: Preferences = { enabled: false, interval: 'daily', tags: [], minBudget: '' };
@@ -9,6 +10,7 @@ const suggestions = ['עיצוב גרפי', 'פיתוח אתרים', 'UX/UI', '�
 
 export function MailNotifications() {
   const viewer = useViewer();
+  const {mode}=useViewMode();
   const [eligible, setEligible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -57,7 +59,7 @@ export function MailNotifications() {
   }
   if (loading || viewer.status !== 'signed-in') return null;
   if (loadError) return <div className="mail-notifications" role="alert">{loadError} <button type="button" onClick={() => setRetry(value => value + 1)}>ניסיון נוסף</button></div>;
-  if (!eligible) return null;
+  if (!eligible || mode === 'publisher') return null;
   return <form className="mail-notifications" onSubmit={save} aria-labelledby="mail-notifications-title">
     <div className="mail-notifications-heading">
       <span className="mail-notifications-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></span>

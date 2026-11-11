@@ -341,7 +341,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     setBusy(true);
     setNotice('');
     try {
-      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { ...profile, profileType: 'freelancer' } }) });
+      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: profile }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       trackEvent('profile_saved');

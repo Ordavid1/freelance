@@ -4,7 +4,7 @@ import { isDiscoverableProject } from '../seo/publication.ts';
 
 export type MailPreferences = { enabled: boolean; interval: 'project' | 'daily'; tags: string[]; minBudget: string };
 export function eligibleProfile(profile: Record<string, unknown> | undefined): boolean {
-  return !!profile && profile.profileType !== 'publisher' && profileIsComplete(profile);
+  return !!profile && profileIsComplete(profile);
 }
 export function profileTags(profile: Record<string, unknown>): string[] {
   return Array.isArray(profile.skills) ? profile.skills.filter((v): v is string => typeof v === 'string' && !!v.trim()).map(v => v.trim()) : [];

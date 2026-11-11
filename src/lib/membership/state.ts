@@ -1,6 +1,6 @@
 // Beta: two-month (60-day) freelancer trial.
 export const TRIAL_MS = 60 * 24 * 60 * 60 * 1000;
-export type MembershipAccess = { profileType?: 'publisher' | 'freelancer'; state: 'legacy' | 'preview' | 'trial' | 'paid' | 'expired'; paidUntil: number | null; trialStartedAt: number | null; trialEndsAt: number | null; canUseMarketplace: boolean; canStartTrial: boolean };
+export type MembershipAccess = { state: 'legacy' | 'preview' | 'trial' | 'paid' | 'expired'; paidUntil: number | null; trialStartedAt: number | null; trialEndsAt: number | null; canUseMarketplace: boolean; canStartTrial: boolean };
 export function accessFromRecord(record: { state?: unknown; trialStartedAt?: number | null; trialEndsAt?: number | null; paidUntil?: number | null }, now = Date.now()): MembershipAccess {
   const start = record.trialStartedAt ?? null;
   const end = record.trialEndsAt ?? null;
@@ -10,10 +10,10 @@ export function accessFromRecord(record: { state?: unknown; trialStartedAt?: num
 }
 export function profileIsComplete(profile: Record<string, unknown>): boolean {
   const text = (key: string) => typeof profile[key] === 'string' && (profile[key] as string).trim().length > 0;
-  return Boolean(text('name') && (profile.profileType === 'publisher' || ((text('headline') || text('bio')) && Array.isArray(profile.skills) && profile.skills.some(skill => typeof skill === 'string' && skill.trim()))));
+  return Boolean(text('name') && (text('headline') || text('bio')) && Array.isArray(profile.skills) && profile.skills.some(skill => typeof skill === 'string' && skill.trim()));
 }
 
-// A publisher profile never starts the freelancer application trial.
-export function shouldStartFreelancerTrial(profile: Record<string, unknown>, membership: Record<string, unknown>, previousProfile: Record<string, unknown> = {}): boolean {
-  return profile.profileType !== 'publisher' && profileIsComplete(profile) && (membership.state === 'preview' || (previousProfile.profileType === 'publisher' && membership.state === 'trial' && membership.freelancerTrialStarted !== true));
+// Completed freelancer details unlock a trial regardless of which view was last used.
+export function shouldStartFreelancerTrial(profile: Record<string, unknown>, membership: Record<string, unknown>, _previousProfile: Record<string, unknown> = {}): boolean {
+  return profileIsComplete(profile) && membership.state === 'preview';
 }

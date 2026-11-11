@@ -1,4 +1,5 @@
 'use client';
+import { ViewModeProvider } from './view-mode';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 export type ViewerUser = { uid: string; email: string | null; name: string | null; picture: string | null };
@@ -32,7 +33,7 @@ export function ViewerProvider({ children }: { children: ReactNode }) {
       .then((next) => { if (active) setViewer(next); });
     return () => { active = false; };
   }, []);
-  return <ViewerContext.Provider value={viewer}>{children}</ViewerContext.Provider>;
+  return <ViewerContext.Provider value={viewer}><ViewModeProvider>{children}</ViewModeProvider></ViewerContext.Provider>;
 }
 
 export function useViewer(): ViewerState {

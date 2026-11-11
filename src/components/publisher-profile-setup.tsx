@@ -2,15 +2,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useViewer } from './viewer-context';
 import Link from 'next/link';
+import { useViewMode } from './view-mode';
 import { ProfileStudio } from './profile-studio';
-export function ProfileSetup({ initialRole = 'freelancer' }: { initialRole?: 'freelancer' | 'publisher' }) {
-  const [role, setRole] = useState(initialRole);
+export function ProfileSetup() {
+  const { mode: role, setMode: setRole } = useViewMode();
   const viewer = useViewer();
   const sessionState = viewer.status === 'signed-in' ? 'signed-in' : viewer.status === 'anonymous' ? 'signed-out' : 'loading';
   const userId = viewer.user?.uid || '';
   if (sessionState === 'loading') return <p role="status">בודקים את החיבור לחשבון…</p>;
   if (sessionState === 'signed-out') return <section className="signin-panel"><h2>מתחברים כדי לבנות את הפרופיל שלך</h2><p>יש להתחבר לחשבון Freelance Place לפני חיבור חשבונות מקצועיים, העלאת מסמכים ושמירת הפרופיל. אם החיבור הקודם פג, התחברו מחדש.</p><Link className="button button-dark" href="/signin?next=%2Fprofile%2Fimport">התחברות או פתיחת חשבון</Link></section>;
-  return <div><div className="role-choice" aria-label="סוג הפרופיל"><button type="button" aria-pressed={role === 'freelancer'} className={role === 'freelancer' ? 'selected' : ''} onClick={() => setRole('freelancer')}>אני פרילנסר/ית</button><button type="button" aria-pressed={role === 'publisher'} className={role === 'publisher' ? 'selected' : ''} onClick={() => setRole('publisher')}>אני מחפש/ת פרילנסר</button></div>{role === 'publisher' ? <PublisherProfileSetup /> : <ProfileStudio key={userId} userId={userId} />}</div>;
+  return <div><div className="role-choice" aria-label="תצוגת הפרופיל"><button type="button" aria-pressed={role === 'freelancer'} className={role === 'freelancer' ? 'selected' : ''} onClick={() => setRole('freelancer')}>אני פרילנסר/ית</button><button type="button" aria-pressed={role === 'publisher'} className={role === 'publisher' ? 'selected' : ''} onClick={() => setRole('publisher')}>אני מחפש/ת פרילנסר</button></div>{role === 'publisher' ? <PublisherProfileSetup /> : <ProfileStudio key={userId} userId={userId} />}</div>;
 }
 function PublisherProfileSetup() {
   const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [email, setEmail] = useState(''); const [website, setWebsite] = useState(''); const [logo, setLogo] = useState(''); const [busy, setBusy] = useState(false); const [notice, setNotice] = useState('');
@@ -18,7 +19,7 @@ function PublisherProfileSetup() {
   async function save(event: FormEvent) {
     event.preventDefault(); setBusy(true); setNotice('');
     try {
-      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { profileType: 'publisher', name, phone, email, website, logo } }) });
+      const response = await fetch('/api/marketplace/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: { name, phone, email, website, logo } }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error);
       window.dispatchEvent(new CustomEvent('fz-profile-updated'));
       setNotice(data.access?.state === 'trial' ? 'הפרופיל מוכן. חודשיים של פעילות מלאה התחילו!' : 'הפרופיל נשמר.');
