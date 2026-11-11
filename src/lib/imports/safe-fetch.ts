@@ -111,7 +111,7 @@ export async function safeFetchHtml(fetchUrl: string, deps: SafeFetchDeps = {}):
     // Never the raw URL: users paste links to their own pages.
     console.info(JSON.stringify({
       severity: 'INFO', event: 'xplace_fetch',
-      urlSha256: createHash('sha256').update(JSON.stringify(fetchUrl)).digest('hex'),
+      urlSha256: createHash('sha256').update(fetchUrl).digest('hex'),
       status, requests, durationMs: Date.now() - startedAt,
     }));
   }

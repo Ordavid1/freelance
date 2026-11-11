@@ -29,9 +29,14 @@ function sameName(left: string[], right: string[]): boolean {
 }
 
 export function matchPublisher(sourceName: string, profileName: string): PublisherMatch {
-  const profile = normalize(profileName || '');
-  if (!profile.length) return 'no-profile';
+  // "No profile" is decided on the raw name: a name such as "Ltd." or "★" that normalises to nothing is still a name.
+  const rawProfile = (profileName || '').trim().toLowerCase();
+  if (!rawProfile) return 'no-profile';
+  const rawSource = (sourceName || '').trim().toLowerCase();
+  if (rawSource && rawSource === rawProfile) return 'match';
   const options = candidates(sourceName || '');
   if (!options.length) return 'unknown';
+  const profile = normalize(profileName);
+  if (!profile.length) return 'mismatch';
   return options.some((option) => sameName(option, profile)) ? 'match' : 'mismatch';
 }

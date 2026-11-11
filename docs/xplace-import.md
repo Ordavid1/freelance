@@ -43,14 +43,14 @@ Both project URL formats carry the same numeric ID. The legacy `/il/job-bids/<id
 
 ### Publisher rules
 
-"Publisher" is the user's `profiles/{uid}` document viewed through the publisher form; there is no separate publisher collection.
+"Publisher" is the user's `profiles/{uid}` document viewed through the publisher form; there is no separate publisher collection. An imported project's display name (`clientName`) is always the verified account name, exactly like a normal project; the self-entered publisher profile name and the name shown on XPlace are never used as the display name (the XPlace name is kept only as `importSource.publisherNameOnSource`). A profile name that normalises to nothing (for example `Ltd.`) still counts as a name and is never overwritten. When publishing finds a mismatch the UI did not know about, the 409 `PUBLISHER_MISMATCH_UNCONFIRMED` carries `profileName` and the UI asks for the confirmation.
 
 | Match | Meaning | Publish step |
 |---|---|---|
 | `match` | XPlace publisher name matches the profile name | Proceeds. |
 | `unknown` | The XPlace page shows no publisher name | Proceeds. |
 | `mismatch` | Names differ | Requires the checkbox "I am authorised to publish this project on behalf of the publisher". Stored as `mismatch-confirmed`. |
-| `no-profile` | The user has no publisher profile name | The user confirms a name (prefilled from XPlace, else the account name). The server creates the profile with that name only (never email, phone or logo, never overwriting existing fields). Stored as `created`. |
+| `no-profile` | The user has no publisher profile name | The user confirms a name (prefilled from XPlace, else the account name). The server cleans the name (control and bidi characters removed, 2 to 200 characters) and creates the profile with that name only (never email, phone or logo, never overwriting existing fields). Stored as `created`. |
 
 ## Data handling
 

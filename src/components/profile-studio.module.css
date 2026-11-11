@@ -150,3 +150,4 @@
 .studio .xTextarea:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
 .studio .xLinkButton { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 14px; border: 1px solid #dce4de; border-radius: 8px; background: #fff; color: #495a4f; font-size: 12px; text-decoration: none; }
 .studio .xLinkButton:focus-visible { outline: 2px solid #267a52; outline-offset: 3px; }
+.studio .xOption p.xWarn { padding: 6px 9px; border-radius: 8px; background: #fff7e6; color: #6b4a0b; font-size: 12px; }

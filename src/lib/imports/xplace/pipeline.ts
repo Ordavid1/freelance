@@ -37,7 +37,7 @@ export type ImportRouteSpec<T> = {
    * Validates the body after the attestation check and before the limiter. Throws ImportError.
    * `canonicalUrl` is only hashed for the log line.
    */
-  prepare: (body: Record<string, unknown>) => { canonicalUrl: string; input: T; kind?: 'profile' | 'project' | 'profile-text' };
+  prepare: (body: Record<string, unknown>) => { canonicalUrl: string; input: T; /** URL string hashed for the log line; defaults to `canonicalUrl`. For link imports it is the URL the fetch layer hashes, so a fetch and its import correlate. */ logUrl?: string; kind?: 'profile' | 'project' | 'profile-text' };
   /** The work behind the limiter. Throws ImportError or ImportAbort; the returned value is the JSON body. */
   run: (input: T, user: ImportUser) => Promise<unknown>;
 };
@@ -70,7 +70,7 @@ export async function handleImportRoute<T>(request: Request, spec: ImportRouteSp
   if (limited) return limited;
 
   const startedAt = Date.now();
-  const urlSha256 = createHash('sha256').update(prepared.canonicalUrl).digest('hex');
+  const urlSha256 = createHash('sha256').update(prepared.logUrl ?? prepared.canonicalUrl).digest('hex');
   const log = (status: string) => console.info(JSON.stringify({
     severity: status === 'success' ? 'INFO' : 'WARNING', event: 'xplace_import', kind: prepared.kind ?? spec.kind, source: spec.source, status,
     durationMs: Date.now() - startedAt, urlSha256,

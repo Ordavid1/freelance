@@ -78,6 +78,12 @@ export function importReadyToPublish(state: XPlaceImportState | null) {
   return true;
 }
 
+/** The server found a publisher mismatch the client did not know about (409): require the confirmation checkbox. */
+export function withPublisherMismatch(state: XPlaceImportState, profileName: unknown): XPlaceImportState {
+  const name = typeof profileName === 'string' ? profileName : state.result.publisher.profileName;
+  return { ...state, mismatchConfirmed: false, result: { ...state.result, publisher: { ...state.result.publisher, match: 'mismatch', profileName: name } } };
+}
+
 export function buildImportProvenance(state: XPlaceImportState): ProjectImportProvenance {
   const { result } = state;
   const { match, sourceName } = result.publisher;

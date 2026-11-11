@@ -201,6 +201,8 @@ test('logs carry one xplace_import line with a URL hash and never the raw URL or
   }
   assert.equal(JSON.parse(lines[0]).urlSha256, createHash('sha256').update(PROFILE_URL).digest('hex'));
   assert.equal(JSON.parse(lines[2]).status, 'UPSTREAM_UNAVAILABLE');
+  // The import line carries the same hash the fetch layer logs for that page (SHA-256 of the fetched URL string).
+  assert.equal(JSON.parse(lines[1]).urlSha256, createHash('sha256').update('https://www.xplace.com/project?id=123456').digest('hex'));
 });
 
 test('/api/ai/profile accepts xplace, rejects other providers and more than four sources', async () => {

@@ -87,6 +87,7 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, linkForm, onClos
         <li>סמנו הכול והעתיקו (Ctrl/⌘ + A, ואז Ctrl/⌘ + C).</li>
         <li>הדביקו כאן.</li>
       </ol>
+      <p className={styles.xWarn}>שימו לב: העמוד כולל גם ביקורות לקוחות עם שמות. מחקו אותן לפני ההדבקה, או השתמשו באפשרות עם התוסף, שקורא רק את פרטי הפרופיל.</p>
       <form className={styles.xForm} onSubmit={(event) => { event.preventDefault(); void importPasted(); }}>
         <label htmlFor={`${id}-text`}>טקסט הפרופיל מ־XPlace</label>
         <textarea id={`${id}-text`} className={styles.xTextarea} rows={6} maxLength={PASTE_MAX} value={text} disabled={busy} onChange={(event) => { setText(event.target.value); setError(''); }}/>

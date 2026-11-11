@@ -15,12 +15,52 @@ function decodeEntities(value: string): string {
   });
 }
 
+/**
+ * Removes comments, script/style blocks and tags in ONE linear pass (hostile input such as '<a' repeated must
+ * not cost quadratic time). A tag or comment that has no closing `>` / `-->` anywhere after it is plain text:
+ * the `<` stays and scanning continues right after it. Once a closer is known not to exist, it is never searched again.
+ */
 function stripMarkup(value: string): string {
-  return value
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
-    .replace(/<\/?[a-zA-Z!][^>]*>/g, ' ');
+  let out = '';
+  let i = 0;
+  let noGt = false;
+  let noCommentEnd = false;
+  let noScriptEnd = false;
+  let noStyleEnd = false;
+  const closers = { script: /<\/script\s*>/gi, style: /<\/style\s*>/gi };
+  while (i < value.length) {
+    const lt = value.indexOf('<', i);
+    if (lt === -1) { out += value.slice(i); break; }
+    out += value.slice(i, lt);
+    i = lt + 1;
+    if (value.startsWith('!--', i)) {
+      const end = noCommentEnd ? -1 : value.indexOf('-->', i + 3);
+      if (end === -1) { noCommentEnd = true; out += '<'; continue; }
+      i = end + 3;
+      continue;
+    }
+    let j = i;
+    if (value[j] === '/') j += 1;
+    if (!/[a-zA-Z!]/.test(value[j] ?? '')) { out += '<'; continue; }
+    const gt = noGt ? -1 : value.indexOf('>', j);
+    if (gt === -1) { noGt = true; out += '<'; continue; }
+    i = gt + 1;
+    const name = /^(script|style)(?![A-Za-z0-9_])/i.exec(value.slice(j, gt))?.[1]?.toLowerCase();
+    if (name && value[lt + 1] !== '/') {
+      const key = name as 'script' | 'style';
+      const done = key === 'script' ? noScriptEnd : noStyleEnd;
+      let end = -1;
+      if (!done) {
+        closers[key].lastIndex = i;
+        const found = closers[key].exec(value);
+        end = found ? found.index + found[0].length : -1;
+      }
+      if (end === -1) { if (key === 'script') noScriptEnd = true; else noStyleEnd = true; out += ' '; continue; }
+      i = end;
+    }
+    out += ' ';
+  }
+  return out;
 }
 
 function capText(value: string, max: number): string {

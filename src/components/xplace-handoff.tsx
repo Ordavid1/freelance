@@ -127,7 +127,8 @@ export function useAutoHandoff(ingest: ReturnType<typeof useXPlaceIngest>, flags
     if (started.current || !flags.loaded || signedIn === null) return;
     started.current = true;
     const token = takeHandoffToken();
-    if (!token || !flags.enabled) return;
+    if (!token) return;
+    if (!flags.enabled) { setPhase({ name: 'error', message: 'ייבוא מ־XPlace עדיין לא זמין.' }); return; }
     if (!signedIn) { setPhase({ name: 'signin' }); return; }
     setPhase({ name: 'reading' });
     requestHandoffPayload(token).then((payload) => accept(token, payload), fail);
@@ -147,7 +148,6 @@ const WRONG_KIND = {
 
 /** Renders the current phase of a hand-off. Renders nothing while idle or done. */
 export function HandoffNotice({ phase, kind, onConfirm }: { phase: HandoffPhase; kind: Kind; onConfirm: () => void }) {
-  const [owner, setOwner] = useState(false);
   if (phase.name === 'idle' || phase.name === 'done') return null;
   if (phase.name === 'reading') return <div className={styles.notice} role="status"><p>קוראים את המידע מהתוסף…</p></div>;
   if (phase.name === 'importing') return <div className={styles.notice} role="status">{phase.ownerDetected && <p className={styles.owner}>{OWNER_TEXT[kind]}</p>}<p>מייבאים…</p></div>;
@@ -157,6 +157,12 @@ export function HandoffNotice({ phase, kind, onConfirm }: { phase: HandoffPhase;
     const info = WRONG_KIND[phase.actual];
     return <div className={styles.notice}><p role="alert">{info.text}</p><div className={styles.actions}><Link className={styles.link} href={`${info.href}?${HANDOFF_QUERY_PARAM}=${phase.token}`}>{info.label}</Link></div></div>;
   }
+  // Keyed by token: every new hand-off starts with an unticked ownership checkbox.
+  return <AttestBlock key={phase.token} kind={kind} onConfirm={onConfirm}/>;
+}
+
+function AttestBlock({ kind, onConfirm }: { kind: Kind; onConfirm: () => void }) {
+  const [owner, setOwner] = useState(false);
   return <div className={styles.notice}>
     <label className={styles.check}><input type="checkbox" checked={owner} onChange={(event) => setOwner(event.target.checked)}/><span>{kind === 'profile' ? 'אני הבעלים/ת של הפרופיל הזה ב־XPlace.' : 'אני הבעלים/ת של הפרויקט הזה ב־XPlace או מורשה/ית לפרסם אותו.'}</span></label>
     <div className={styles.actions}><button type="button" className={styles.button} disabled={!owner} onClick={onConfirm}>המשך לייבוא</button></div>

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     prepare: (body) => {
       const target = parseXPlaceUrl(body.url);
       if (!target || target.kind !== 'profile') throw new ImportError('INVALID_URL');
-      return { canonicalUrl: target.canonicalUrl, input: target };
+      return { canonicalUrl: target.canonicalUrl, logUrl: target.fetchUrl, input: target };
     },
     run: (target) => importXPlaceProfile(target),
   });

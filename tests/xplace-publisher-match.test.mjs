@@ -32,3 +32,13 @@ test('different businesses do not match, and tiny fragments do not count as cont
   assert.equal(matchPublisher('Big Corp International', 'AB'), 'mismatch');
   assert.equal(matchPublisher('Ltd.', 'Osys'), 'unknown');
 });
+
+test('a profile name that normalises to nothing is still a name (never no-profile)', () => {
+  for (const name of ['Ltd.', 'בע״מ', '★', ' ★ ']) {
+    assert.equal(matchPublisher('Osys | אוסיס', name), 'mismatch', name);
+    assert.equal(matchPublisher('', name), 'unknown', name);
+  }
+  assert.equal(matchPublisher('ltd.', ' Ltd. '), 'match');
+  assert.equal(matchPublisher('★', '★'), 'match');
+  assert.equal(matchPublisher('Osys', '   '), 'no-profile');
+});

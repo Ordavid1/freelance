@@ -110,12 +110,13 @@ test('a publisher mismatch needs explicit confirmation', async () => {
   assert.equal(refused.status, 409);
   const body = await refused.json();
   assert.equal(body.code, 'PUBLISHER_MISMATCH_UNCONFIRMED');
+  assert.equal(body.profileName, 'Other Company', 'the 409 carries the user\'s own profile name');
   assert.equal(db.writes.length + published.length, 0);
   const confirmed = await publish(route, { ...base, import: provenance({ publisherMismatchConfirmed: true }) });
   assert.equal(confirmed.status, 201);
   const [[, record]] = imported(db);
   assert.equal(record.importSource.publisherMatch, 'mismatch-confirmed');
-  assert.equal(record.clientName, 'Other Company');
+  assert.equal(record.clientName, 'Account Name', 'display name is the verified account name, never the profile name');
 });
 
 test('no publisher profile needs createPublisherName, and nothing is written when it is missing', async () => {
@@ -136,7 +137,7 @@ test('creating the publisher profile writes only name, ownerUid and updatedAt an
   assert.equal(profileWrites[0].merge, true);
   assert.deepEqual({ ...profileWrites[0].data }, { name: 'New Publisher', ownerUid: user.uid, updatedAt: 'SERVER_TS' });
   const [[, created]] = imported(fresh.db);
-  assert.equal(created.clientName, 'New Publisher');
+  assert.equal(created.clientName, 'Account Name');
   assert.equal(created.importSource.publisherMatch, 'created');
 
   const existing = setup({ seed: { profiles: { [user.uid]: { name: '', phone: '050', email: 'p@example.com', logo: 'logo.png' } } } });
@@ -144,14 +145,14 @@ test('creating the publisher profile writes only name, ownerUid and updatedAt an
   assert.deepEqual({ ...existing.db.docs('profiles')[user.uid] }, { name: 'Fresh Name', phone: '050', email: 'p@example.com', logo: 'logo.png', ownerUid: user.uid, updatedAt: 'SERVER_TS' });
 });
 
-test('an existing profile is never written to and wins over createPublisherName for clientName', async () => {
+test('an existing profile is never written to and wins over createPublisherName', async () => {
   const seed = { profiles: { [user.uid]: { name: 'Acme Studio', phone: '050' } } };
   const { route, db } = setup({ seed });
   assert.equal((await publish(route, { ...base, import: provenance({ createPublisherName: 'Ignored' }) })).status, 201);
   assert.equal(db.writes.filter((write) => write.collection === 'profiles').length, 0);
   assert.deepEqual({ ...db.docs('profiles')[user.uid] }, { name: 'Acme Studio', phone: '050' });
   const [[, record]] = imported(db);
-  assert.equal(record.clientName, 'Acme Studio');
+  assert.equal(record.clientName, 'Account Name');
   assert.equal(record.importSource.publisherMatch, 'match');
 });
 
@@ -161,7 +162,7 @@ test('unknown source publisher keeps the profile name and records `unknown`; cli
   const [[, record]] = imported(withProfile.db);
   assert.equal(record.importSource.publisherMatch, 'unknown');
   assert.equal(record.importSource.publisherNameOnSource, '');
-  assert.equal(record.clientName, 'Acme Studio');
+  assert.equal(record.clientName, 'Account Name');
 });
 
 test('importSource is stored, the public projection hides it, and the publish hook runs once', async () => {
@@ -213,4 +214,42 @@ test('provenance accepts captured and ownerSignal, defaults them, and the publis
   const record = db.docs('projects')['slug-1'];
   assert.equal(record.importSource.captured, 'extension');
   assert.equal(record.importSource.ownerSignal, false);
+});
+
+test('createPublisherName is cleaned server-side before it is matched and written', async () => {
+  const dirty = '  \u202eAcme\u0000 <b>Labs</b>\u200b  ';
+  const { route, db } = setup();
+  assert.equal((await publish(route, { ...base, import: provenance({ createPublisherName: dirty, publisherNameOnSource: undefined }) })).status, 201);
+  assert.equal(db.docs('profiles')[user.uid].name, 'Acme Labs');
+  const tooShort = setup();
+  const refused = await publish(tooShort.route, { ...base, import: provenance({ createPublisherName: ' x\u200b ', publisherNameOnSource: undefined }) });
+  assert.equal(refused.status, 400);
+  assert.equal((await refused.json()).code, 'PUBLISHER_NAME_REQUIRED');
+  assert.equal(tooShort.db.writes.length, 0);
+  const long = validation.validateImportProvenance(provenance({ createPublisherName: 'x'.repeat(201) }));
+  assert.equal(long.ok, false);
+});
+
+test('a profile name that normalises to nothing is never overwritten by an import', async () => {
+  const { route, db } = setup({ seed: { profiles: { [user.uid]: { name: 'Ltd.' } } } });
+  const response = await publish(route, { ...base, import: provenance({ createPublisherName: 'Takeover' }) });
+  assert.equal(response.status, 409);
+  assert.equal(db.writes.filter((w) => w.collection === 'profiles').length, 0);
+  assert.equal(db.docs('profiles')[user.uid].name, 'Ltd.');
+});
+
+test('the composer helper turns an import into a mismatch (409) and requires the confirmation again', () => {
+  const ui = loadModule('src/components/xplace-project-import.tsx', { stubs: {
+    '@/lib/analytics': { trackEvent: () => {} }, './xplace-handoff': { useExtensionInstalled: () => null },
+  } });
+  const state = ui.newImportState({ provider: 'xplace', url: PROJECT_URL, externalId: '123456', draft: {}, partial: false, warnings: [], fetchedAt: 'x', publisher: { sourceName: 'Acme', match: 'unknown', profileName: '', suggestedName: 'Acme' } });
+  state.mismatchConfirmed = true;
+  const next = ui.withPublisherMismatch(state, 'Other Company');
+  assert.equal(next.result.publisher.match, 'mismatch');
+  assert.equal(next.result.publisher.profileName, 'Other Company');
+  assert.equal(next.mismatchConfirmed, false);
+  assert.equal(ui.importReadyToPublish(next), false);
+  assert.equal(ui.importReadyToPublish({ ...next, mismatchConfirmed: true }), true);
+  assert.equal(ui.buildImportProvenance({ ...next, mismatchConfirmed: true }).publisherMismatchConfirmed, true);
+  assert.equal(ui.withPublisherMismatch(state, 7).result.publisher.profileName, '');
 });

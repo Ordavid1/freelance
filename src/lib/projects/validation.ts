@@ -1,5 +1,6 @@
 import { parseXPlaceUrl } from '../imports/xplace/urls.ts';
 import type { ImportCapture, ProjectImportProvenance, XPlaceTarget } from '../imports/types.ts';
+import { cleanText } from '../imports/xplace/clean.ts';
 import { projectSkills } from './skills.ts';
 // Shared project-input validation (no server-only imports so scripts can use it).
 export type ProjectInput = { title: string; category: string; description: string; budget: string; deadline: string; skills: string[] };
@@ -54,7 +55,9 @@ export function validateImportProvenance(input: unknown): ImportProvenanceResult
     const value = data[key];
     if (value === undefined) continue;
     if (typeof value !== 'string' || value.trim().length > IMPORT_NAME_MAX) return invalid;
-    names[key] = value.trim();
+    // Server-side cleaning: control and bidi characters and markup removed; a created publisher name needs 2+ characters.
+    const cleaned = cleanText(value, IMPORT_NAME_MAX);
+    names[key] = key === 'createPublisherName' && cleaned.length < 2 ? '' : cleaned;
   }
   if (data.publisherMismatchConfirmed !== undefined && typeof data.publisherMismatchConfirmed !== 'boolean') return invalid;
   if (data.captured !== undefined && data.captured !== 'extension' && data.captured !== 'link') return invalid;

@@ -92,7 +92,7 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
       const createName = provenance.createPublisherName || '';
       if (match === 'no-profile' && !createName) return { rejected: { status: 400, body: { code: 'PUBLISHER_NAME_REQUIRED', error: 'נדרש שם מפרסם כדי להשלים את הייבוא.' } } };
       if (match === 'mismatch' && provenance.publisherMismatchConfirmed !== true) {
-        return { rejected: { status: 409, body: { code: 'PUBLISHER_MISMATCH_UNCONFIRMED', error: 'שם המפרסם ב־XPlace שונה מפרופיל המפרסם שלך. אשרו שאתם מורשים לפרסם את הפרויקט בשמו.' } } };
+        return { rejected: { status: 409, body: { code: 'PUBLISHER_MISMATCH_UNCONFIRMED', error: 'שם המפרסם ב־XPlace שונה מפרופיל המפרסם שלך. אשרו שאתם מורשים לפרסם את הפרויקט בשמו.', profileName } } };
       }
       const importSource: ProjectImportSource = {
         provider: 'xplace', key, url: provenance.url, externalId: target.projectId, publisherNameOnSource: sourceName,
@@ -102,7 +102,7 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
       };
       const record = {
         ...input,
-        ownerUid: user.uid, clientName: profileName || createName || user.name || user.email?.split('@')[0] || 'לקוח/ה', status: 'open', proposals: 0,
+        ownerUid: user.uid, clientName: user.name || user.email?.split('@')[0] || 'לקוח/ה', status: 'open', proposals: 0,
         createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
         importSource,
       };
