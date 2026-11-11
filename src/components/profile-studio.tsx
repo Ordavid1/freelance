@@ -3,7 +3,11 @@ import { trackEvent } from '@/lib/analytics';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { parseXPlaceUrl } from '@/lib/imports/xplace/urls';
+import type { XPlaceProfileImport } from '@/lib/imports/types';
 import { PlatformIcon, SourceCheck } from './profile-source-icons';
+import { HandoffNotice, useAutoHandoff, useXPlaceFlags, useXPlaceIngest } from './xplace-handoff';
+import { XPlaceProfilePanel } from './xplace-profile-panel';
 import styles from './profile-studio.module.css';
 import '@/app/profile-entry-editor.css';
 
@@ -13,10 +17,12 @@ type SocialProvider = 'github' | 'linkedin';
 type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
 type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
+type XPlaceSource = Pick<XPlaceProfileImport, 'provider' | 'sourceText' | 'profile' | 'url' | 'warnings' | 'counts' | 'ownerSignal'>;
 type StoredSource = { id: string; name: string; size: number };
 const blank: Profile = { name: '', headline: '', bio: '', skills: [], portfolio: '', experience: '', education: '' };
 const providerLabels: Record<SocialProvider, string> = { github: 'GitHub', linkedin: 'LinkedIn' };
 const DRIBBBLE_DRAFT_KEY = 'fz-dribbble-oauth-draft';
+const XPLACE_IMPORT_KEY = 'fz-xplace-import';
 
 function splitEntries(value: string) {
   return value.split(/\r?\n/).map((entry) => entry.trim().replace(/^[•▪*-]\s*/, '')).filter(Boolean);
@@ -66,6 +72,13 @@ export function ProfileStudio({ userId }: { userId: string }) {
   const [importErrors, setImportErrors] = useState<Partial<Record<SocialProvider, string>>>({});
   const [connecting, setConnecting] = useState<SocialProvider | 'dribbble' | null>(null);
   const [dribbbleSource, setDribbbleSource] = useState<DribbbleSource | null>(null);
+  const xplaceFlags = useXPlaceFlags();
+  const [xplaceSource, setXplaceSource] = useState<XPlaceSource | null>(null);
+  const [xplaceOpen, setXplaceOpen] = useState(false);
+  const [xplaceUrl, setXplaceUrl] = useState('');
+  const [xplaceOwner, setXplaceOwner] = useState(false);
+  const [xplaceBusy, setXplaceBusy] = useState(false);
+  const [xplaceError, setXplaceError] = useState('');
   const [profile, setProfile] = useState<Profile>(blank);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -75,6 +88,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   const restoredDraft = useRef(false);
   const importRequests = useRef<Partial<Record<SocialProvider, number>>>({});
   const approvedLinksKey = `fz-profile-approved-links:${userId}`;
+  const xplaceKey = `${XPLACE_IMPORT_KEY}:${userId}`;
   const dribbbleDraftKey = `${DRIBBBLE_DRAFT_KEY}:${userId}`;
 
   useEffect(() => {
@@ -82,6 +96,12 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const saved = JSON.parse(sessionStorage.getItem(approvedLinksKey) || '{}') as Partial<Record<LinkPlatform, unknown>>;
       setLinks(Object.fromEntries(platforms.flatMap((platform) => typeof saved[platform] === 'string' ? [[platform, saved[platform]]] : [])));
     } catch { /* Approved links can still be added when browser storage is unavailable. */ }
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(xplaceKey) || 'null') as Partial<XPlaceSource> | null;
+      if (saved && saved.provider === 'xplace' && typeof saved.sourceText === 'string' && saved.sourceText && typeof saved.url === 'string') {
+        setXplaceSource({ provider: 'xplace', sourceText: saved.sourceText, url: saved.url, profile: saved.profile && typeof saved.profile === 'object' ? saved.profile : {} as XPlaceSource['profile'], warnings: Array.isArray(saved.warnings) ? saved.warnings.filter((w): w is string => typeof w === 'string') : [], ...(saved.counts && typeof saved.counts === 'object' ? { counts: saved.counts } : {}), ...(typeof saved.ownerSignal === 'boolean' ? { ownerSignal: saved.ownerSignal } : {}) });
+      }
+    } catch { /* The import can be repeated when browser storage is unavailable. */ }
     const query = new URLSearchParams(window.location.search);
     const dribbbleResult = query.get('dribbble');
     if (dribbbleResult) {
@@ -282,6 +302,51 @@ export function ProfileStudio({ userId }: { userId: string }) {
     }
   }
 
+  function persistXPlace(next: XPlaceSource | null) {
+    try { if (next) sessionStorage.setItem(xplaceKey, JSON.stringify(next)); else sessionStorage.removeItem(xplaceKey); } catch { /* The import stays in the current editor. */ }
+  }
+
+  // Every XPlace path (extension hand-off, launch, pasted text, pasted link) ends here.
+  function applyXPlaceImport(data: XPlaceProfileImport) {
+    const imported: XPlaceSource = {
+      provider: 'xplace', sourceText: data.sourceText, profile: data.profile, url: data.url, warnings: data.warnings,
+      ...(data.counts ? { counts: data.counts } : {}), ...(typeof data.ownerSignal === 'boolean' ? { ownerSignal: data.ownerSignal } : {}),
+    };
+    setXplaceSource(imported);
+    persistXPlace(imported);
+    trackEvent('xplace_profile_import_completed');
+    setXplaceOpen(false);
+    setXplaceError('');
+    setNotice('פרטי XPlace נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.');
+  }
+  const xplaceIngest = useXPlaceIngest<XPlaceProfileImport>('profile', applyXPlaceImport);
+  useAutoHandoff(xplaceIngest, xplaceFlags, true);
+
+  async function importXPlace() {
+    const target = parseXPlaceUrl(xplaceUrl);
+    if (!target || target.kind !== 'profile') { setXplaceError('הדביקו קישור לפרופיל ציבורי ב־XPlace.'); return; }
+    if (!xplaceOwner) return;
+    trackEvent('xplace_profile_import_started');
+    setXplaceBusy(true);
+    setXplaceError('');
+    try {
+      const response = await fetch('/api/integrations/xplace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: xplaceUrl.trim(), attested: true }) });
+      const data = await response.json().catch(() => null) as (Partial<XPlaceProfileImport> & { code?: string; error?: string }) | null;
+      if (!response.ok || !data || typeof data.sourceText !== 'string') throw new Error(data?.error || 'הייבוא מ־XPlace נכשל. נסו שוב.');
+      applyXPlaceImport({ ...(data as XPlaceProfileImport), url: data.url || target.canonicalUrl, warnings: Array.isArray(data.warnings) ? data.warnings : [] });
+      setXplaceUrl('');
+      setXplaceOwner(false);
+    } catch (error) {
+      setXplaceError(error instanceof Error ? error.message : 'הייבוא מ־XPlace נכשל. נסו שוב.');
+    } finally { setXplaceBusy(false); }
+  }
+
+  function removeXPlaceImport() {
+    setXplaceSource(null);
+    persistXPlace(null);
+    setNotice('המידע שיובא מ־XPlace הוסר מהמקורות.');
+  }
+
   function connectDribbble() {
     try {
       sessionStorage.setItem(dribbbleDraftKey, JSON.stringify({ links, linkDrafts, source, profile, tag }));
@@ -319,9 +384,10 @@ export function ProfileStudio({ userId }: { userId: string }) {
       const form = new FormData();
       form.set('sourceIds', JSON.stringify(files.map((file) => file.id)));
       form.set('urls', Object.values(links).filter(Boolean).join('\n'));
-      const importedSources: { provider: SocialProvider | 'dribbble'; sourceText: string }[] = Object.values(socialSources)
+      const importedSources: { provider: SocialProvider | 'dribbble' | 'xplace'; sourceText: string }[] = Object.values(socialSources)
         .filter((item): item is SocialSource => Boolean(item))
         .map(({ provider, sourceText }) => ({ provider, sourceText }));
+      if (xplaceSource) importedSources.push({ provider: 'xplace', sourceText: xplaceSource.sourceText });
       if (dribbbleSource) importedSources.push({ provider: 'dribbble', sourceText: dribbbleSource.sourceText });
       form.set('socialSources', JSON.stringify(importedSources));
       const response = await fetch('/api/ai/profile', { method: 'POST', body: form });
@@ -355,7 +421,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   }
 
   const hasPendingImport = Object.values(importing).some(Boolean);
-  const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0 || Boolean(dribbbleSource);
+  const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0 || Boolean(dribbbleSource) || Boolean(xplaceSource);
 
   return <section className={`profile-studio ${styles.studio}`}>
     <h1>הסיפור המקצועי שלך.</h1>
@@ -383,6 +449,9 @@ export function ProfileStudio({ userId }: { userId: string }) {
           <PlatformIcon platform="dribbble" /><span dir="ltr">Dribbble</span>{dribbbleSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
           {connecting === 'dribbble' && <span className={styles.connectingText}>מתחברים…</span>}
         </button>
+        {xplaceFlags.enabled && <button type="button" className={`${styles.platformButton} ${xplaceSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(xplaceSource)} aria-expanded={xplaceOpen} aria-controls="profile-xplace-panel" onClick={() => { setXplaceOpen(!xplaceOpen); setXplaceError(''); }}>
+          <PlatformIcon platform="xplace" /><span dir="ltr">XPlace</span>{xplaceSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
+        </button>}
         {platforms.map((platform) => <button type="button" key={platform} className={`${styles.platformButton} ${links[platform] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(links[platform])} aria-expanded={source === platform} onClick={() => source === platform ? setSource(null) : editLink(platform)}><PlatformIcon platform={platform} /><span dir="ltr">{platform}</span>{links[platform] ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}</button>)}
       </div>
       {source && <form className={styles.linkForm} onSubmit={(event) => { event.preventDefault(); approveLink(); }}>
@@ -392,6 +461,17 @@ export function ProfileStudio({ userId }: { userId: string }) {
         {linkError && <p id="profile-source-url-error" role="alert" className={styles.sourceError}>{linkError}</p>}
         <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink}>אישור הקישור</button><button type="button" onClick={() => { setSource(null); setLinkError(''); }}>ביטול</button></div>
       </form>}
+      <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm}/>
+      {xplaceFlags.enabled && xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => { setXplaceOpen(false); setXplaceError(''); }} linkForm={xplaceFlags.linkImport ? (
+        <form id="profile-xplace-form" className={styles.linkForm} onSubmit={(event) => { event.preventDefault(); if (!xplaceBusy) void importXPlace(); }}>
+        <label htmlFor="profile-xplace-url">קישור לפרופיל ה־XPlace שלכם</label>
+        <input id="profile-xplace-url" type="url" dir="ltr" placeholder="https://www.xplace.com/il/u/your-name" required value={xplaceUrl} disabled={xplaceBusy} aria-describedby={xplaceError ? 'profile-xplace-error' : 'profile-xplace-hint'} aria-invalid={Boolean(xplaceError)} onChange={(event) => { setXplaceUrl(event.target.value); setXplaceError(''); }}/>
+        <label className={styles.checkRow}><input type="checkbox" required checked={xplaceOwner} disabled={xplaceBusy} onChange={(event) => setXplaceOwner(event.target.checked)}/><span>אני הבעלים/ת של הפרופיל הזה ב־XPlace.</span></label>
+        <small id="profile-xplace-hint">נקרא רק מה ש־XPlace מציגה לכל מבקר: כותרת, תיאור ותמונה. כדי לייבא גם ניסיון, כישורים והשכלה, שמרו את הפרופיל כ־PDF (הדפסה ← שמירה כ־PDF) וצרפו אותו כמסמך.</small>
+        <div aria-live="polite">{xplaceError && <p id="profile-xplace-error" role="alert" className={styles.sourceError}>{xplaceError}</p>}</div>
+        <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink} disabled={xplaceBusy || !xplaceOwner}>{xplaceBusy ? 'מייבאים…' : 'ייבוא מ־XPlace'}</button><button type="button" disabled={xplaceBusy} onClick={() => { setXplaceOpen(false); setXplaceError(''); }}>ביטול</button></div>
+      </form>
+      ) : null}/>}
       <div className={styles.sourceCards}>
       {platforms.filter((platform) => links[platform]).map((platform) => <article className={styles.sourceCard} key={platform}>
         <PlatformIcon platform={platform} /><div className={styles.sourceDetails}><strong>{platform} נוסף <SourceCheck /></strong><a href={links[platform]} target="_blank" rel="noreferrer" dir="ltr">{links[platform]}</a><small>הקישור אושר ליצירת הפרופיל</small></div>
@@ -407,6 +487,10 @@ export function ProfileStudio({ userId }: { userId: string }) {
       {dribbbleSource && <article className={styles.sourceCard} key="dribbble" id="profile-source-dribbble" tabIndex={-1}>
         <PlatformIcon platform="dribbble" /><div className={styles.sourceDetails}><strong>Dribbble יובא <SourceCheck /></strong><small>{dribbbleSource.profile.name || 'פרטי הפרופיל והעבודות ייכללו ביצירה'}</small>{dribbbleSource.url && <a href={dribbbleSource.url} target="_blank" rel="noreferrer">פתיחת הפרופיל ↗</a>}</div>
         <div className={styles.sourceActions}><button type="button" disabled={connecting !== null} onClick={connectDribbble}>רענון ייבוא</button><button type="button" onClick={() => void removeDribbbleImport()} aria-label="הסרת ייבוא Dribbble">הסרת ייבוא</button></div>
+      </article>}
+      {xplaceSource && <article className={styles.sourceCard} key="xplace" id="profile-source-xplace" tabIndex={-1}>
+        <PlatformIcon platform="xplace" /><div className={styles.sourceDetails}><strong>XPlace יובא <SourceCheck /></strong><small>{xplaceSource.profile?.headline || xplaceSource.profile?.name || (xplaceSource.url ? 'פרטי הפרופיל הציבוריים ייכללו ביצירה' : 'הטקסט שהודבק ייכלל ביצירה')}</small>{xplaceSource.counts && <small>{xplaceSource.counts.expertise} תחומי התמחות · {xplaceSource.counts.employment} מקומות עבודה · {xplaceSource.counts.education} תארים</small>}{xplaceSource.ownerSignal === true && <small>XPlace זיהתה שהפרופיל הזה שלכם.</small>}{xplaceSource.url && <a href={xplaceSource.url} target="_blank" rel="noreferrer">פתיחת הפרופיל ↗</a>}{xplaceSource.warnings[0] && <small className={styles.sourceNote}>{xplaceSource.warnings[0]}</small>}</div>
+        <div className={styles.sourceActions}><button type="button" onClick={removeXPlaceImport} aria-label="הסרת ייבוא XPlace">הסרת ייבוא</button></div>
       </article>}
       </div>
       <small>GitHub ו־LinkedIn יתחברו בחלון מאובטח. אפשר להסיר את הייבוא בכל עת לפני יצירת הפרופיל.</small>

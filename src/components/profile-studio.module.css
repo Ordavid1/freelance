@@ -124,9 +124,29 @@
 .studio .sourceError { font-size: 12px; color: #a33333; line-height: 1.7; margin: 4px 0; overflow-wrap: anywhere; }
 .studio .sourceError button { color: inherit; min-height: 32px; padding: 3px 8px; text-decoration: underline; font-size: inherit; }
 
+.studio .linkForm label.checkRow { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; line-height: 1.6; cursor: pointer; }
+.studio .linkForm label.checkRow input { width: 20px; height: 20px; min-width: 20px; padding: 0; margin: 1px 0 0; accent-color: #202438; }
+.studio .linkForm label.checkRow input:focus-visible,
+.studio .linkForm input:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
+.studio .sourceDetails small.sourceNote { padding: 6px 9px; border-radius: 8px; background: #f3f5f2; color: #55605a; }
+
 @container (max-width: 480px) {
   .sourceActions { width: 100%; padding-inline-start: 34px; }
   .studio .sourceCard { padding: 12px; gap: 10px; }
   .studio .platformButtons { gap: 6px; }
   .studio .platformButtons button.platformButton { flex: 1 0 118px; padding-inline: 9px; }
 }
+
+/* XPlace panel: up to three separated options inside one panel. */
+.studio .xPanel { display: grid; gap: 12px; margin-block: 12px 18px; padding: 12px; border: 1px solid #dce4de; border-radius: 12px; background: #fff; }
+.studio .xOption { display: grid; gap: 8px; padding: 12px; border: 1px solid #e6ece8; border-radius: 10px; background: #f7faf8; font-size: 13px; line-height: 1.7; color: #34463b; }
+.studio .xOption h4 { margin: 0; font-size: 14px; color: #202438; }
+.studio .xOption p { margin: 0; }
+.studio .xOption .linkForm { margin: 0; padding: 0; border: 0; background: none; }
+.studio .xSteps { margin: 0; padding-inline-start: 22px; display: grid; gap: 4px; }
+.studio .xForm { display: grid; gap: 8px; }
+.studio .xForm label { font-size: 13px; font-weight: 500; color: #34463b; }
+.studio .xTextarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: 14px; resize: vertical; }
+.studio .xTextarea:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
+.studio .xLinkButton { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 14px; border: 1px solid #dce4de; border-radius: 8px; background: #fff; color: #495a4f; font-size: 12px; text-decoration: none; }
+.studio .xLinkButton:focus-visible { outline: 2px solid #267a52; outline-offset: 3px; }

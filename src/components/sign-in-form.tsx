@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { GoogleAuthProvider, setPersistence, signInWithPopup, signOut, type Auth } from '@firebase/auth';
 import { getClientAuth } from '@/lib/auth/firebase-client';
+import { safeNextPath } from '@/lib/auth/safe-next';
 
 export function SignInForm() {
   const [notice, setNotice] = useState('');
@@ -29,7 +30,7 @@ export function SignInForm() {
     }
     await signOut(auth);
     const next = new URLSearchParams(window.location.search).get('next');
-    window.location.assign(next === '/profile/import' ? next : '/');
+    window.location.assign(safeNextPath(next));
   }
 
   async function googleSignIn() {
