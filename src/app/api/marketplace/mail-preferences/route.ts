@@ -15,7 +15,8 @@ export async function GET() {
     const db = firestore();
     const [profile, saved] = await Promise.all([db.collection('profiles').doc(user.uid).get(), db.collection('projectMailPreferences').doc(user.uid).get()]);
     if (!eligibleProfile(profile.data())) return json({ eligible: false });
-    return json({ eligible: true, available: !!notificationConfig(), profileTags: profileTags(profile.data()!), preferences: parsePreferences(saved.data()) || defaultPreferences(profile.data()!) });
+    const preferences = parsePreferences(saved.data()) || defaultPreferences(profile.data()!);
+    return json({ eligible: true, available: !!notificationConfig(), profileTags: profileTags(profile.data()!), preferences: { ...preferences, interval: 'daily' } });
   } catch { return json({ error: 'לא ניתן לטעון את העדפות המייל.' }, 503); }
 }
 export async function PUT(request: Request) {
@@ -26,6 +27,7 @@ export async function PUT(request: Request) {
   if (!body.ok) return body.response;
   const prefs = parsePreferences(body.value);
   if (!prefs) return json({ error: 'העדפות לא תקינות.' }, 400);
+  if (prefs.interval !== 'daily') return json({ error: 'כרגע ניתן לבחור סיכום יומי בלבד. עדכון על כל פרויקט יהיה זמין בהמשך.' }, 409);
   if (prefs.enabled && !notificationConfig()) return json({ error: 'שליחת עדכונים במייל אינה זמינה כרגע.' }, 503);
   try {
     const identity = await adminAuth().getUser(user.uid);
@@ -36,7 +38,7 @@ export async function PUT(request: Request) {
       if (!eligibleProfile(profile.data())) return false;
       if (JSON.stringify(parsePreferences(saved.data())) === JSON.stringify(prefs)) return true;
       // Every settings change starts a new window. Never mail historical projects or resurrect pending old consent.
-      tx.set(ref, { ...prefs, revision: randomBytes(16).toString('hex'), cursor: Timestamp.now(), cursorId: '', pending: null, reviewRequired: false, lastDaily: null, unsubscribeToken: saved.get('unsubscribeToken') || randomBytes(32).toString('hex'), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      tx.set(ref, { ...prefs, revision: randomBytes(16).toString('hex'), cursor: Timestamp.now(), cursorId: '', pending: null, reviewRequired: false, lastDaily: saved.get('lastDaily') || null, skippedProjectIds: [], unsubscribeToken: saved.get('unsubscribeToken') || randomBytes(32).toString('hex'), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       return true;
     });
     return ok ? json({ ok: true, preferences: prefs }) : json({ error: 'יש להשלים קודם פרופיל פרילנסר.' }, 403);

@@ -36,22 +36,24 @@ const db = { collection: name => query(name), runTransaction(fn) {
   const result = tail.then(async () => { const writes = []; const tx = { get: async r => { assert.equal(writes.length, 0); return snap(r.path); }, set: (r, v, options) => writes.push(() => apply(r.path, v, options?.merge)), update: (r, v) => writes.push(() => apply(r.path, v)) }; const v = await fn(tx); writes.forEach(w => w()); return v; });
   tail = result.catch(() => {}); return result;
 } };
-let user, identity, sends = [], failSend = false;
+let user, identity, sends = [], failSend = false, duringSend;
 await mock.module('../src/lib/db/firestore.ts', { namedExports: { firestore: () => db } });
 await mock.module('../src/lib/auth/session.ts', { namedExports: { getCurrentUser: async () => user, isSameOrigin: r => r.headers.get('origin') === 'https://example.com', publicAppOrigin: () => 'https://example.com' } });
 await mock.module('../src/lib/auth/firebase-admin.ts', { namedExports: { adminAuth: () => ({ getUser: async () => identity }) } });
-await mock.module('resend', { namedExports: { Resend: class { emails = { send: async (payload, opts) => { sends.push({ payload, opts }); return failSend ? { error: { message: 'timeout' } } : { data: { id: 'mail-id' } }; } }; } } });
+await mock.module('resend', { namedExports: { Resend: class { emails = { send: async (payload, opts) => { sends.push({ payload, opts }); if (duringSend) await duringSend(); return failSend ? { error: { message: 'timeout' } } : { data: { id: 'mail-id' } }; } }; } } });
 await mock.module('google-auth-library', { namedExports: { OAuth2Client: class { async verifyIdToken({ idToken, audience }) { assert.equal(audience, 'https://example.com/api/notifications/dispatch'); return { getPayload: () => ({ email: idToken, email_verified: true }) }; } } } });
 const rules = await import('../src/lib/notifications/preferences.ts');
 const api = await import('../src/app/api/marketplace/mail-preferences/route.ts');
 const unsubscribe = await import('../src/app/api/notifications/unsubscribe/route.ts');
 const worker = await import('../src/lib/notifications/delivery.ts');
 const dispatch = await import('../src/app/api/notifications/dispatch/route.ts');
-const now = Date.now();
+const now = Date.parse('2026-11-11T12:00:00Z');
+let clock = now;
+mock.method(Date, 'now', () => clock);
 const profile = { profileType: 'freelancer', name: 'Test', headline: 'Developer', skills: ['React', 'Figma'] };
-const pref = { enabled: true, interval: 'project', tags: ['React'], minBudget: '2000' };
+const pref = { enabled: true, interval: 'daily', tags: ['React'], minBudget: '2000' };
 function setup() {
-  rows.clear(); sends = []; failSend = false; user = { uid: 'user1', email: 'session@example.com' }; identity = { email: 'verified@example.com', emailVerified: true, disabled: false };
+  clock = now; rows.clear(); sends = []; failSend = false; duringSend = undefined; user = { uid: 'user1', email: 'session@example.com' }; identity = { email: 'verified@example.com', emailVerified: true, disabled: false };
   rows.set('profiles/user1', { ...profile });
   Object.assign(process.env, { RESEND_API_KEY: 'test-only', PROJECT_NOTIFICATIONS_FROM_EMAIL: 'Projects <projects@example.com>', PROJECT_NOTIFICATIONS_ENABLED: 'true', NEXT_PUBLIC_SITE_URL: 'https://example.com', NOTIFICATIONS_SCHEDULER_EMAIL: 'scheduler@example.com' });
 }
@@ -117,8 +119,8 @@ test('daily batching, no replay, incomplete-profile suppression, and stale batch
   failSend = false; await worker.dispatchNotifications(); assert.equal(sends.length, 1); assert.equal(rows.get('projectMailPreferences/user1').reviewRequired, true);
 });
 test('equal timestamps paginate by id without skipping, scheduler requires OIDC, concurrent lease excludes overlap', async () => {
-  setup(); subscribe(); for (let i = 0; i < 22; i++) project('p' + String(i).padStart(2, '0'), { sample: true });
-  project('p21'); await worker.dispatchNotifications(); assert.equal(sends.length, 0); await worker.dispatchNotifications(); assert.equal(sends.length, 1);
+  setup(); subscribe(); for (let i = 0; i < 102; i++) project('p' + String(i).padStart(3, '0'), { sample: true });
+  project('p101'); await worker.dispatchNotifications(); assert.equal(sends.length, 0); await worker.dispatchNotifications(); assert.equal(sends.length, 1);
   assert.equal((await dispatch.POST(new Request('https://example.com/api/notifications/dispatch', { method: 'POST' }))).status, 401);
   const results = await Promise.all([worker.dispatchNotifications(), worker.dispatchNotifications()]); assert.ok(results.some(r => r.busy));
 });
@@ -128,4 +130,63 @@ test('unsubscribe GET is non-mutating; authenticated token POST disables pending
   assert.equal((await unsubscribe.POST(new Request(url.replace('token=a', 'token=b'), { method: 'POST' }))).status, 400);
   assert.equal((await unsubscribe.POST(new Request(url, { method: 'POST' }))).status, 200); assert.equal(rows.get('projectMailPreferences/user1').enabled, false);
   assert.equal((await unsubscribe.POST(new Request(url, { method: 'POST' }))).status, 200);
+});
+
+
+test('per-project mode is visible as daily on read and rejected on write', async () => {
+  setup(); subscribe({ interval: 'project' });
+  assert.equal((await (await api.GET()).json()).preferences.interval, 'daily');
+  const response = await api.PUT(request({ ...pref, interval: 'project' }));
+  assert.equal(response.status, 409); assert.match((await response.json()).error, /סיכום יומי/);
+  assert.equal(rows.get('projectMailPreferences/user1').interval, 'project');
+});
+test('legacy per-project subscriptions and partially sent batches become one digest with a fresh key', async () => {
+  setup(); project('a'); project('b'); project('c');
+  const oldBatch = { key: 'legacy-key', created: now - 120000, interval: 'project', nextIndex: 1, items: [{ id: 'a', title: 'Already sent', budget: '3000' }, { id: 'b', title: 'Not sent yet', budget: '3000' }], revision: 'rev1', cursor: { at: Timestamp.fromMillis(now - 120000), id: 'b' } };
+  subscribe({ interval: 'project', pending: oldBatch });
+  assert.equal((await worker.dispatchNotifications()).failed, 0);
+  assert.equal(sends.length, 1);
+  assert.ok(!sends[0].payload.text.includes('/projects/a'));
+  assert.ok(sends[0].payload.text.includes('/projects/b'));
+  assert.ok(sends[0].payload.text.includes('/projects/c'));
+  assert.equal(rows.get('projectMailPreferences/user1').interval, 'daily');
+  assert.equal(rows.get('projectMailPreferences/user1').pending, null);
+  assert.equal(oldBatch.key, 'legacy-key'); assert.equal(oldBatch.interval, 'project');
+  await worker.dispatchNotifications(); assert.equal(sends.length, 1);
+});
+test('at most one digest per UTC day even with a backlog or edited filters', async () => {
+  setup(); subscribe();
+  for (let i = 0; i < 102; i++) project('p' + String(i).padStart(3, '0'));
+  await worker.dispatchNotifications(); assert.equal(sends.length, 1);
+  await worker.dispatchNotifications(); assert.equal(sends.length, 1);
+  clock += 86400000;
+  await worker.dispatchNotifications(); assert.equal(sends.length, 2);
+  const lastDaily = rows.get('projectMailPreferences/user1').lastDaily;
+  assert.equal((await api.PUT(request({ ...pref, minBudget: '1000' }))).status, 200);
+  assert.equal(rows.get('projectMailPreferences/user1').lastDaily, lastDaily);
+  project('new', { createdAt: Timestamp.fromMillis(clock + 1000) }); clock += 120000;
+  await worker.dispatchNotifications(); assert.equal(sends.length, 2);
+});
+test('legacy per-project preference waits until the daily window without losing filters or consent', async () => {
+  setup(); const previousDay = now - 86400000;
+  subscribe({ interval: 'project', cursor: Timestamp.fromMillis(previousDay) });
+  project('a', { createdAt: Timestamp.fromMillis(previousDay + 1000) });
+  clock = Date.parse('2026-11-11T07:00:00Z');
+  await worker.dispatchNotifications(); assert.equal(sends.length, 0);
+  const saved = rows.get('projectMailPreferences/user1'); assert.equal(saved.enabled, true); assert.deepEqual(saved.tags, pref.tags); assert.equal(saved.interval, 'daily');
+  clock += 3600000; await worker.dispatchNotifications(); assert.equal(sends.length, 1);
+});
+
+test('an edit during an in-flight send cannot reopen the daily email allowance', async () => {
+  setup(); subscribe(); project('a');
+  duringSend = async () => {
+    const response = await api.PUT(request({ ...pref, minBudget: '1000' }));
+    assert.equal(response.status, 200);
+  };
+  await worker.dispatchNotifications();
+  assert.equal(sends.length, 1);
+  assert.equal(rows.get('projectMailPreferences/user1').minBudget, '1000');
+  assert.equal(rows.get('projectMailPreferences/user1').lastDaily, new Date(clock).toISOString().slice(0, 10));
+  project('b', { createdAt: Timestamp.fromMillis(clock + 1000) }); clock += 120000;
+  await worker.dispatchNotifications(); assert.equal(sends.length, 1);
 });

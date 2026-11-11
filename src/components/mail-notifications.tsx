@@ -32,7 +32,7 @@ export function MailNotifications() {
       if (!response.ok) throw new Error(data.error || 'לא ניתן לטעון העדפות מייל.');
       if (!active) return;
       setEligible(data.eligible === true); setAvailable(data.available === true);
-      if (data.eligible) { setPreferences(data.preferences); setProfileTags(data.profileTags || []); }
+      if (data.eligible) { setPreferences({ ...data.preferences, interval: 'daily' }); setProfileTags(data.profileTags || []); }
     }).catch(error => { if (active) setLoadError(error instanceof Error ? error.message : 'לא ניתן לטעון העדפות מייל.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -71,7 +71,7 @@ export function MailNotifications() {
     <fieldset className="mail-settings" disabled={!preferences.enabled || busy}>
       <legend>העדפות עדכון</legend>
       <div className="mail-compact-fields">
-        <label className="mail-field-label" htmlFor="mail-interval">תדירות<select id="mail-interval" value={preferences.interval} onChange={event => update({ interval: event.target.value as Preferences['interval'] })}><option value="project">על כל פרויקט</option><option value="daily">סיכום יומי</option></select></label>
+        <label className="mail-field-label" htmlFor="mail-interval">תדירות<select id="mail-interval" value={preferences.interval} onChange={() => update({ interval: 'daily' })}><option value="daily">סיכום יומי</option><option value="project" disabled>על כל פרויקט — בקרוב</option></select></label>
         <div className="mail-compact-tags">
           <label className="mail-field-label" htmlFor="mail-tag">תגיות</label>
           <div className="mail-tag-input">
