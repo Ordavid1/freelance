@@ -1,0 +1,21 @@
+# Project email notifications
+
+Completed freelancer profiles only (the existing `profileIsComplete` rule; publishers excluded). First load seeds filters from the saved profile skills; subsequent loads retain explicitly saved filters. Empty tags mean all tags. Filters use the marketplace skill matcher and an inclusive numeric budget lower bound; unknown/negotiable budgets fail an active amount filter. Sample, synthetic, private, closed, and own projects are excluded when preparing a delivery.
+
+`GET/PUT /api/marketplace/mail-preferences` uses the signed-in session, same-origin writes, bounded/validated JSON, and server-only Firestore collection `projectMailPreferences/{uid}`. No browser persistence or client-supplied recipient. At sending time Firebase Admin Auth supplies the current verified email; disabled accounts and incomplete profiles are turned off. Enabling requires explicit opt-in. Saved settings changes start from now, never historical projects. An unchanged save preserves the delivery cursor.
+
+## Delivery and deployment
+
+Resend sends individual transactional messages (not a public audience broadcast). `PROJECT_NOTIFICATIONS_ENABLED=true`, `RESEND_API_KEY`, and a verified `PROJECT_NOTIFICATIONS_FROM_EMAIL` (fallback `SUPPORT_FROM_EMAIL`) are required. `NEXT_PUBLIC_SITE_URL` is the canonical HTTPS origin. No receiving webhook or receiving domain is needed. API keys remain in Secret Manager.
+
+Terraform: set `project_notifications_enabled=true` and optionally `project_notifications_from_email`, keeping the existing `resend_secrets.RESEND_API_KEY` reference. Apply Terraform and deploy the application together. Terraform wires the scheduler identity into `NOTIFICATIONS_SCHEDULER_EMAIL` and creates an OIDC-authenticated POST to `/api/notifications/dispatch` every five minutes. The endpoint rejects unauthenticated or wrong-audience tokens. This change does not apply Terraform, deploy, or send production mail automatically.
+
+Per-project alerts are processed on the next worker sweep. Daily summaries become due at 08:00 UTC. No-match windows produce no mail. Each scan handles 20 candidate projects for per-project sends or 100 for a summary; unusually large backlogs continue in later sweeps (daily summaries may be split). Each worker visits at most 100 subscribers and resumes by document id; larger audiences require capacity tuning. Firestore uses single-field createdAt and enabled indexes plus document-id ordering; no new composite index is required.
+
+Durable timestamp/document-id cursors avoid dropping projects with equal timestamps. A one-minute ingestion lag avoids racing server timestamps. A persisted pending batch freezes payloads and uses deterministic Resend idempotency keys; per-message progress resumes partial batches. A four-minute global lease and two-minute processing budget prevent overlapping sweeps. Failure logs include only counts. Failed subscribers remain eligible for retry on subsequent sweeps; never advance a failed delivery cursor. Resend's 24-hour idempotency retention is respected by quarantining ambiguous batches after 23 hours (`reviewRequired=true`). Operators should investigate these records in Firestore; do not blindly replay stale pending sends. Saving changed preferences clears quarantine and starts a new window. Sent mail cannot be recalled if a user changes settings while a provider call is already in flight.
+
+Every email has RFC one-click unsubscribe headers and an unguessable per-account token. GET shows a confirmation; POST disables the subscription without login so link scanners do not silently unsubscribe users. Unsubscribe tokens and recipients must not be logged. Resend handles its standard hard-bounce/complaint suppression; monitor the provider dashboard for delivery health.
+
+## Validation
+
+Run `npm run typecheck` and `node --experimental-transform-types --experimental-test-module-mocks --test tests/project-notifications.test.mjs`. Browser previews can intercept auth and preference endpoints to show a representative established profile; these previews send no emails. A production canary should use an explicitly opted-in test account after deployment, then verify the Resend dashboard, cursor progress, digest cadence, and unsubscribe.

@@ -347,6 +347,18 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.project_id
       }
       env {
+        name  = "PROJECT_NOTIFICATIONS_ENABLED"
+        value = tostring(var.project_notifications_enabled)
+      }
+      env {
+        name  = "PROJECT_NOTIFICATIONS_FROM_EMAIL"
+        value = var.project_notifications_from_email
+      }
+      env {
+        name  = "NOTIFICATIONS_SCHEDULER_EMAIL"
+        value = google_service_account.notifications_scheduler.email
+      }
+      env {
         name  = "MAINTENANCE_SCHEDULER_EMAIL"
         value = google_service_account.maintenance_scheduler.email
       }

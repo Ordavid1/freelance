@@ -1,4 +1,5 @@
 'use client';
+import { MailNotifications } from './mail-notifications';
 import { trackEvent } from '@/lib/analytics';
 import Link from 'next/link';
 import { ContactControls } from './account-safety';
@@ -32,4 +33,4 @@ function StudioInboxContent(){
 
 export function BidForm(props: React.ComponentProps<typeof BidFormContent>) { return <MemberGate><BidFormContent {...props} /></MemberGate>; }
 
-export function StudioInbox() { return <StudioInboxContent />; }
+export function StudioInbox() { return <><MailNotifications/><StudioInboxContent /></>; }
