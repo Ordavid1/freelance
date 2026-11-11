@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { MailPreferences as Preferences } from '@/lib/notifications/preferences';
 import { useViewMode } from './view-mode';
 import { useViewer } from './viewer-context';
+import { MailTagGallery } from './mail-tag-gallery';
 
 const defaults: Preferences = { enabled: false, interval: 'daily', tags: [], minBudget: '' };
 const suggestions = ['עיצוב גרפי', 'פיתוח אתרים', 'UX/UI', 'קופירייטינג', 'וידאו ואנימציה'];
@@ -20,6 +21,7 @@ export function MailNotifications() {
   const [retry, setRetry] = useState(0);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
   const [tag, setTag] = useState('');
+  const tagInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('');
   useEffect(() => {
     let active = true;
@@ -70,7 +72,14 @@ export function MailNotifications() {
       <legend>העדפות עדכון</legend>
       <div className="mail-compact-fields">
         <label className="mail-field-label" htmlFor="mail-interval">תדירות<select id="mail-interval" value={preferences.interval} onChange={event => update({ interval: event.target.value as Preferences['interval'] })}><option value="project">על כל פרויקט</option><option value="daily">סיכום יומי</option></select></label>
-        <div className="mail-compact-tags"><label className="mail-field-label" htmlFor="mail-tag">תגיות</label><div className="mail-tag-input"><input id="mail-tag" list="mail-tag-options" value={tag} maxLength={60} placeholder="כל התגיות · הוספת תגית" onChange={event => setTag(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addTag(); } }}/><datalist id="mail-tag-options">{[...new Set([...profileTags, ...suggestions])].map(value => <option key={value} value={value}/>)}</datalist><button type="button" disabled={!tag.trim() || !preferences.enabled} onClick={addTag}>הוספה</button></div>{preferences.tags.length > 0 && <div className="mail-tags">{preferences.tags.map(value => <button type="button" key={value} aria-label={`הסרת ${value}`} onClick={() => toggleTag(value)}>{value} ×</button>)}</div>}</div>
+        <div className="mail-compact-tags">
+          <label className="mail-field-label" htmlFor="mail-tag">תגיות</label>
+          <div className="mail-tag-input">
+            <input ref={tagInput} id="mail-tag" value={tag} maxLength={60} placeholder="כל התגיות · הוספת תגית" onChange={event => setTag(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addTag(); } }}/>
+            <button type="button" disabled={!tag.trim() || !preferences.enabled} onClick={addTag}>הוספה</button>
+          </div>
+          <MailTagGallery tags={[...new Set([...profileTags, ...preferences.tags, ...suggestions])]} selected={preferences.tags} onPick={value => { setTag(value); setStatus(''); tagInput.current?.focus({ preventScroll: true }); }} onRemove={toggleTag}/>
+        </div>
         <div><label className="mail-field-label" htmlFor="mail-budget">תקציב מינימלי</label><div className="mail-budget-input"><input id="mail-budget" type="number" min="0" max="100000000" step="1" inputMode="numeric" placeholder="ללא הגבלה" value={preferences.minBudget} onChange={event => update({ minBudget: event.target.value })}/><span aria-hidden="true">₪</span></div></div>
       </div>
     </fieldset>
