@@ -355,6 +355,18 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.project_notifications_from_email
       }
       env {
+        name  = "XPLACE_IMPORT_ENABLED"
+        value = tostring(var.xplace_import_enabled)
+      }
+      env {
+        name  = "XPLACE_LINK_IMPORT_ENABLED"
+        value = tostring(var.xplace_link_import_enabled)
+      }
+      env {
+        name  = "XPLACE_EXTENSION_URL"
+        value = var.xplace_extension_url
+      }
+      env {
         name  = "NOTIFICATIONS_SCHEDULER_EMAIL"
         value = google_service_account.notifications_scheduler.email
       }

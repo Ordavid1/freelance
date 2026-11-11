@@ -30,14 +30,22 @@ if (typeof importScripts === 'function') importScripts('../config.js');
       } catch (e) { return false; }
     };
 
-    function fpHandoffUrl(sender) {
+    // Any main-frame page of the Freelance Place origin. The bridge runs on the whole origin because the profile
+    // studio can be rendered on `/` and navigation there is client-side (no document load on a hand-off path).
+    function fpPage(sender) {
       try {
         if (!sender || (sender.frameId !== undefined && sender.frameId !== 0)) return null;
-        const u = new URL(sender && sender.url);
-        const path = u.pathname.replace(/\/+$/, '');
-        const ok = u.origin === FP.origin && (path === config.HANDOFF_PATHS.profile || path === config.HANDOFF_PATHS.project);
-        return ok ? u : null;
+        const u = new URL(sender.url);
+        return u.origin === FP.origin ? u : null;
       } catch (e) { return null; }
+    }
+
+    // Only the two hand-off paths: where the extension itself opens `?xplace=<token>` (fallback flow).
+    function fpHandoffUrl(sender) {
+      const u = fpPage(sender);
+      if (!u) return null;
+      const path = u.pathname.replace(/\/+$/, '');
+      return path === config.HANDOFF_PATHS.profile || path === config.HANDOFF_PATHS.project ? u : null;
     }
 
     async function purge() {
@@ -172,7 +180,7 @@ if (typeof importScripts === 'function') importScripts('../config.js');
     }
 
     async function handleAwait(msg, sender) {
-      const u = fpHandoffUrl(sender);
+      const u = fpPage(sender);
       if (!u || !sender.tab || typeof sender.tab.id !== 'number') return { ok: false, error: 'unauthorized' };
       if (typeof msg.token !== 'string' || !TOKEN.test(msg.token)) return { ok: false, error: 'invalid-token' };
       await purge();
@@ -189,8 +197,7 @@ if (typeof importScripts === 'function') importScripts('../config.js');
     // only to tokens the extension itself generated and put into a Freelance Place URL.
     async function authorisedForToken(token, sender) {
       if (typeof token !== 'string' || !TOKEN.test(token)) return false;
-      const u = fpHandoffUrl(sender);
-      if (!u || !sender.tab || typeof sender.tab.id !== 'number') return false;
+      if (!fpPage(sender) || !sender.tab || typeof sender.tab.id !== 'number') return false;
       const t = now();
       const ak = P_AWAIT + token;
       const sk = P_STAGE + token;
@@ -199,7 +206,8 @@ if (typeof importScripts === 'function') importScripts('../config.js');
       if (a && a.expires > t) return a.tabId === sender.tab.id;
       const st = got && got[sk];
       if (st && typeof st.ownerTabId === 'number') return st.ownerTabId === sender.tab.id;
-      return u.searchParams.get('xplace') === token;
+      const u = fpHandoffUrl(sender);
+      return Boolean(u) && u.searchParams.get('xplace') === token;
     }
 
     async function handleRead(msg, sender) {

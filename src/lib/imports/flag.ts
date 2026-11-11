@@ -14,7 +14,7 @@ export function isXPlaceLinkImportEnabled(): boolean {
 
 /** Chrome Web Store (or other) install page of the browser extension; only an https URL is ever exposed to the UI. */
 export function xplaceExtensionUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_XPLACE_EXTENSION_URL || '').trim();
+  const raw = (process.env.XPLACE_EXTENSION_URL || '').trim();
   try {
     const url = new URL(raw);
     return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';

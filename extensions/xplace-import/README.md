@@ -49,6 +49,11 @@ is re-enabled in the extension options page (chrome://extensions -> Details -> E
 
 ## Hand-off protocol
 
+The bridge content script matches the whole Freelance Place origin (`https://freelance-place.com/*`, `run_at: document_start`), not just the two hand-off paths: the
+profile studio can be rendered on `/` and navigation there is client-side, so no document load ever happens on a matching hand-off URL. The background
+accepts `await` from any main-frame page of that origin; the `?xplace=<token>` URL rule (fallback flow, the extension opens the tab itself) still works only on
+`/profile/import` and `/projects/new`, and tokens that came through the await flow are readable only by the registered tab.
+
 Matches `src/lib/imports/xplace/handoff.ts`: `fp-xplace-request` (read/clear), `fp-xplace-response`, `fp-xplace-ready` and the
 `data-fp-xplace-extension` attribute. Launch flow from the website: open `https://www.xplace.com/il/?fp_import=profile&fp_ref=<token>`
 after posting `fp-xplace-await`; the extension redirects to the user's own profile, captures it, stages it under `<token>`, focuses the

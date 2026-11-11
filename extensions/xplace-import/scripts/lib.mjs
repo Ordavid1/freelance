@@ -8,7 +8,9 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const PROD_ORIGIN = 'https://freelance-place.com';
 export const DEV_ORIGIN = 'http://localhost:3000';
 export const XPLACE_MATCHES = ['https://www.xplace.com/*', 'https://xplace.com/*'];
-export const BRIDGE_PATHS = ['/profile/import*', '/projects/new*'];
+// The bridge runs on the whole Freelance Place origin: the profile studio can be rendered on `/` and navigation
+// there is client-side, so no document load happens on a hand-off path.
+export const BRIDGE_PATHS = ['/*'];
 
 function walk(dir, out) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -66,7 +68,7 @@ export function runChecks(root = ROOT, files = listFiles(root)) {
   if (cs.length !== 2) problems.push('exactly two content script entries expected');
   else {
     if (!arrEq(cs[0].matches, XPLACE_MATCHES)) problems.push(`XPlace content script matches must be exactly ${XPLACE_MATCHES.join(', ')}`);
-    if (!arrEq(cs[1].matches, BRIDGE_PATHS.map((p) => `${PROD_ORIGIN}${p}`))) problems.push('bridge matches must be exactly the two Freelance Place hand-off paths');
+    if (!arrEq(cs[1].matches, BRIDGE_PATHS.map((p) => `${PROD_ORIGIN}${p}`))) problems.push('bridge matches must be exactly the one Freelance Place pattern (origin + /*)');
     if (cs[0].run_at !== 'document_idle' || cs[1].run_at !== 'document_start') problems.push('run_at must be document_idle (XPlace) and document_start (bridge)');
   }
   const referenced = new Set();

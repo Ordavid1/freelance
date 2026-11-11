@@ -51,7 +51,7 @@ function isoDeadline(value: unknown): string {
 
 /** The `dd/mm/yy(yy)` date shown on the page as an ISO date, or null. */
 function displayedDueDate(text: string): string | null {
-  const match = /(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})/.exec(text);
+  const match = /(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})(?!\d)/.exec(text);
   if (!match) return null;
   const year = match[3].length === 2 ? 2000 + Number(match[3]) : Number(match[3]);
   return realDate(year, Number(match[2]), Number(match[1])) ? `${year}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}` : null;

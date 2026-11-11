@@ -19,7 +19,7 @@ test('content script matches are exactly the allowed patterns', () => {
   assert.equal(manifest.content_scripts.length, 2);
   assert.deepEqual(manifest.content_scripts[0].matches, ['https://www.xplace.com/*', 'https://xplace.com/*']);
   assert.equal(manifest.content_scripts[0].run_at, 'document_idle');
-  assert.deepEqual(manifest.content_scripts[1].matches, ['https://freelance-place.com/profile/import*', 'https://freelance-place.com/projects/new*']);
+  assert.deepEqual(manifest.content_scripts[1].matches, ['https://freelance-place.com/*']);
   assert.equal(manifest.content_scripts[1].run_at, 'document_start');
 });
 

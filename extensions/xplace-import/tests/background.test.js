@@ -115,10 +115,9 @@ test('open-fp only opens the fixed projects/new URL', async () => {
 // ---------- await / staged / focus / fallback ----------
 const bridgeReply = (ok) => (msg, sender, respond) => { if (ok === undefined) return; respond({ ok }); };
 
-test('await: only the bridge on a hand-off path, valid token; first registration wins', async () => {
+test('await: only the bridge on the Freelance Place origin, valid token; first registration wins', async () => {
   const m = make();
   assert.equal((await m.bg.handle({ type: 'await', token: TOKEN }, xp())).error, 'unauthorized');
-  assert.equal((await m.bg.handle({ type: 'await', token: TOKEN }, fp('/profile/other'))).error, 'unauthorized');
   assert.equal((await m.bg.handle({ type: 'await', token: 'nope' }, fp('/profile/import'))).error, 'invalid-token');
   assert.equal((await m.bg.handle({ type: 'await', token: TOKEN }, fp('/profile/import'))).ok, true);
   assert.deepEqual(m.mem.get(`await:${TOKEN}`), { tabId: 50, windowId: 2, expires: 1_000_000 + 15 * 60 * 1000, captureGranted: false });
@@ -220,6 +219,31 @@ test('stage with a ref that nobody awaits gets a fresh token; expired await entr
   await m.bg.handle({ type: 'stage', payload: payload(), ref: TOKEN }, xp(8));
   assert.ok(!m.mem.has(`await:${TOKEN}`), 'expired await purged');
   assert.ok(!m.mem.has(`stage:${TOKEN}`));
+});
+
+test('await is accepted from any main-frame page of the Freelance Place origin, nowhere else', async () => {
+  const m = make();
+  assert.equal((await m.bg.handle({ type: 'await', token: TOKEN }, fp('/'))).ok, true);
+  const T2 = '99999999-2222-4333-8444-555555555555';
+  assert.equal((await m.bg.handle({ type: 'await', token: T2 }, fp('/anything/else', '?x=1', 51))).ok, true);
+  assert.equal((await m.bg.handle({ type: 'await', token: '33333333-2222-4333-8444-555555555555' }, senderFor('https://evil.example/', 52))).error, 'unauthorized');
+  assert.equal((await m.bg.handle({ type: 'await', token: '33333333-2222-4333-8444-555555555555' }, senderFor(`${FP}/`, 53, { frameId: 4 }))).error, 'unauthorized');
+  assert.equal((await m.bg.handle({ type: 'await', token: '33333333-2222-4333-8444-555555555555' }, xp())).error, 'unauthorized');
+});
+
+test('awaited tokens: read/clear from `/` only for the registered tab; the URL-token rule needs a hand-off path', async () => {
+  const m = make();
+  m.listenOnTab(50, bridgeReply(true));
+  await m.bg.handle({ type: 'await', token: TOKEN }, fp('/'));
+  await m.bg.handle({ type: 'stage', payload: payload(), ref: TOKEN }, xp(8));
+  assert.equal((await m.bg.handle({ type: 'read', token: TOKEN }, fp('/', '', 50))).ok, true);
+  assert.equal((await m.bg.handle({ type: 'read', token: TOKEN }, fp('/', '', 51))).error, 'unauthorized');
+  // fallback flow: a fresh token only works from a hand-off path with the token in the URL
+  const fresh = 'aaaaaaaa-2222-4333-8444-555555555555';
+  m.mem.set(`stage:${fresh}`, { payload: payload(), expires: 9e9 });
+  assert.equal((await m.bg.handle({ type: 'read', token: fresh }, fp('/', `?xplace=${fresh}`, 60))).error, 'unauthorized', 'not a hand-off path');
+  assert.equal((await m.bg.handle({ type: 'read', token: fresh }, fp('/profile/import', `?xplace=${fresh}`, 60))).ok, true);
+  assert.equal((await m.bg.handle({ type: 'read', token: fresh }, fp('/projects/new', `?xplace=${fresh}`, 61))).ok, true);
 });
 
 test('unknown message types are refused', async () => {

@@ -29,8 +29,15 @@ test('marker attribute and ready message', async () => {
   assert.deepEqual(s.got.find((m) => m.channel === 'fp-xplace-ready'), { channel: 'fp-xplace-ready', version: '9.9.9' });
 });
 
-test('does nothing off the hand-off paths', () => {
-  const d = new JSDOM('<html></html>', { url: `${FP}/somewhere-else` });
+test('marker and ready message on the homepage (client-side navigation never reloads a hand-off path)', async () => {
+  const s = setup(`${FP}/`);
+  assert.equal(s.win.document.documentElement.getAttribute('data-fp-xplace-extension'), '9.9.9');
+  await s.tick();
+  assert.ok(s.got.some((m) => m.channel === 'fp-xplace-ready'));
+});
+
+test('does nothing on another origin', () => {
+  const d = new JSDOM('<html></html>', { url: 'https://evil.example/profile/import' });
   assert.equal(FPX.bridge.start({ window: d.window, chrome: { runtime: {} }, version: '1' }), null);
   assert.equal(d.window.document.documentElement.hasAttribute('data-fp-xplace-extension'), false);
 });
@@ -70,7 +77,7 @@ test('messages from another source or origin are ignored', async () => {
 });
 
 test('await flow: forwards to the background, acknowledges, then relays staged; read works for the awaited token', async () => {
-  const s = setup(`${FP}/profile/import`, { await: { ok: true }, read: { ok: true, payload: { kind: 'profile' } } });
+  const s = setup(`${FP}/`, { await: { ok: true }, read: { ok: true, payload: { kind: 'profile' } } });
   s.post({ channel: 'fp-xplace-await', token: TOKEN });
   await s.tick();
   assert.deepEqual(s.sent[0], { type: 'await', token: TOKEN });

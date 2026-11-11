@@ -31,8 +31,7 @@
     },
     {
       "matches": [
-        "https://freelance-place.com/profile/import*",
-        "https://freelance-place.com/projects/new*"
+        "https://freelance-place.com/*"
       ],
       "js": [
         "src/config.js",

@@ -5,7 +5,7 @@ Lets a signed-in user bring their own XPlace content into Freelance Place by pas
 - **Profile source**: an "XPlace" button next to LinkedIn, GitHub, Dribbble, Behance and Website in the profile studio. The imported text is compiled with the other sources when the user presses the AI generate button.
 - **Project import**: an "ייבוא מ־XPlace" panel at the top of the project composer. It fills the normal review form; the publisher on the XPlace page is compared with the user's publisher profile before publishing.
 
-The feature is **off by default**. Nothing is shown to users and the API refuses requests until `XPLACE_IMPORT_ENABLED=true`.
+In code the feature is **off by default**: nothing is shown to users and the API refuses requests until `XPLACE_IMPORT_ENABLED=true`. In production the switches are deployment settings (the Terraform variables `xplace_import_enabled` and `xplace_link_import_enabled` default to true; Or approved switching both on on 11-11-26).
 
 Design record and decisions: [`.claude/plans/11-11-26-XPlace-Link-Import.md`](../.claude/plans/11-11-26-XPlace-Link-Import.md). This file is the operating guide.
 
@@ -67,7 +67,7 @@ Both project URL formats carry the same numeric ID. The legacy `/il/job-bids/<id
 
 The extension (`extensions/xplace-import/`) is the primary path; the paste-link importer above is the dark secondary path. Both end in the same editors.
 
-**Flow.** On the user's own XPlace page the extension captures an allowlisted set of sections, the background worker stores the payload for one hour under a random token and opens `<site>/profile/import?xplace=<token>` (profile) or `<site>/projects/new?xplace=<token>` (project). The page's `handoff-client` asks the extension's bridge for the payload, posts it to `POST /api/integrations/xplace/ingest` (`{ payload, attested }`), fills the studio or composer, clears the token and removes it from the address bar. A signed-out visitor is sent to sign-in with the full path and query preserved (`src/lib/auth/safe-next.ts` allows only these two paths with exactly one UUID `xplace` parameter).
+**Flow.** On the user's own XPlace page the extension captures an allowlisted set of sections, the background worker stores the payload for one hour under a random token and opens `<site>/profile/import?xplace=<token>` (profile) or `<site>/projects/new?xplace=<token>` (project). The page's `handoff-client` asks the extension's bridge for the payload, posts it to `POST /api/integrations/xplace/ingest` (`{ payload, attested }`), fills the studio or composer, clears the token and removes it from the address bar. A signed-out visitor is sent to sign-in with the full path and query preserved (`src/lib/auth/safe-next.ts` allows only these two paths with exactly one UUID `xplace` parameter). The extension's bridge runs on the whole Freelance Place origin so it is also present when the profile studio is rendered on the home page; the launch flow (button in the studio) uses an await/staged message pair and returns to the same tab.
 
 **Three ways in (profile studio).** (A) With the extension: "open XPlace and import" generates a token, tells the bridge to expect it and opens `https://www.xplace.com/il/?fp_import=profile&fp_ref=<token>`; the extension captures and stages under that token, the bridge answers `fp-xplace-staged`. (B) Paste text, no extension: the user copies their own profile page and pastes it (kind `profile-text`, cleaned, at most 13 000 characters, used as the AI source as is). (C) Paste link, only with `XPLACE_LINK_IMPORT_ENABLED`.
 
@@ -77,9 +77,9 @@ The extension (`extensions/xplace-import/`) is the primary path; the paste-link 
 
 **Ingest limits.** Rate limit `import.xplace.ingest` (20 per 10 minutes, 120 per day per account), body at most 300 000 bytes. Order: flag, same origin, session, body, attestation, validation, limiter, build. Errors: `INVALID_PAYLOAD` (400, malformed payload or project id mismatch), `INVALID_URL` (400, URL is not an XPlace page of the declared kind), `NOT_ENOUGH_DATA` (422).
 
-**Flags.** `XPLACE_IMPORT_ENABLED=true` turns on the XPlace UI and the ingest route. `XPLACE_LINK_IMPORT_ENABLED=true` additionally enables the two link routes. `GET /api/integrations/xplace` returns `{ enabled, linkImport, extensionUrl }`. `NEXT_PUBLIC_XPLACE_EXTENSION_URL` is the extension's store page (https only); the UI shows an install link only when it is set and the extension is not detected. It is a build-time public variable.
+**Flags.** `XPLACE_IMPORT_ENABLED=true` turns on the XPlace UI and the ingest route. `XPLACE_LINK_IMPORT_ENABLED=true` additionally enables the two link routes. `GET /api/integrations/xplace` returns `{ enabled, linkImport, extensionUrl }`. `XPLACE_EXTENSION_URL` is the extension's store page (https only); the UI shows an install link only when it is set and the extension is not detected. It is a server runtime variable (read by `GET /api/integrations/xplace`), so changing it needs a new Cloud Run revision but no rebuild.
 
-**Rollout order.** 1. Enable `XPLACE_IMPORT_ENABLED` BEFORE the extension is published, so the receiver is ready the moment the first user clicks. 2. Publish the extension. 3. Set `NEXT_PUBLIC_XPLACE_EXTENSION_URL` to the store page and redeploy. 4. Keep `XPLACE_LINK_IMPORT_ENABLED` off unless Or decides otherwise.
+**Rollout order.** 1. Enable `XPLACE_IMPORT_ENABLED` (and, since 11-11-26, `XPLACE_LINK_IMPORT_ENABLED`) BEFORE the extension is published, so the receiver is ready the moment the first user clicks. 2. Publish the extension (Or submits it in the Web Store dashboard). 3. After approval set `XPLACE_EXTENSION_URL` to the store page (Terraform variable `xplace_extension_url`, or `gcloud run services update --update-env-vars`). 4. To withdraw the paste-link option alone, set `XPLACE_LINK_IMPORT_ENABLED` back to false.
 
 ## Terms and risk (decision for Or, not legal advice)
 

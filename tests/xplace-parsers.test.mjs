@@ -106,6 +106,10 @@ test('project: label-driven HTML layer when there is no JSON', () => {
 test('project: HTML layer reads a displayed due date and normalises two-digit years', () => {
   const html = fixture('project-html-only.html').replace('<b>תאריך היעד</b><br/>גמיש', '<b>תאריך היעד</b><br/>15/03/27');
   assert.equal(parseXPlaceProjectHtml(html, project).draft.deadline, '15/03/2027');
+  const fourDigits = fixture('project-html-only.html').replace('<b>תאריך היעד</b><br/>גמיש', '<b>תאריך היעד</b><br/>15/03/2027');
+  assert.equal(parseXPlaceProjectHtml(fourDigits, project).draft.deadline, '15/03/2027');
+  const threeDigits = fixture('project-html-only.html').replace('<b>תאריך היעד</b><br/>גמיש', '<b>תאריך היעד</b><br/>15/03/202');
+  assert.equal(parseXPlaceProjectHtml(threeDigits, project).draft.deadline, 'גמיש');
 });
 
 test('project: meta-only page is a partial draft with a warning', () => {

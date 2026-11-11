@@ -39,7 +39,7 @@ const errors = async (response) => (await response.json());
 
 test('GET reports both flags and the extension URL without authentication and is never cached', async () => {
   for (const enabled of [true, false]) {
-    const { route } = setup('status', { enabled, currentUser: null, env: { NEXT_PUBLIC_XPLACE_EXTENSION_URL: 'https://chromewebstore.example/detail/abc' } });
+    const { route } = setup('status', { enabled, currentUser: null, env: { XPLACE_EXTENSION_URL: 'https://chromewebstore.example/detail/abc' } });
     const response = await route.GET();
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { enabled, linkImport: enabled, extensionUrl: enabled ? 'https://chromewebstore.example/detail/abc' : '' });
@@ -51,7 +51,7 @@ test('GET: link import needs its own flag, and only an https extension URL is ex
   const get = async (env, linkEnabled) => (await setup('status', { linkEnabled, env }).route.GET()).json();
   assert.deepEqual(await get({}, false), { enabled: true, linkImport: false, extensionUrl: '' });
   for (const bad of ['http://store.example/x', 'javascript:alert(1)', 'not a url', 'https://user:pw@store.example/x']) {
-    assert.equal((await get({ NEXT_PUBLIC_XPLACE_EXTENSION_URL: bad }, true)).extensionUrl, '', bad);
+    assert.equal((await get({ XPLACE_EXTENSION_URL: bad }, true)).extensionUrl, '', bad);
   }
 });
 

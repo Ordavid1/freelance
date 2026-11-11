@@ -1,4 +1,4 @@
-// Bridge on Freelance Place hand-off pages (/profile/import, /projects/new). Speaks the postMessage protocol of
+// Bridge on Freelance Place pages (the whole origin; see below). Speaks the postMessage protocol of
 // src/lib/imports/xplace/handoff.ts with the page and talks to the background worker. No network access.
 (function (root) {
   'use strict';
@@ -13,8 +13,9 @@
     const chrome = env.chrome;
     const version = env.version;
     const loc = win.location;
-    const path = loc.pathname.replace(/\/+$/, '');
-    if (path !== '/profile/import' && path !== '/projects/new') return null;
+    // Runs on the whole Freelance Place origin: the profile studio can be rendered on `/` and navigation is
+    // client-side, so no document load happens on a hand-off path. The background decides what each page may do.
+    if (loc.origin !== FPX.config.FP_ORIGIN) return null;
 
     const tokenFromUrl = () => { const t = new URLSearchParams(win.location.search).get(PARAM); return t && TOKEN.test(t) ? t : null; };
     const initialToken = tokenFromUrl();
