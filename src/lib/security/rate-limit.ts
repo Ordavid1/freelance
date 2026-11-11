@@ -20,6 +20,10 @@ export const actionLimits = {
   'source.upload': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 50 }],
   'ai.profile': [{ windowMs: 10 * MINUTE, max: 3 }, { windowMs: DAY, max: 20 }],
   'ai.projectBrief': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 60 }],
+  // Server-side reads of public XPlace pages (profile and project import share one budget).
+  'import.xplace': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 60 }],
+  // Payloads captured by the browser extension (no network access; cheaper than a fetch).
+  'import.xplace.ingest': [{ windowMs: 10 * MINUTE, max: 20 }, { windowMs: DAY, max: 120 }],
 } as const;
 type Action = keyof typeof actionLimits;
 

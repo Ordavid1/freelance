@@ -1,7 +1,7 @@
 import { enforceActionLimit } from '@/lib/security/rate-limit';
 import { readFormBody } from '@/lib/security/request-body';
 import { createHash, randomUUID } from 'node:crypto';
-import { profileResponseSchema, profileSystemInstruction, PROFILE_PROMPT_VERSION, validateProfileDraft } from '@/lib/profile-generation';
+import { MAX_SOCIAL_SOURCES, profileResponseSchema, profileSystemInstruction, PROFILE_PROMPT_VERSION, SOCIAL_SOURCE_PROVIDERS, validateProfileDraft, type SocialSourceProvider } from '@/lib/profile-generation';
 import { NextResponse } from 'next/server';
 import { generateWithVertex, isVertexConfigured, safePublicUrl, type VertexDiagnostics } from '@/lib/ai';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
@@ -53,10 +53,10 @@ export async function POST(request: Request) {
   const rawUrls = String(form.get('urls') || '').split('\n').map((u) => u.trim()).filter(Boolean);
   const rawSocialSources = String(form.get('socialSources') || '[]');
   if (rawSocialSources.length > 50_000) return NextResponse.json({ error: 'נתוני המקורות גדולים מדי.' }, { status: 413 });
-  let socialSources: { provider: 'github' | 'linkedin' | 'dribbble'; sourceText: string }[] = [];
+  let socialSources: { provider: SocialSourceProvider; sourceText: string }[] = [];
   try {
     const parsed: unknown = JSON.parse(rawSocialSources);
-    if (!Array.isArray(parsed) || parsed.length > 3 || parsed.some((item) => !item || !['github', 'linkedin', 'dribbble'].includes(item.provider) || typeof item.sourceText !== 'string' || item.sourceText.length > 14_000)) throw new Error('Invalid social sources');
+    if (!Array.isArray(parsed) || parsed.length > MAX_SOCIAL_SOURCES || parsed.some((item) => !item || !(SOCIAL_SOURCE_PROVIDERS as readonly string[]).includes(item.provider) || typeof item.sourceText !== 'string' || item.sourceText.length > 14_000)) throw new Error('Invalid social sources');
     socialSources = parsed;
     if (new Set(socialSources.map(s => s.provider)).size !== socialSources.length) throw new Error('Duplicate social provider');
   } catch {

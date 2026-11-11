@@ -1,0 +1,11 @@
+/* Status notices of the XPlace hand-off (profile studio and project composer). */
+.notice { display: grid; gap: 10px; margin-block: 12px; padding: 14px 16px; border: 1px solid #dce4de; border-radius: 12px; background: #f7faf8; font-size: 13px; line-height: 1.7; color: #34463b; }
+.notice p { margin: 0; }
+.owner { color: #215d3e; font-weight: 500; }
+.error { color: #a33333; overflow-wrap: anywhere; }
+.check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #202438; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.button, .link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 9px 18px; border: 1px solid #202438; border-radius: 10px; background: #202438; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; }
+.button:disabled { opacity: .6; cursor: not-allowed; }
+.button:focus-visible, .link:focus-visible, .check input:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }

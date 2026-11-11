@@ -1,0 +1,5 @@
+body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; color: #151719; background: #fff; margin: 0; }
+main { max-width: 520px; margin: 40px auto; padding: 0 16px; line-height: 1.5; }
+h1 { font-size: 20px; }
+button { background: #ceef00; color: #151719; border: 2px solid #151719; border-radius: 10px; padding: 8px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+.note { font-size: 13px; opacity: .8; }
