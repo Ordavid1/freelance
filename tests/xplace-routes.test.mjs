@@ -5,8 +5,8 @@ import { NextResponse } from 'next/server.js';
 import { loadModule } from './helpers/load-ts.mjs';
 import { createFakeFirestore } from './helpers/fake-firestore.mjs';
 
-const ROUTES = { status: 'src/app/api/integrations/xplace/route.ts', profile: 'src/app/api/integrations/xplace/profile/route.ts', project: 'src/app/api/integrations/xplace/project/route.ts' };
-const PROFILE_URL = 'https://www.xplace.com/il/u/some-freelancer';
+const ROUTES = { status: 'src/app/api/integrations/xplace/route.ts', project: 'src/app/api/integrations/xplace/project/route.ts' };
+const PROFILE_URL = 'https://www.xplace.com/il/u/some-freelancer'; // a profile link is not a valid project link
 const PROJECT_URL = 'https://www.xplace.com/il/job-bids/123456';
 const user = { uid: 'secret-uid-123', name: 'Account Name', email: 'person@example.com' };
 
@@ -28,13 +28,13 @@ function setup(kind, { enabled = true, linkEnabled = true, sameOrigin = true, cu
       '@/lib/db/firestore': { firestore: () => db },
       '@/lib/security/rate-limit': { enforceActionLimit: async (...args) => { calls.limiter.push(args); return limit; } },
       '@/lib/imports/errors': errorsModule,
-      '@/lib/imports/xplace': { importXPlaceProfile: fakeImport, importXPlaceProject: fakeImport },
+      '@/lib/imports/xplace': { importXPlaceProject: fakeImport },
     },
   });
   return { route, calls };
 }
 const post = (route, body) => route.POST(new Request('https://example.test/api/integrations/xplace/x', { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) }));
-const urlFor = { profile: PROFILE_URL, project: PROJECT_URL };
+const urlFor = { project: PROJECT_URL };
 const errors = async (response) => (await response.json());
 
 test('GET reports both flags and the extension URL without authentication and is never cached', async () => {
@@ -55,7 +55,7 @@ test('GET: link import needs its own flag, and only an https extension URL is ex
   }
 });
 
-for (const kind of ['profile', 'project']) {
+for (const kind of ['project']) {
   test(`${kind}: the link route is IMPORT_DISABLED while only the master flag is on`, async () => {
     const { route, calls } = setup(kind, { linkEnabled: false });
     const response = await post(route, { url: urlFor[kind], attested: true });
@@ -65,7 +65,7 @@ for (const kind of ['profile', 'project']) {
   });
 }
 
-for (const kind of ['profile', 'project']) {
+for (const kind of ['project']) {
   test(`${kind}: flag off answers IMPORT_DISABLED before anything else`, async () => {
     const { route, calls } = setup(kind, { enabled: false, sameOrigin: false, currentUser: null });
     const response = await post(route, '{unread');
@@ -86,7 +86,7 @@ for (const kind of ['profile', 'project']) {
   });
 
   test(`${kind}: attestation, URL kind and URL validity are checked before the limiter or importer`, async () => {
-    const other = kind === 'profile' ? PROJECT_URL : PROFILE_URL;
+    const other = PROFILE_URL;
     const cases = [
       [{ url: urlFor[kind] }, 'ATTESTATION_REQUIRED'], [{ url: urlFor[kind], attested: 'true' }, 'ATTESTATION_REQUIRED'], [{ url: urlFor[kind], attested: false }, 'ATTESTATION_REQUIRED'],
       [{ url: other, attested: true }, 'INVALID_URL'], [{ url: 'https://evil.example/il/u/x', attested: true }, 'INVALID_URL'], [{ url: 42, attested: true }, 'INVALID_URL'], [{ attested: true }, 'INVALID_URL'],
@@ -133,17 +133,6 @@ for (const kind of ['profile', 'project']) {
   });
 }
 
-test('profile: success returns the importer result with no-store and passes the parsed target', async () => {
-  const result = { provider: 'xplace', url: PROFILE_URL, sourceText: 'text', profile: {}, fetchedAt: 'now', warnings: [] };
-  const { route, calls } = setup('profile', { importer: async () => result });
-  const response = await post(route, { url: 'xplace.com/u/some-freelancer/', attested: true });
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), result);
-  assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  assert.equal(calls.importer[0].kind, 'profile');
-  assert.equal(calls.importer[0].canonicalUrl, PROFILE_URL);
-});
-
 const projectResult = (publisherName) => ({ provider: 'xplace', url: PROJECT_URL, externalId: '123456', draft: { title: 'T', description: 'D', category: 'כללי', budget: '', deadline: 'גמיש', skills: [] }, partial: false, publisherName, fetchedAt: 'now', warnings: ['w'] });
 
 test('project: publisher block for match, mismatch, unknown and no-profile', async () => {
@@ -183,26 +172,23 @@ test('logs carry one xplace_import line with a URL hash and never the raw URL or
   const lines = [];
   console.info = (line) => lines.push(String(line));
   try {
-    for (const kind of ['profile', 'project']) {
-      const { route } = setup(kind, { importer: async () => (kind === 'project' ? projectResult('Acme') : { provider: 'xplace' }) });
-      await post(route, { url: urlFor[kind], attested: true });
-    }
-    const failing = setup('profile', { importer: async () => { throw new FakeImportError('x'); } });
-    await post(failing.route, { url: PROFILE_URL, attested: true });
+    const { route } = setup('project', { importer: async () => projectResult('Acme') });
+    await post(route, { url: PROJECT_URL, attested: true });
+    const failing = setup('project', { importer: async () => { throw new FakeImportError('x'); } });
+    await post(failing.route, { url: PROJECT_URL, attested: true });
   } finally { console.info = original; }
-  assert.equal(lines.length, 3);
+  assert.equal(lines.length, 2);
   for (const line of lines) {
     const entry = JSON.parse(line);
     assert.equal(entry.event, 'xplace_import');
-    assert.ok(['profile', 'project'].includes(entry.kind));
+    assert.equal(entry.kind, 'project');
     assert.equal(typeof entry.durationMs, 'number');
     assert.match(entry.urlSha256, /^[0-9a-f]{64}$/);
-    for (const secret of ['xplace.com', 'some-freelancer', '123456', user.uid, 'person@example.com']) assert.equal(line.includes(secret), false, secret);
+    for (const secret of ['xplace.com', '123456', user.uid, 'person@example.com']) assert.equal(line.includes(secret), false, secret);
   }
-  assert.equal(JSON.parse(lines[0]).urlSha256, createHash('sha256').update(PROFILE_URL).digest('hex'));
-  assert.equal(JSON.parse(lines[2]).status, 'UPSTREAM_UNAVAILABLE');
+  assert.equal(JSON.parse(lines[1]).status, 'UPSTREAM_UNAVAILABLE');
   // The import line carries the same hash the fetch layer logs for that page (SHA-256 of the fetched URL string).
-  assert.equal(JSON.parse(lines[1]).urlSha256, createHash('sha256').update('https://www.xplace.com/project?id=123456').digest('hex'));
+  assert.equal(JSON.parse(lines[0]).urlSha256, createHash('sha256').update('https://www.xplace.com/project?id=123456').digest('hex'));
 });
 
 test('/api/ai/profile accepts xplace, rejects other providers and more than four sources', async () => {

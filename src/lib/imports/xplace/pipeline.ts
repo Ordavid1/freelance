@@ -26,7 +26,7 @@ export class ImportAbort extends Error {
 }
 
 export type ImportRouteSpec<T> = {
-  kind: 'profile' | 'project' | 'ingest';
+  kind: 'project' | 'ingest';
   /** `link`: the server fetches a pasted public link (needs the link flag). `ingest`: payload captured by the extension, no network. */
   source: 'link' | 'ingest';
   maxBodyBytes: number;

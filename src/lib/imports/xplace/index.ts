@@ -1,8 +1,7 @@
 import 'server-only';
 import { ImportError } from '../errors';
 import { safeFetchHtml } from '../safe-fetch';
-import type { XPlaceProfileImport, XPlaceProjectImport, XPlaceTarget } from '../types';
-import { parseXPlaceProfileHtml } from './profile';
+import type { XPlaceProjectImport, XPlaceTarget } from '../types';
 import { parseXPlaceProjectHtml } from './project';
 
 async function fetchPage(url: string): Promise<string> {
@@ -19,12 +18,6 @@ function parsePage<T>(parse: () => T): T {
   } catch (error) {
     throw error instanceof ImportError ? error : new ImportError('NOT_ENOUGH_DATA');
   }
-}
-
-export async function importXPlaceProfile(target: Extract<XPlaceTarget, { kind: 'profile' }>): Promise<XPlaceProfileImport> {
-  const html = await fetchPage(target.fetchUrl);
-  const parsed = parsePage(() => parseXPlaceProfileHtml(html, target));
-  return { ...parsed, fetchedAt: new Date().toISOString() };
 }
 
 export async function importXPlaceProject(target: Extract<XPlaceTarget, { kind: 'project' }>): Promise<XPlaceProjectImport> {

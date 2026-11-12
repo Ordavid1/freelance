@@ -308,9 +308,9 @@ test('one xplace_import log line per request: URL hash, never the raw URL, the p
   assert.equal(entries[0].urlSha256, createHash('sha256').update(PROFILE_URL).digest('hex'));
 });
 
-test('the link importer routes and the ingest route share one pipeline module', async () => {
+test('the project link route and the ingest route share one pipeline module', async () => {
   const { readFileSync } = await import('node:fs');
-  for (const route of ['ingest', 'profile', 'project']) {
+  for (const route of ['ingest', 'project']) {
     const source = readFileSync(new URL(`../src/app/api/integrations/xplace/${route}/route.ts`, import.meta.url), 'utf8');
     assert.match(source, /handleImportRoute/, route);
     assert.doesNotMatch(source, /getCurrentUser|enforceActionLimit|readJsonBody/, `${route} must not repeat pipeline steps`);
