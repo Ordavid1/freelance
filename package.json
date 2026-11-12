@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@firebase/app": "0.14.9",
-    "@firebase/auth": "1.12.1",
+    "@firebase/auth": "1.13.9",
     "@google/genai": "^1.30.0",
     "@nangohq/frontend": "^0.72.3",
     "email-reply-parser": "^2.3.9",
