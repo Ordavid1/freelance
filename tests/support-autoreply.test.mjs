@@ -80,7 +80,8 @@ test('English senders get English; the same Message-ID under a new email id is n
   try { await hook(first); } finally { fetch.mock.restore(); }
   assert.match(sent[0].text, /^Hi Dana!/); assert.match(sent[0].html, /dir="ltr"/);
   fetch = run(second, { ...email, id: second }, sent);
-  try { assert.equal((await (await hook(second)).json()).duplicate, true); } finally { fetch.mock.restore(); }
+  // The same Message-ID joins the conversation the first copy created, so it is recorded but never acknowledged again.
+  try { assert.equal((await (await hook(second)).json()).reason, 'existing-conversation'); } finally { fetch.mock.restore(); }
   assert.equal(sent.length, 1);
 });
 test('never answers machines, loops, our own addresses, other mailboxes or unauthenticated mail', async () => {

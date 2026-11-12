@@ -61,6 +61,90 @@ The browser has a random 256-bit HttpOnly cookie, scoped to `/api/support`, with
 
 Each conversation is limited to 10 new messages per 10 minutes and 200 total visitor messages; the application also limits new outbound notifications to 100/hour across instances, including clients that rotate cookies. Retries do not spend extra budget. The latest 100 messages are displayed. Webhook receipt IDs and Firestore transactions prevent duplicate replies; automatic responses, unknown senders, and ambiguous reply routes are ignored. Attachments are not forwarded to chat. Email bodies are rendered as plain text, never executable HTML. There is no automatic database retention/deletion job; support messages and inbox copies are covered by the site's updated privacy notice and manual deletion process.
 
+## Slack console
+
+When Slack is configured, `#support` is the agent console. Site chat and mail to customer@ both become one Slack parent card per conversation, and every later message is a reply in its thread. Firestore remains the record; Slack is only the console.
+
+### Flow
+
+1. **Customer message.** A chat message or a new human email creates or updates the Firestore conversation (`channel: 'chat' | 'email'`) and queues outbox jobs. The first message posts the parent card (name, email, page or subject, status, conversation id). Each visitor message is posted in the thread, mentioning the agent allowlist.
+2. **Agent reply.** A message in the thread from an allowlisted agent is delivered to the customer by the conversation's channel. Chat replies appear in the widget. Email replies are sent from `SUPPORT_FROM_EMAIL` to the customer, threaded under their message. The agent gets ✅ on success, or ⚠️ and an ephemeral note on failure.
+3. **Internal notes.** A message starting with `//` or `note:` is never delivered. It gets 🔒 instead.
+4. **Non-agents** who post in the thread get an ephemeral notice; nothing is delivered.
+5. **AI triage and drafts.** After a customer message, the bot posts a triage card and, when it is safe to answer, a suggested reply with **Send**, **Edit** and **Discard** buttons. Drafts never auto-send; only a human click, or the Edit modal submit, delivers one. Legal, payment, refund, account-access, safety and personal-data topics get `needsHuman` and no draft. The model comes from the existing `VERTEX_MODEL_ID`; `AI_GENERATION_ENABLED=false` turns drafts off.
+6. **Superseded drafts.** A newer draft marks older open drafts of the same conversation as **superseded** and updates their cards with "Superseded by a newer draft". A superseded draft counts as handled and cannot be sent or edited.
+7. **Status.** The parent card's **Close** and **Reopen** buttons set `closed` or `open`. A visitor message reopens a conversation and refreshes the card. An agent reply sets `waiting_on_customer`. The card refreshes after each change.
+
+Routes: `POST /api/support/slack/events` (Events API, url_verification, message events; `event_id` receipts dedupe Slack retries), `POST /api/support/slack/interactions` (buttons, modal submission), and `POST /api/support/slack/dispatch` (scheduler sweep). Requests are verified with the v0 signing secret over the raw body, with a 5-minute replay window. Agent replies and draft sends run inline before the response, because Cloud Run throttles CPU after a response (`cpu_idle = true`) and each delivery is one Firestore transaction plus one Resend call.
+
+### Outbox and dispatch sweep
+
+Slack work is queued in `supportSlackOutbox` with deterministic job ids, so a retried transaction cannot duplicate a job. Jobs are processed right after the request when possible. Cloud Scheduler runs `freelance-support-slack` every minute (`POST /api/support/slack/dispatch`, OIDC as `freelance-support-slack`, 60 s deadline, no scheduler retries) to pick up whatever is still due. Failed Slack calls back off exponentially, honour `Retry-After`, and stop after 8 attempts (state `failed`). Terraform sets `support_slack_dispatch_enabled` to turn the sweep on.
+
+### Configuration
+
+| Name | Kind | Notes |
+| --- | --- | --- |
+| `SLACK_BOT_TOKEN` | Secret Manager | Bot token, `xoxb-…`. Terraform: `slack_secrets["SLACK_BOT_TOKEN"]`. |
+| `SLACK_SIGNING_SECRET` | Secret Manager | Signing secret of the app. Terraform: `slack_secrets["SLACK_SIGNING_SECRET"]`. |
+| `SUPPORT_SLACK_CHANNEL_ID` | Env (`support_slack_channel_id`) | Channel id of `#support`, `C…` or `G…`. |
+| `SUPPORT_SLACK_AGENT_IDS` | Env (`support_slack_agent_ids`) | Comma-separated Slack member ids, `U…` or `W…`. Only these users can reply to customers, send drafts or close conversations. |
+| `SUPPORT_SLACK_SCHEDULER_EMAIL` | Env (set by Terraform) | Service account `freelance-support-slack` that may call the dispatch route. |
+| `SUPPORT_SLACK` | Kill switch | `off`, `false`, `0` or `disabled` turns Slack off. Routes then return 503 and chat falls back to email only. Unset means on, provided the configuration is valid. |
+| `SUPPORT_EMAIL_NOTIFY` | Kill switch | Only with Slack configured. `off` stops the per-message notification email to customer@, so Slack is the only notice. Unset means on (dual-run). |
+
+Slack stays off unless the token, signing secret, channel id and at least one agent id are all valid.
+
+### Slack app
+
+Create the app from this manifest, install it to the workspace, invite it to `#support` (`/invite @Freelance Support`), and store its token and signing secret in Secret Manager. `#support` is a **public** channel, so the app needs the public-channel history scope and event.
+
+```yaml
+display_information:
+  name: Freelance Support
+features:
+  bot_user:
+    display_name: Freelance Support
+    always_online: true
+oauth_config:
+  scopes:
+    bot: [chat:write, reactions:write, channels:history, users:read]
+settings:
+  event_subscriptions:
+    request_url: https://freelance-place.com/api/support/slack/events
+    bot_events: [message.channels]
+  interactivity:
+    is_enabled: true
+    request_url: https://freelance-place.com/api/support/slack/interactions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+```
+
+The app talks to Slack with a small fetch client (`src/lib/support/slack/client.ts`). It adds no SDK dependency.
+
+### Limits
+
+- Replies an agent writes directly in the Resend inbox to customer@ are **not** mirrored into Slack or the conversation. Reply in the Slack thread instead.
+- Edits and deletions made in Slack after a send are not propagated. Email cannot be unsent.
+- Attachments are shown as a count ("open in Resend"), not forwarded.
+
+### Firestore additions
+
+`supportSlackThreads/{sha256(channel:ts)}` (thread to conversation), `supportEmailThreads/{sha256(messageId)}` (email thread to conversation), `supportSlackOutbox/{jobId}` (`type`, `state`, `attempts`, `nextAt`, `leaseUntil`), `supportSlackDrafts/{jobId}` (`draft`, `triage`, `state: open | sent | discarded | superseded`, Slack message ref), and `supportSlackEvents/{event_id}` (receipts). Conversations gain `channel`, `status`, `triage`, `slack`, `slackClaim` and `emailThread`. Email messages carry `source: 'email'`, and Slack-sent agent replies carry `source: 'slack'` and the agent id. No composite indexes are needed.
+
+### Slack acceptance checklist
+
+- Start a chat in an incognito window: one parent card appears in `#support`, and the agent gets a notification. Three more chat messages become three replies in its thread.
+- Reply in the thread: the widget shows it within 8 seconds, and the message gets ✅.
+- `// note` in the thread: nothing reaches the widget, and the message gets 🔒.
+- A non-agent in the thread gets an ephemeral refusal and nothing is delivered.
+- Send an email to customer@: auto-ack once, one parent card with the subject, and a Slack reply reaches the customer threaded under their email.
+- A pricing question gets a draft with no invented numbers. A refund request gets `needsHuman` and no draft.
+- Two drafts in a row: the first card says "Superseded by a newer draft" and its buttons no longer work.
+- Close, then send a customer message: the card shows open again.
+- Replay the Slack event (same `event_id`) and the Resend webhook: no duplicate message or email.
+- Set `SUPPORT_SLACK=off`: routes return 503 and chat falls back to the email flow.
+
 ## Verification
 
-`npm run test:support` exercises the actual Resend SDK and webhook signature verifier with mocked HTTP/Firestore (no external email). Coverage includes the round trip, sender allowlist, quote removal, account isolation, retry idempotency, simultaneous sends, request-size limits, cookie options, and rate limits. Run `npm run typecheck` and `npm run build` before release.
+`npm run test:support` exercises the actual Resend SDK and webhook signature verifier with mocked HTTP/Firestore (no external email). Coverage includes the round trip, sender allowlist, quote removal, account isolation, retry idempotency, simultaneous sends, request-size limits, cookie options, and rate limits. The Slack tests cover signatures and replay windows, the Slack client and its errors, Block Kit escaping, outbox retries and the sweep, thread-root email headers, card refreshes, superseded drafts, inline route delivery, and the Slack routes (agents, notes, drafts, modals, status, and event dedupe). Run `npm run typecheck` and `npm run build` before release.
