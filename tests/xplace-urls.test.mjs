@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModule } from './helpers/load-ts.mjs';
 
-const { parseXPlaceUrl, resolveXPlaceProfileUrl, xplaceProjectKey, XPLACE_ORIGIN } = loadModule('src/lib/imports/xplace/urls.ts');
+const { parseXPlaceUrl, xplaceProjectKey, XPLACE_ORIGIN } = loadModule('src/lib/imports/xplace/urls.ts');
 
 // robots.txt of www.xplace.com as read on 2026-11-11 (User-agent: *). Re-check before widening the importer.
 const ROBOTS_DISALLOW = [
@@ -76,22 +76,4 @@ test('the importer only ever requests paths that robots.txt allows', () => {
   // The self-check itself must be able to fail.
   assert.equal(robotsBlocks('/il/rest/profile/1'), true);
   assert.equal(robotsBlocks('/il/jobs?sort=x'), true);
-});
-
-test('resolveXPlaceProfileUrl accepts a bare username or a profile link and returns the canonical profile page', () => {
-  const base = `${XPLACE_ORIGIN}/il/u/`;
-  const accepted = [
-    ['ordavidone', `${base}ordavidone`], [' ordavidone ', `${base}ordavidone`],
-    ['https://www.xplace.com/il/u/ordavidone', `${base}ordavidone`], ['xplace.com/u/ordavidone?x=1', `${base}ordavidone`],
-    ['john.doe', `${base}john.doe`], ['דוד_כהן', `${base}${encodeURIComponent('דוד_כהן')}`],
-  ];
-  for (const [input, expected] of accepted) assert.equal(resolveXPlaceProfileUrl(input), expected, input);
-});
-
-test('resolveXPlaceProfileUrl rejects everything else', () => {
-  const rejected = [
-    '', 'a', 'a'.repeat(81), 'has space', 'a/b', 'javascript:alert(1)', 'https://evil.example/il/u/x',
-    'https://www.xplace.com/il/job-bids/123456', 'www.xplace.com', 'xplace.com', '-abc', 12345, null, undefined,
-  ];
-  for (const input of rejected) assert.equal(resolveXPlaceProfileUrl(input), null, String(input).slice(0, 40));
 });

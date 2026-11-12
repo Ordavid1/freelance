@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { XPlaceProfileImport } from '@/lib/imports/types';
 import { buildXPlaceLaunchUrl } from '@/lib/imports/xplace/handoff';
 import { awaitHandoff, HandoffError, requestHandoffPayload } from '@/lib/imports/xplace/handoff-client';
-import { resolveXPlaceProfileUrl, XPLACE_ORIGIN } from '@/lib/imports/xplace/urls';
+import { XPLACE_ORIGIN } from '@/lib/imports/xplace/urls';
 import { postIngest, useExtensionInstalled, type useXPlaceIngest, type XPlaceFlags } from './xplace-handoff';
 import styles from './profile-studio.module.css';
 
@@ -26,7 +26,6 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, onClose }: {
   const installed = useExtensionInstalled();
   const [launch, setLaunch] = useState<'idle' | 'waiting' | 'error'>('idle');
   const abort = useRef<AbortController | null>(null);
-  const [handle, setHandle] = useState('');
   const [text, setText] = useState('');
   const [owner, setOwner] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -67,9 +66,6 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, onClose }: {
     setOwner(false);
   }
 
-  // The button's href is only ever the helper's canonical URL, never raw user text.
-  const profileUrl = resolveXPlaceProfileUrl(handle);
-  const handleInvalid = handle.trim() !== '' && profileUrl === null;
   const showExtension = installed === true || (installed === false && Boolean(flags.extensionUrl));
   return <div id="profile-xplace-panel" className={styles.xPanel}>
     {showExtension && <section className={styles.xOption} aria-labelledby={`${id}-ext`}>
@@ -87,14 +83,8 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, onClose }: {
       <h4 id={`${id}-paste`}>הדבקת טקסט (בלי תוסף)</h4>
       <ol className={styles.xSteps}>
         <li>
-          הזינו את שם המשתמש שלכם ב־XPlace ופתחו את הפרופיל.
-          <div className={styles.xHandle}>
-            <label htmlFor={`${id}-handle`}>שם המשתמש ב־XPlace</label>
-            <input id={`${id}-handle`} type="text" dir="ltr" placeholder="your-name" autoComplete="off" autoCapitalize="off" spellCheck={false} value={handle} aria-invalid={handleInvalid} aria-describedby={handleInvalid ? `${id}-handle-hint ${id}-handle-error` : `${id}-handle-hint`} onChange={(event) => setHandle(event.target.value)}/>
-            <small id={`${id}-handle-hint`}>החלק האחרון בכתובת הפרופיל: <bdi dir="ltr">xplace.com/il/u/…</bdi></small>
-            {handleInvalid && <p id={`${id}-handle-error`} role="alert" className={styles.sourceError}>שם המשתמש אינו תקין. הזינו את החלק שאחרי <bdi dir="ltr">/il/u/</bdi> בכתובת הפרופיל.</p>}
-            <div className={styles.linkFormActions}><a className={styles.xLinkButton} href={profileUrl ?? `${XPLACE_ORIGIN}/il/`} target="_blank" rel="noopener noreferrer">פתיחת XPlace</a></div>
-          </div>
+          פתחו את XPlace (אם אתם כבר מחוברים תגיעו ישר לחשבון), לחצו על השם שלכם בראש העמוד ופתחו את הפרופיל.
+          <div className={styles.linkFormActions}><a className={styles.xLinkButton} href={`${XPLACE_ORIGIN}/il/`} target="_blank" rel="noopener noreferrer">פתיחת XPlace</a></div>
         </li>
         <li>בעמוד הפרופיל גררו את העכבר מהמילה ״אודותינו״ ועד השדה האחרון בפרופיל, והעתיקו (<bdi dir="ltr">Ctrl/⌘ + C</bdi>).</li>
         <li>הדביקו כאן ולחצו על ״הוסף כמקור מידע״.</li>
