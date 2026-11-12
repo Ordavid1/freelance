@@ -17,3 +17,13 @@ import {
   to = google_artifact_registry_repository.images
   id = "projects/freelance-514118/locations/me-west1/repositories/freelance"
 }
+# Adopt the support Slack sweep resources that were created with gcloud before Terraform managed them.
+import {
+  to = google_service_account.support_slack_scheduler
+  id = "projects/${var.project_id}/serviceAccounts/freelance-support-slack@${var.project_id}.iam.gserviceaccount.com"
+}
+import {
+  for_each = var.engine_image != null && var.support_slack_dispatch_enabled ? toset(["support-slack"]) : toset([])
+  to       = google_cloud_scheduler_job.support_slack[0]
+  id       = "projects/${var.project_id}/locations/${var.region}/jobs/freelance-${each.key}"
+}
