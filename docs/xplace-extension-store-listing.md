@@ -1,4 +1,4 @@
-# Chrome Web Store listing: Freelance Place — XPlace Import (v0.2.0)
+# Chrome Web Store listing: Freelance Place — XPlace Import (v0.2.1)
 
 Source of truth for the listing text in the Chrome Web Store developer dashboard (item `pmdpcogbhahimnbipapekgimgpkfnomn`, publisher `ordavidone`). The text matches what the extension does today (`extensions/xplace-import/README.md`). Nothing here is submitted without Or.
 
@@ -31,7 +31,7 @@ Source of truth for the listing text in the Chrome Web Store developer dashboard
 שליטה ופרטיות
 • לא משנים ולא מוחקים דבר ב־XPlace.
 • המידע נשמר בדפדפן עד שעה ונשלח רק ל־Freelance Place, בלשונית שנפתחת בעקבות הלחיצה שלכם.
-• אפשר ללחוץ "לא עכשיו" או "אל תציגו שוב", ולהחזיר את ההזמנה בהגדרות התוסף.
+• אפשר לסגור את ההזמנה ב־X, ולכבות אותה לגמרי (ולהחזיר אותה) בהגדרות התוסף.
 • אין אנליטיקה ואין קוד חיצוני.
 
 התוסף מיועד להעברת תוכן שלכם. Freelance Place אינה קשורה ל־XPlace ואינה מאושרת על ידה.
@@ -42,7 +42,7 @@ Source of truth for the listing text in the Chrome Web Store developer dashboard
 | Field | Value |
 |---|---|
 | Single purpose | `Help users move their own XPlace profile and projects into their Freelance Place account: it shows an invitation on XPlace pages and, only after the user clicks, copies the user's own page content to Freelance Place for review.` |
-| `storage` justification | `Stores the user's invitation preferences (dismissed, snoozed) locally, and holds the captured profile or project content temporarily (up to one hour, session storage) until the user's Freelance Place tab reads it.` |
+| `storage` justification | `Stores the user's invitation preference (switched on or off, and when it last opened by itself) locally, and holds the captured profile or project content temporarily (up to one hour, session storage) until the user's Freelance Place tab reads it.` |
 | Host permission justification | `Content scripts run on xplace.com pages to detect profile and project pages, show the invitation and, only after a click, read the user's own page sections. A small bridge script also runs on freelance-place.com (the developer's own site) so the page the user is reviewing can receive the staged data, including when the profile editor is rendered on the home page; it only sets a marker attribute and answers a message protocol. No other sites are accessed and there are no host permissions.` |
 | Data collected | Personally identifiable information and Website content (the user's own XPlace profile or project text, sent to Freelance Place after a click) |
 | Privacy policy URL | the Freelance Place privacy page; its wording must cover the import first (draft in `docs/xplace-import.md`) |
@@ -72,10 +72,16 @@ Capture them from the Playwright harness (`npm run test:e2e` in the extension fo
 
 ## Package
 
-`npm run package` in `extensions/xplace-import/` writes `dist/freelance-place-xplace-import-0.2.0.zip`. To show the Hebrew summary in the Store the manifest should use `default_locale: "he"` with `_locales/he/messages.json` and `_locales/en/messages.json` for `extName` and `extDescription`.
+`npm run package` in `extensions/xplace-import/` writes `dist/freelance-place-xplace-import-0.2.1.zip`. To show the Hebrew summary in the Store the manifest should use `default_locale: "he"` with `_locales/he/messages.json` and `_locales/en/messages.json` for `extName` and `extDescription`.
 
 ## Rollout order
 
 1. Merge the website PR. The code ships with the flags off by default, so nothing is visible until step 2.
 2. Set `XPLACE_IMPORT_ENABLED=true` and `XPLACE_LINK_IMPORT_ENABLED=true` on the production service (Or approved both on 11-11-26; the Terraform variables `xplace_import_enabled` and `xplace_link_import_enabled` default to true, so a later `terraform apply` keeps them on). Without the extension the profile panel still offers paste text and paste link.
 3. Submit the extension in the Web Store (Or's click); after approval set `XPLACE_EXTENSION_URL` to the listing URL (Terraform variable `xplace_extension_url`) so users without the extension see the install prompt.
+
+## What changed in 0.2.1 (2026-11-12, after Or's test)
+
+- The card no longer has `לא עכשיו` and `אל תציגו שוב`; it is closed with its X, and `הגדרות` still opens the options page that switches the invitation off for good. Update the description line about those two buttons (done above) and the `storage` justification (done above) when uploading.
+- A publisher (buyer) XPlace account on its own profile page now gets the profile import card (`העתקת הפרופיל`) instead of the publisher card.
+- Version in the manifest and package is 0.2.1; upload `dist/freelance-place-xplace-import-0.2.1.zip` as a new package version in the dashboard and submit it (Or's click). The website side (the `/projects/new` landing page and the retry on timeout) ships with the normal deploy and does not wait for the review.

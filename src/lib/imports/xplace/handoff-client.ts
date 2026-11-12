@@ -25,7 +25,9 @@ export class HandoffError extends Error {
   }
 }
 
-export const DEFAULT_READ_TIMEOUT_MS = 5_000;
+export const DEFAULT_READ_TIMEOUT_MS = 12_000;
+/** A read nobody answered is asked again this often; the bridge answers a read the same way every time. */
+export const READ_RESEND_MS = 1_500;
 export const DETECT_TIMEOUT_MS = 1_500;
 export const LAUNCH_TIMEOUT_MS = 5 * 60_000;
 
@@ -70,7 +72,7 @@ function listen(w: HandoffWindow, channel: string, token: string | null, handler
   return () => w.removeEventListener('message', listener);
 }
 
-type RequestOptions = { timeoutMs?: number; signal?: AbortSignal; win?: HandoffWindow };
+type RequestOptions = { timeoutMs?: number; signal?: AbortSignal; win?: HandoffWindow; resendMs?: number };
 
 function send(w: HandoffWindow, message: HandoffRequest | HandoffAwait): void {
   w.postMessage(message, w.location.origin);
@@ -78,18 +80,20 @@ function send(w: HandoffWindow, message: HandoffRequest | HandoffAwait): void {
 
 /**
  * Asks the bridge for the staged payload. The payload stays in the extension (a reload or a sign-in detour must
- * not lose it) until `clearHandoff`. Rejects with `expired` (the extension no longer holds the token or answered
- * with an error), `timeout` (no bridge answered) or `cancelled`.
+ * not lose it) until `clearHandoff`. While nobody answers the read is sent again every `resendMs`: a bridge that
+ * was injected late (or that the user just allowed on this site) still picks it up. Rejects with `expired` (the
+ * extension no longer holds the token or answered with an error), `timeout` (no bridge answered) or `cancelled`.
  */
 export function requestHandoffPayload(token: string, options: RequestOptions = {}): Promise<unknown> {
-  const { timeoutMs = DEFAULT_READ_TIMEOUT_MS, signal } = options;
+  const { timeoutMs = DEFAULT_READ_TIMEOUT_MS, signal, resendMs = READ_RESEND_MS } = options;
   return new Promise((resolve, reject) => {
     if (!isHandoffToken(token)) { reject(new HandoffError('expired')); return; }
     let w: HandoffWindow;
     try { w = currentWindow(options.win); } catch (error) { reject(error); return; }
     let off: () => void = () => {};
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = (settle: () => void) => { off(); if (timer) clearTimeout(timer); signal?.removeEventListener('abort', onAbort); settle(); };
+    let resend: ReturnType<typeof setInterval> | undefined;
+    const finish = (settle: () => void) => { off(); if (timer) clearTimeout(timer); if (resend) clearInterval(resend); signal?.removeEventListener('abort', onAbort); settle(); };
     const onAbort = () => finish(() => reject(new HandoffError('cancelled')));
     if (signal?.aborted) { reject(new HandoffError('cancelled')); return; }
     signal?.addEventListener('abort', onAbort);
@@ -98,7 +102,9 @@ export function requestHandoffPayload(token: string, options: RequestOptions = {
       else finish(() => resolve(data.payload));
     });
     timer = setTimeout(() => finish(() => reject(new HandoffError('timeout'))), timeoutMs);
-    send(w, { channel: 'fp-xplace-request', token, action: 'read' });
+    const ask = () => send(w, { channel: 'fp-xplace-request', token, action: 'read' });
+    ask();
+    resend = setInterval(ask, resendMs);
   });
 }
 

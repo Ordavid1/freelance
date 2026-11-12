@@ -56,6 +56,11 @@ test('describeContext picks the variant', () => {
   assert.equal(other.isOwn, false); assert.equal(other.ownerSignal, false);
   const pub = P.describeContext(dom(html.replace("'PROVIDER'", "'COMPANY'")).window.document, 'https://www.xplace.com/il/');
   assert.equal(pub.variant, 'publisher');
+  // A publisher (buyer) account on its OWN profile page still gets the profile import; on someone else's it does not.
+  const pubOwn = P.describeContext(dom(html.replace("'PROVIDER'", "'BUYER'")).window.document, 'https://www.xplace.com/il/u/dana-design');
+  assert.equal(pubOwn.session.accountType, 'publisher'); assert.equal(pubOwn.isOwn, true); assert.equal(pubOwn.variant, 'freelancer');
+  const pubOther = P.describeContext(dom(html.replace("'PROVIDER'", "'BUYER'").replace('OWNER = true', 'OWNER = false')).window.document, 'https://www.xplace.com/il/u/someone');
+  assert.equal(pubOther.isOwn, false); assert.equal(pubOther.variant, 'publisher');
   const proj = fixture('project-rsc.html').replace('\\"isProjectOwner\\":false', '\\"isProjectOwner\\":true');
   const withSession = proj.replace('<script>', "<script>var GLOBAL_JS_THIS_COMPANY_ID='1';</script><script>");
   const own2 = P.describeContext(dom(withSession).window.document, 'https://www.xplace.com/il/job-bids/123456');

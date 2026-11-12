@@ -47,7 +47,7 @@ try {
   const entry = Object.values(staged)[0];
   check(entry && entry.payload && entry.payload.kind === 'profile' && !JSON.stringify(entry).includes('CANARY'), 'payload staged, no canaries');
   const marker = await fpPage.evaluate(() => document.documentElement.getAttribute('data-fp-xplace-extension'));
-  check(marker === '0.2.0', `bridge marker attribute ${marker}`);
+  check(marker === '0.2.1', `bridge marker attribute ${marker}`);
   const reply = await fpPage.evaluate((token) => new Promise((resolve) => {
     window.addEventListener('message', (e) => { if (e.data && e.data.channel === 'fp-xplace-response') resolve(e.data); });
     window.postMessage({ channel: 'fp-xplace-request', token, action: 'read' }, location.origin);
