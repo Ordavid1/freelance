@@ -1,5 +1,6 @@
 'use client';
 import { trackEvent } from '@/lib/analytics';
+import { compressProfileImage } from '@/lib/profile/compress-image';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -396,14 +397,12 @@ export function ProfileStudio({ userId }: { userId: string }) {
     }
   }
 
-  function loadAvatar(file?: File) {
+  async function loadAvatar(file?: File) {
     if (!file) return;
     if (!['image/png', 'image/jpeg', 'image/webp', 'image/avif'].includes(file.type)) { setNotice('נא לבחור תמונת PNG, JPG, WebP או AVIF.'); return; }
-    if (file.size > 1_400_000) { setNotice('גודל התמונה יכול להיות עד 1.4MB.'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setProfile(current => ({ ...current, avatar: typeof reader.result === 'string' ? reader.result : current.avatar }));
-    reader.onerror = () => setNotice('לא הצלחנו לטעון את התמונה. נסו שוב.');
-    reader.readAsDataURL(file);
+    if (file.size > 3 * 1024 * 1024) { setNotice('גודל התמונה יכול להיות עד 3MB.'); return; }
+    try { const avatar = await compressProfileImage(file); setProfile(current => ({ ...current, avatar })); setNotice('התמונה נוספה לפרופיל. שמרו את הפרופיל כדי להחיל את השינוי.'); }
+    catch { setNotice('לא הצלחנו לטעון את התמונה. נסו לבחור תמונה אחרת.'); }
   }
 
   const hasPendingImport = Object.values(importing).some(Boolean);
