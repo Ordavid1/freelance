@@ -1,6 +1,7 @@
 import { noIndex } from '@/lib/seo/site';
 import type { Metadata } from 'next';
-import { AppShell, PageHeading } from '@/components/marketplace';
-import { ProjectComposer } from '@/components/actions';
+import WorkspaceHome from '@/components/workspace-home';
 export const metadata: Metadata = { robots: noIndex, title: 'פרסום פרויקט' };
-export default function NewProjectPage() { return <AppShell active="home"><div className="page-body"><PageHeading eyebrow="פרסום פרויקט" title="מתחילים ממה שצריך." description="כתבו משפט אחד. אחר כך נבנה יחד בריף שאפשר להבין ולהציע עליו."/><ProjectComposer/></div></AppShell>; }
+// The current workspace with the project composer open (like /profile/import for the profile). The browser extension
+// opens this path with ?xplace=<token>, so it must always be the live workspace and never a separate older shell.
+export default function NewProjectPage() { return <WorkspaceHome initialView="פרסום פרויקט"/>; }

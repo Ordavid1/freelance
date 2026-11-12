@@ -36,7 +36,7 @@ const WELCOME_CTA='התחברות והקמת פרופיל';
 const menus=['הבית שלי','פרופיל','הודעות','מנוי ותשלומים','פרסום פרויקט'];
 type ProjectSort = 'recent' | 'value-low' | 'value-high' | 'date-value' | 'applications-low' | 'applications-high';
 function budgetRange(value: string) { const numbers=value.match(/[\d,]+/g)?.map(item=>Number(item.replaceAll(',',''))).filter(Number.isFinite)||[]; return numbers.length ? [Math.min(...numbers),Math.max(...numbers)] as const : [0,0] as const; }
-type WorkspaceHomeProps = { children?: ReactNode; initialView?: 'הבית שלי' | 'פרופיל'; initialProjects?: Project[] | null };
+type WorkspaceHomeProps = { children?: ReactNode; initialView?: 'הבית שלי' | 'פרופיל' | 'פרסום פרויקט'; initialProjects?: Project[] | null };
 export default function WorkspaceHome(props: WorkspaceHomeProps) { return <ViewerProvider><WorkspaceHomeContent {...props}/></ViewerProvider>; }
 function WorkspaceHomeContent({children, initialView = 'הבית שלי', initialProjects = null}: WorkspaceHomeProps){
  const viewer=useViewer();const signedIn=viewer.status==='signed-in';const viewerName=viewer.user?.name||viewer.user?.email?.split('@')[0]||'';

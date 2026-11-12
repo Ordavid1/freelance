@@ -11,8 +11,6 @@
 
   const COPY = {
     brandLine: 'Freelance Place · תוסף',
-    notNow: 'לא עכשיו',
-    never: 'אל תציגו שוב',
     settings: 'הגדרות',
     close: 'סגירה',
     hidePill: 'הסתרה',
@@ -58,7 +56,6 @@
       errTooLarge: 'המידע בדף גדול מדי לייבוא.',
       errNoSlug: 'לא מצאנו את כתובת הפרופיל שלכם. היכנסו לפרופיל שלכם ב־XPlace ולחצו שם.',
       errFp: 'לא הצלחנו לפתוח את Freelance Place. נסו שוב בעוד רגע.',
-      hiddenNotice: 'ההזמנה הוסתרה. אפשר להחזיר אותה בהגדרות התוסף.',
     },
   };
 
@@ -93,7 +90,6 @@ li { margin: 2px 0; }
 .cta { display: block; width: 100%; background: ${LIME}; color: ${INK}; border: 2px solid ${INK}; border-radius: 10px; padding: 10px 14px; font-weight: 800; font-size: 15px; }
 .cta[disabled] { opacity: .6; cursor: progress; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
-.sec { background: transparent; border: 1px solid rgba(21,23,25,.35); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
 .link { background: transparent; border: 0; padding: 2px 0; font-size: 12px; text-decoration: underline; }
 .sp { flex: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -135,7 +131,7 @@ li { margin: 2px 0; }
   }
 
   /**
-   * handlers: onCta, onNotNow, onNever, onSettings, onOpenCard, onCloseCard, onHidePill.
+   * handlers: onCta, onSettings, onOpenCard, onCloseCard, onHidePill.
    * model: { pill, cardOpen, variant, status: idle|busy|error|done, message, notice, force }
    */
   function createPromptUI(options) {
@@ -202,8 +198,6 @@ li { margin: 2px 0; }
       if (model.status === 'busy') { cta.setAttribute('disabled', ''); cta.setAttribute('aria-busy', 'true'); }
       body.appendChild(cta);
       body.appendChild(el(doc, 'div', { class: 'row' }, [
-        btn('sec', COPY.notNow, 'onNotNow'),
-        btn('link', COPY.never, 'onNever'),
         el(doc, 'span', { class: 'sp' }),
         btn('link', COPY.settings, 'onSettings'),
       ]));

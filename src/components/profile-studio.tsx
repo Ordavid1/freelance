@@ -353,7 +353,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     setNotice('פרטי XPlace נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.');
   }
   const xplaceIngest = useXPlaceIngest<XPlaceProfileImport>('profile', applyXPlaceImport);
-  useAutoHandoff(xplaceIngest, xplaceFlags, true);
+  const retryHandoff = useAutoHandoff(xplaceIngest, xplaceFlags, true);
 
   function removeXPlaceImport() {
     setXplaceSource(null);
@@ -487,7 +487,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
         {linkError && <p id="profile-source-url-error" role="alert" className={styles.sourceError}>{linkError}</p>}
         <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink}>אישור הקישור</button><button type="button" onClick={() => { setSource(null); setLinkError(''); }}>ביטול</button></div>
       </form>}
-      <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm}/>
+      <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm} onRetry={retryHandoff}/>
       {xplaceFlags.enabled && <div id="profile-xplace-panel-region">{xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => setXplaceOpen(false)}/>}</div>}
       <div id="profile-source-detail" className={`${styles.sourceCards} ${expandedSource ? '' : styles.sourceCardsEmpty}`} role="region" aria-label="פרטי המקור שנבחר" aria-live="polite" aria-hidden={!expandedSource}>
       {platforms.filter((platform) => links[platform] && expandedSource === platform).map((platform) => <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key={platform}>

@@ -24,8 +24,6 @@
     AUTO_OPEN_OWN_PAGES: 'always',
     // Any other XPlace page: the card opens by itself at most once per this many hours (0 = never).
     AUTO_OPEN_OTHER_PAGES_HOURS: 24,
-    // "Not now" hides the automatic card for this many days.
-    SNOOZE_DAYS: 3,
 
     // --- Layout (Chrome Web Store: never cover XPlace's own controls) ---
     CARD_MAX_WIDTH_PX: 360,
