@@ -12,8 +12,7 @@
 .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .head h2 { margin: 0; font-size: 15px; line-height: 1.5; color: #202438; }
 
-.toggle,
-.submit {
+.toggle {
   min-height: 44px;
   padding: 9px 16px;
   border: 1px solid #dedfe5;
@@ -25,12 +24,12 @@
   cursor: pointer;
 }
 
-.submit { background: #202438; border-color: #202438; color: #fff; padding-inline: 22px; }
 .toggle:disabled,
-.submit:disabled { cursor: not-allowed; opacity: .6; }
+.apply:disabled { cursor: not-allowed; }
 
 .form { display: grid; gap: 10px; }
 .form label { font-size: 13px; font-weight: 500; color: #34384a; }
+.urlField { position: relative; }
 .form input[type='url'],
 .nameInput {
   width: 100%;
@@ -42,7 +41,12 @@
   color: #202438;
   font-size: 14px;
 }
+.form input[type='url'] { padding-right: 88px; }
 .form input[aria-invalid='true'] { border-color: #b34a4a; }
+.apply { position: absolute; top: 50%; right: 7px; min-width: 66px; min-height: 34px; padding: 5px 12px; transform: translateY(-50%); border: 0; border-radius: 7px; background: #e7e8eb; color: #777b84; font-size: 13px; font-weight: 600; cursor: not-allowed; transition: background .15s,color .15s; }
+.applyReady { background: #ceef00; color: #151719; cursor: pointer; }
+.applyReady:hover { background: #e0ff2a; }
+.apply:focus-visible { outline: 2px solid #9db800; outline-offset: 2px; }
 
 .check { display: flex; align-items: flex-start; gap: 10px; font-weight: 400 !important; line-height: 1.6; cursor: pointer; }
 .check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #202438; }
@@ -51,7 +55,6 @@
 .error { margin: 0; font-size: 13px; line-height: 1.7; color: #a33333; overflow-wrap: anywhere; }
 
 .toggle:focus-visible,
-.submit:focus-visible,
 .form input:focus-visible,
 .nameInput:focus-visible,
 .source:focus-visible,
@@ -70,8 +73,7 @@
 @media (max-width: 520px) {
   .panel { padding: 14px; }
   .head { flex-direction: column; align-items: stretch; }
-  .toggle,
-  .submit { width: 100%; }
+  .toggle { width: 100%; }
 }
 
 .hint { margin: 0; font-size: 13px; line-height: 1.7; color: #34384a; }

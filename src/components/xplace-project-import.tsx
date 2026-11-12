@@ -55,10 +55,9 @@ export function XPlaceProjectImport({ onImported, disabled = false, flags }: { o
     </div>
     {open && <form id={`${id}-form`} className={styles.form} onSubmit={(event) => { event.preventDefault(); if (!busy) void submit(); }}>
       <label htmlFor={`${id}-url`}>קישור לפרויקט ב־XPlace</label>
-      <input id={`${id}-url`} type="url" dir="ltr" required placeholder="https://www.xplace.com/project?id=…" value={url} disabled={busy} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} onChange={(event) => { setUrl(event.target.value); setError(''); }}/>
+      <div className={styles.urlField}><input id={`${id}-url`} type="url" dir="ltr" required placeholder="https://www.xplace.com/project?id=…" value={url} disabled={busy} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} onChange={(event) => { setUrl(event.target.value); setError(''); }}/><button type="submit" className={`${styles.apply}${owner ? ` ${styles.applyReady}` : ''}`} disabled={busy || !owner}>{busy ? 'מייבאים…' : 'החל'}</button></div>
       <label className={styles.check}><input type="checkbox" required checked={owner} disabled={busy} onChange={(event) => setOwner(event.target.checked)}/><span>אני הבעלים/ת של הפרויקט הזה ב־XPlace או מורשה/ית לפרסם אותו.</span></label>
       <div aria-live="polite">{error && <p id={`${id}-error`} role="alert" className={styles.error}>{error}</p>}</div>
-      <div className={styles.actions}><button type="submit" className={styles.submit} disabled={busy || !owner}>{busy ? 'מייבאים…' : 'ייבוא'}</button></div>
     </form>}
   </section>;
 }
