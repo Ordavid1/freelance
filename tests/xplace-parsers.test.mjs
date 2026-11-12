@@ -7,13 +7,10 @@ const fixture = (name) => readFileSync(new URL(`./fixtures/xplace/${name}`, impo
 // Modules run in a vm realm; a JSON round trip gives plain host-realm objects for deepEqual.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const projectModule = loadModule('src/lib/imports/xplace/project.ts');
-const profileModule = loadModule('src/lib/imports/xplace/profile.ts');
 const parseXPlaceProjectHtml = (...args) => plain(projectModule.parseXPlaceProjectHtml(...args));
-const parseXPlaceProfileHtml = (...args) => plain(profileModule.parseXPlaceProfileHtml(...args));
 const { cleanText } = loadModule('src/lib/imports/xplace/clean.ts');
 
 const project = { kind: 'project', projectId: '123456', canonicalUrl: 'https://www.xplace.com/il/job-bids/123456', fetchUrl: 'https://www.xplace.com/project?id=123456' };
-const profile = { kind: 'profile', slug: 'synthetic', canonicalUrl: 'https://www.xplace.com/il/u/synthetic', fetchUrl: 'https://www.xplace.com/il/u/synthetic' };
 const CANARIES = ['CANARYFIRST', 'CANARYLAST', '000-0000', 'canary-logo', 'canary-photo', 'CANARY MEMBER NAME', '2027-01-07', '07/01/2027', 'lastLogin'];
 
 function assertNoCanaries(output) {
@@ -148,46 +145,6 @@ test('project: empty or unusable pages are NOT_ENOUGH_DATA', () => {
   assert.throws(() => parseXPlaceProjectHtml('', project), { code: 'NOT_ENOUGH_DATA' });
   const template = '<h1>{{title}}</h1><h3>פרטי הפרויקט</h3><p>{{description}}</p>';
   assert.throws(() => parseXPlaceProjectHtml(template, project), { code: 'NOT_ENOUGH_DATA' });
-});
-
-test('profile: public page maps headline, description and member-since', () => {
-  const result = parseXPlaceProfileHtml(fixture('profile-public.html'), profile);
-  assert.equal(result.provider, 'xplace');
-  assert.equal(result.url, profile.canonicalUrl);
-  assert.equal(result.profile.headline, 'Synthetic Headline Here');
-  assert.equal(result.profile.bio, 'Slogan line. About text of the synthetic freelancer & more.\nSecond line x');
-  assert.equal(result.profile.name, '');
-  assert.deepEqual([result.profile.skills, result.profile.portfolio, result.profile.experience, result.profile.education], [[], '', '', '']);
-  assert.deepEqual(result.warnings, ['XPlace מציגה בפומבי רק כותרת, תיאור ותמונה. ניסיון, כישורים והשכלה לא מיובאים; אפשר לצרף את הפרופיל כ־PDF.']);
-  assert.match(result.sourceText, /^XPlace profile \(public page\)\nProfile URL: https:\/\/www\.xplace\.com\/il\/u\/synthetic\nHeadline: Synthetic Headline Here\nPublic description: /);
-  assert.match(result.sourceText, /Member since: 2022-03-23/);
-  assert.match(result.sourceText, /no skills, experience or education/);
-  assert.ok(result.sourceText.length <= 14000);
-  for (const text of [JSON.stringify(result)]) {
-    for (const bad of ['{{', 'canary-photo', 'canary-logo', 'CANARY MEMBER', 'injected', '<b>', 'cdn.xplace.com']) assert.ok(!text.includes(bad), bad);
-  }
-});
-
-test('profile: falls back to og and title when schema.org data is missing, and caps lengths', () => {
-  const long = 'ש'.repeat(3000);
-  const html = `<title>${'א'.repeat(300)} | XPlace</title><meta name="description" content="${long}"/>`;
-  const result = parseXPlaceProfileHtml(html, profile);
-  assert.equal(result.profile.headline.length, 140);
-  assert.equal(result.profile.bio.length, 1500);
-  const ogOnly = parseXPlaceProfileHtml('<meta property="og:title" content="Only OG"/><meta property="og:description" content="Desc"/>', profile);
-  assert.equal(ogOnly.profile.headline, 'Only OG');
-  assert.equal(ogOnly.profile.bio, 'Desc');
-  assert.doesNotMatch(ogOnly.sourceText, /Member since/);
-});
-
-test('profile: invalid foundingDate is skipped; generic site title and template values are rejected', () => {
-  const html = '<meta itemprop="name" content="Real Name"><meta itemprop="foundingDate" content="2022-02-31">';
-  assert.doesNotMatch(parseXPlaceProfileHtml(html, profile).sourceText, /Member since/);
-  assert.throws(() => parseXPlaceProfileHtml(fixture('profile-empty.html'), profile), { code: 'NOT_ENOUGH_DATA' });
-  assert.throws(() => parseXPlaceProfileHtml('<title>XPlace</title>', profile), { code: 'NOT_ENOUGH_DATA' });
-  assert.throws(() => parseXPlaceProfileHtml('', profile), { code: 'NOT_ENOUGH_DATA' });
-  const mixed = parseXPlaceProfileHtml('<meta itemprop="name" content="{{x}}"><meta property="og:title" content="Usable"/>', profile);
-  assert.equal(mixed.profile.headline, 'Usable');
 });
 
 test('cleanText: entities, tags, control characters and whitespace', () => {

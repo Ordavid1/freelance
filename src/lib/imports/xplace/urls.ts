@@ -1,6 +1,6 @@
 // The single place that knows which XPlace addresses the importer understands.
-// Isomorphic on purpose: the profile studio and the project composer validate pasted links
-// with this exact code before the server validates them again.
+// Isomorphic on purpose: the profile studio builds its "open XPlace" link from a username with this code,
+// and the project composer validates pasted links with it before the server validates them again.
 import type { XPlaceTarget } from '../types';
 
 export const XPLACE_ORIGIN = 'https://www.xplace.com';
@@ -39,7 +39,7 @@ export function parseXPlaceUrl(input: unknown): XPlaceTarget | null {
 
   if (segments.length === 2 && segments[0] === 'u' && PROFILE_SLUG.test(segments[1])) {
     const canonicalUrl = `${XPLACE_ORIGIN}/il/u/${encodeURIComponent(segments[1])}`;
-    return { kind: 'profile', slug: segments[1], canonicalUrl, fetchUrl: canonicalUrl };
+    return { kind: 'profile', slug: segments[1], canonicalUrl };
   }
   const projectId = segments.length === 2 && segments[0] === 'job-bids' ? segments[1]
     : segments.length === 1 && segments[0] === 'project' ? url.searchParams.get('id') ?? '' : '';
@@ -51,6 +51,17 @@ export function parseXPlaceUrl(input: unknown): XPlaceTarget | null {
     };
   }
   return null;
+}
+
+/** The canonical profile page for a bare XPlace username or any supported XPlace profile link; null when it is neither. */
+export function resolveXPlaceProfileUrl(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const raw = input.trim();
+  if (!raw) return null;
+  const target = parseXPlaceUrl(raw);
+  if (target) return target.kind === 'profile' ? target.canonicalUrl : null;
+  if (/[\s/\\:?#@]/.test(raw) || XPLACE_HOSTS.includes(raw.toLowerCase()) || !PROFILE_SLUG.test(raw)) return null;
+  return `${XPLACE_ORIGIN}/il/u/${encodeURIComponent(raw)}`;
 }
 
 /** Stable per-owner idempotency key for an imported project. */

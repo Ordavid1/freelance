@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { XPlaceProfileImport } from '@/lib/imports/types';
 import { buildXPlaceLaunchUrl } from '@/lib/imports/xplace/handoff';
 import { awaitHandoff, HandoffError, requestHandoffPayload } from '@/lib/imports/xplace/handoff-client';
-import { XPLACE_ORIGIN } from '@/lib/imports/xplace/urls';
+import { resolveXPlaceProfileUrl, XPLACE_ORIGIN } from '@/lib/imports/xplace/urls';
 import { postIngest, useExtensionInstalled, type useXPlaceIngest, type XPlaceFlags } from './xplace-handoff';
 import styles from './profile-studio.module.css';
 
@@ -11,21 +11,22 @@ const PASTE_MAX = 30_000;
 const LAUNCH_TIMEOUT_TEXT = 'לא קיבלנו את הפרופיל. ודאו שאתם מחוברים ל־XPlace ונסו שוב.';
 
 /**
- * The XPlace panel of the profile studio: up to three clearly separated options inside one panel.
+ * The XPlace panel of the profile studio: up to two clearly separated options inside one panel.
  * A: with the extension (open XPlace and import automatically). B: paste text, no extension needed.
- * C: paste a public link (`linkForm`, only passed while the link importer is enabled).
+ * There is deliberately no profile-link option: XPlace serves anonymous visitors only a summary, so a profile is
+ * read in the user's own browser (extension or pasted text) or attached as a PDF document.
  */
-export function XPlaceProfilePanel({ flags, ingest, onImported, linkForm, onClose }: {
+export function XPlaceProfilePanel({ flags, ingest, onImported, onClose }: {
   flags: XPlaceFlags;
   ingest: ReturnType<typeof useXPlaceIngest<XPlaceProfileImport>>;
   onImported: (data: XPlaceProfileImport) => void;
-  linkForm: ReactNode;
   onClose: () => void;
 }) {
   const id = useId();
   const installed = useExtensionInstalled();
   const [launch, setLaunch] = useState<'idle' | 'waiting' | 'error'>('idle');
   const abort = useRef<AbortController | null>(null);
+  const [handle, setHandle] = useState('');
   const [text, setText] = useState('');
   const [owner, setOwner] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -66,6 +67,9 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, linkForm, onClos
     setOwner(false);
   }
 
+  // The button's href is only ever the helper's canonical URL, never raw user text.
+  const profileUrl = resolveXPlaceProfileUrl(handle);
+  const handleInvalid = handle.trim() !== '' && profileUrl === null;
   const showExtension = installed === true || (installed === false && Boolean(flags.extensionUrl));
   return <div id="profile-xplace-panel" className={styles.xPanel}>
     {showExtension && <section className={styles.xOption} aria-labelledby={`${id}-ext`}>
@@ -81,23 +85,31 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, linkForm, onClos
 
     <section className={styles.xOption} aria-labelledby={`${id}-paste`}>
       <h4 id={`${id}-paste`}>הדבקת טקסט (בלי תוסף)</h4>
-      <div className={styles.linkFormActions}><a className={styles.xLinkButton} href={`${XPLACE_ORIGIN}/il/`} target="_blank" rel="noopener noreferrer">פתיחת XPlace</a></div>
       <ol className={styles.xSteps}>
-        <li>היכנסו לפרופיל שלכם ב־XPlace (עדיף דרך ״צפו בפרופיל שלכם כפי שהוא נראה לאחרים״).</li>
-        <li>סמנו הכול והעתיקו (Ctrl/⌘ + A, ואז Ctrl/⌘ + C).</li>
-        <li>הדביקו כאן.</li>
+        <li>
+          הזינו את שם המשתמש שלכם ב־XPlace ופתחו את הפרופיל.
+          <div className={styles.xHandle}>
+            <label htmlFor={`${id}-handle`}>שם המשתמש ב־XPlace</label>
+            <input id={`${id}-handle`} type="text" dir="ltr" placeholder="your-name" autoComplete="off" autoCapitalize="off" spellCheck={false} value={handle} aria-invalid={handleInvalid} aria-describedby={handleInvalid ? `${id}-handle-hint ${id}-handle-error` : `${id}-handle-hint`} onChange={(event) => setHandle(event.target.value)}/>
+            <small id={`${id}-handle-hint`}>החלק האחרון בכתובת הפרופיל: <bdi dir="ltr">xplace.com/il/u/…</bdi></small>
+            {handleInvalid && <p id={`${id}-handle-error`} role="alert" className={styles.sourceError}>שם המשתמש אינו תקין. הזינו את החלק שאחרי <bdi dir="ltr">/il/u/</bdi> בכתובת הפרופיל.</p>}
+            <div className={styles.linkFormActions}><a className={styles.xLinkButton} href={profileUrl ?? `${XPLACE_ORIGIN}/il/`} target="_blank" rel="noopener noreferrer">פתיחת XPlace</a></div>
+          </div>
+        </li>
+        <li>בעמוד הפרופיל גררו את העכבר מהמילה ״אודותינו״ ועד השדה האחרון בפרופיל, והעתיקו (<bdi dir="ltr">Ctrl/⌘ + C</bdi>).</li>
+        <li>הדביקו כאן ולחצו על ״הוסף כמקור מידע״.</li>
       </ol>
-      <p className={styles.xWarn}>שימו לב: העמוד כולל גם ביקורות לקוחות עם שמות. מחקו אותן לפני ההדבקה, או השתמשו באפשרות עם התוסף, שקורא רק את פרטי הפרופיל.</p>
+      <p className={styles.xWarn}>הבחירה בגרירה כוללת רק את חלק הפרופיל. אם נכללו בה ביקורות לקוחות עם שמות, מחקו אותן לפני ההדבקה.</p>
       <form className={styles.xForm} onSubmit={(event) => { event.preventDefault(); void importPasted(); }}>
         <label htmlFor={`${id}-text`}>טקסט הפרופיל מ־XPlace</label>
         <textarea id={`${id}-text`} className={styles.xTextarea} rows={6} maxLength={PASTE_MAX} value={text} disabled={busy} onChange={(event) => { setText(event.target.value); setError(''); }}/>
         <label className={styles.checkRow}><input type="checkbox" required checked={owner} disabled={busy} onChange={(event) => setOwner(event.target.checked)}/><span>אני הבעלים/ת של הפרופיל הזה ב־XPlace.</span></label>
         <div aria-live="polite">{error && <p role="alert" className={styles.sourceError}>{error}</p>}</div>
-        <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink} disabled={busy || !owner || text.trim().length === 0}>{busy ? 'מייבאים…' : 'ייבוא הטקסט'}</button></div>
+        <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink} disabled={busy || !owner || text.trim().length === 0}>{busy ? 'מוסיפים…' : 'הוסף כמקור מידע'}</button></div>
       </form>
+      <p className={styles.xAlt}>אפשר גם לשמור את עמוד הפרופיל כ־PDF (הדפסה ← שמירה כ־PDF) ולצרף אותו כמסמך באזור ״גררו לכאן את העבודה שלכם״. יצירת הפרופיל בעזרת AI בונה את הפרופיל רק מפרטי הפרופיל המקצועיים שבו.</p>
     </section>
 
-    {linkForm && <section className={styles.xOption} aria-label="הדבקת קישור">{linkForm}</section>}
     <div className={styles.linkFormActions}><button type="button" onClick={onClose}>סגירה</button></div>
   </div>;
 }

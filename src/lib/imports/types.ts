@@ -8,9 +8,9 @@ export type ImportProvider = 'xplace';
 /** `extension`: captured by the browser extension on the user's own page. `link`: a pasted public link read by the server. */
 export type ImportCapture = 'extension' | 'link';
 
-/** A recognised, canonicalised XPlace page. `fetchUrl` is the only URL the server ever requests. */
+/** A recognised, canonicalised XPlace page. A project's `fetchUrl` is the only URL the server ever requests; profiles are never fetched (they arrive through the extension or pasted text). */
 export type XPlaceTarget =
-  | { kind: 'profile'; slug: string; canonicalUrl: string; fetchUrl: string }
+  | { kind: 'profile'; slug: string; canonicalUrl: string }
   | { kind: 'project'; projectId: string; canonicalUrl: string; fetchUrl: string };
 
 export type XPlaceImportErrorCode =

@@ -281,3 +281,21 @@ Extension (own `package.json`, `jsdom` as its devDependency, `node --test`): pag
 ### 9.6 Chrome Web Store package and listing (WP-G, coordinator)
 
 `npm run package` in the extension folder builds `dist/freelance-place-xplace-import-<version>.zip` deterministically and verifies: permissions exactly `["storage"]`, no `host_permissions`, content-script matches exactly the three patterns above (two XPlace hosts, the Freelance Place origin), no `eval`/remote script strings, icons from the Freelance Place logo. The v0.2.0 zip replaces v0.1.0 in the existing draft item; the Hebrew listing text, permission justifications, data-usage answers and test instructions are updated to match. Nothing is submitted without Or's explicit go.
+
+---
+
+## 12-11-26: profile link import removed
+
+Status: `[x]` done in this branch.
+
+**Decision (Or):** the "paste a public profile link" option in the profile studio is removed. The server could only read headline and about from a profile link (XPlace loads everything else from `/rest/`, which its robots.txt disallows), so the option added noise next to the two that work.
+
+**Removed:**
+
+- The link form in the profile studio's XPlace panel and its state, handler and `xplace_profile_import_started` event in `src/components/profile-studio.tsx` (the `linkForm` prop of `XPlaceProfilePanel` is gone).
+- `POST /api/integrations/xplace/profile`, `src/lib/imports/xplace/profile.ts`, `importXPlaceProfile`, the profile branch of `ImportRouteSpec['kind']`, and the profile parser tests and fixtures.
+- `fetchUrl` on the profile `XPlaceTarget`: the server never requests a profile page. `parseXPlaceUrl` still recognises profile URLs because the ingest route validates extension payloads with it.
+
+**Replaced by:** the panel keeps (A) the extension and (B) pasted text, and (B) is better: the user types their XPlace username, "פתיחת XPlace" opens exactly their profile page (`resolveXPlaceProfileUrl` in `urls.ts`; never built from raw text, falls back to the XPlace home page), then they drag-select from "אודותינו" to the last field, copy and paste. The warning asks them to delete named customer reviews first. A PDF of the profile attached as a document remains the third route.
+
+**Stays:** the project link importer (`xplace-project-import.tsx`, `/api/integrations/xplace/project`, flag `XPLACE_LINK_IMPORT_ENABLED`, which now only reads pasted public PROJECT links), the ingest route and `profile-text`, the extension, `xplace_profile_import_completed`.
