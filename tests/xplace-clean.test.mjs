@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadModule } from './helpers/load-ts.mjs';
 
 const { cleanText } = loadModule('src/lib/imports/xplace/clean.ts');
 
+test('server text cleaning follows the shared extension conformance corpus', () => {
+  const cases = JSON.parse(readFileSync(new URL('./fixtures/xplace/text-cleaning.json', import.meta.url), 'utf8'));
+  for (const { input, expected } of cases) assert.equal(cleanText(input, 1000), expected, input);
+});
+
 test('hostile unterminated markup is cleaned in linear time', () => {
-  for (const input of ['<a'.repeat(20000), '<!--'.repeat(10000), '<'.repeat(30000), '<script '.repeat(8000), '<style>'.repeat(8000), '</script   '.repeat(5000), '<a '.repeat(10000) + '>']) {
+  for (const input of ['<a'.repeat(20000), '<!--'.repeat(10000), '<'.repeat(30000), '<script '.repeat(8000), '<style>'.repeat(8000), '</script   '.repeat(5000), '<script>' + '</script '.repeat(10000), '<style>' + '</style '.repeat(10000), '<a '.repeat(10000) + '>']) {
     const started = performance.now();
     const out = cleanText(input, 100_000);
     const ms = performance.now() - started;

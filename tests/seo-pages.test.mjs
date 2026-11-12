@@ -6,6 +6,7 @@
 // contract is checked on the real text as soon as it lands.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { documentFor } from './helpers/html.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
 import {
@@ -468,7 +469,7 @@ test('/glossary: special characters are escaped, repeated terms keep unique anch
   ];
   const html = rendered(loadGlossary(tricky));
   assertWellFormed(html, '/glossary tricky', formatHebrewDate);
-  assert.doesNotMatch(html.replace(/<script[\s\S]*?<\/script>/g, ''), /<i>x<\/i>|<b>תגית|<em>/, 'text is never interpreted as markup');
+  assert.equal(documentFor(html).querySelectorAll('i, b, em').length, 0, 'text is never interpreted as markup');
   assert.ok(html.includes('A &amp; B &lt;i&gt;x&lt;/i&gt;'));
   assert.deepEqual([...html.matchAll(/id="(term-\d+)" class="ga-term"/g)].map((match) => match[1]), ['term-1', 'term-2', 'term-3']);
   const [set] = ofType(html, 'DefinedTermSet');

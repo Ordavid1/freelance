@@ -119,6 +119,32 @@ test('project: meta-only page is a partial draft with a warning', () => {
   assert.equal(result.draft.deadline, 'גמיש');
 });
 
+test('project fallback only reads actual elements, never markup in scripts, comments, templates or attributes', () => {
+  const fake = '<meta property="og:title" content="SCRIPT_CANARY_TITLE"><meta property="og:description" content="SCRIPT_CANARY_DESCRIPTION">';
+  const traps = [
+    `<script>const text = '${fake}';</script data-extra>`,
+    `<SCRIPT>const text = '${fake}';</SCRIPT/>`,
+    `<style>${fake}</style data-extra>`,
+    `<!-- ${fake} --!>`,
+    `<template>${fake}</template>`,
+    `<div data-text='${fake}'></div>`,
+  ];
+  for (const trap of traps) {
+    const html = `<html><head>${trap}</head><body></body></html>`;
+    assert.throws(() => parseXPlaceProjectHtml(html, project), { code: 'NOT_ENOUGH_DATA' }, trap);
+    const withRealMetadata = html.replace('</head>', '<meta property="og:title" content="Real title"><meta property="og:description" content="Real description"></head>');
+    const result = parseXPlaceProjectHtml(withRealMetadata, project);
+    assert.equal(result.draft.title, 'Real title', trap);
+    assert.equal(result.draft.description, 'Real description', trap);
+  }
+});
+
+test('project fallback parses quoted delimiters and unquoted metadata attributes', () => {
+  const result = parseXPlaceProjectHtml('<meta property=og:title content="Real > title"><meta property=og:description content="One &amp; two">', project);
+  assert.equal(result.draft.title, 'Real > title');
+  assert.equal(result.draft.description, 'One & two');
+});
+
 test('project: malformed or truncated flight JSON falls back to the HTML layer', () => {
   const original = fixture('project-rsc.html');
   // Truncated: cut the last flight chunk in the middle of the project object.

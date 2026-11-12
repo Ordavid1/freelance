@@ -189,7 +189,9 @@ test('fetch: logs one JSON line with a hash of the URL, never the URL', async ()
   assert.equal(entry.status, 200);
   assert.equal(entry.urlSha256, createHash('sha256').update(URL_OK).digest('hex'));
   assert.equal(typeof entry.durationMs, 'number');
-  assert.ok(!lines[0].includes('xplace.com') && !lines[0].includes('123456'));
+  assert.deepEqual(Object.keys(entry).sort(), ['durationMs', 'event', 'requests', 'severity', 'status', 'urlSha256']);
+  assert.equal(entry.severity, 'INFO');
+  assert.equal(entry.requests, 1);
 });
 
 // ---- host throttle ----
