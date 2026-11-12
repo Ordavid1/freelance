@@ -10,6 +10,6 @@ variable "xplace_link_import_enabled" {
 }
 variable "xplace_extension_url" {
   type        = string
-  default     = ""
+  default     = "https://chromewebstore.google.com/detail/freelance-place-%E2%80%94-xplace/pmdpcogbhahimnbipapekgimgpkfnomn"
   description = "Chrome Web Store URL of the extension, shown to users who do not have it yet. Empty hides the install prompt."
 }
