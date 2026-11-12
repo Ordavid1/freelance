@@ -53,17 +53,6 @@ export function parseXPlaceUrl(input: unknown): XPlaceTarget | null {
   return null;
 }
 
-/** The canonical profile page for a bare XPlace username or any supported XPlace profile link; null when it is neither. */
-export function resolveXPlaceProfileUrl(input: unknown): string | null {
-  if (typeof input !== 'string') return null;
-  const raw = input.trim();
-  if (!raw) return null;
-  const target = parseXPlaceUrl(raw);
-  if (target) return target.kind === 'profile' ? target.canonicalUrl : null;
-  if (/[\s/\\:?#@]/.test(raw) || XPLACE_HOSTS.includes(raw.toLowerCase()) || !PROFILE_SLUG.test(raw)) return null;
-  return `${XPLACE_ORIGIN}/il/u/${encodeURIComponent(raw)}`;
-}
-
 /** Stable per-owner idempotency key for an imported project. */
 export function xplaceProjectKey(projectId: string): string {
   return `xplace:project:${projectId}`;

@@ -151,13 +151,8 @@
 .studio .xOption h4 { margin: 0; font-size: var(--x-title); color: #202438; }
 .studio .xOption p { margin: 0; font-size: var(--x-text); }
 .studio .xSteps { margin: 0; padding-inline-start: 24px; display: grid; gap: 10px; }
-.studio .xHandle { display: grid; gap: 6px; margin-top: 6px; }
-.studio .xHandle label, .studio .xForm label { font-size: var(--x-text); font-weight: 500; color: #34463b; }
-.studio .xHandle input { width: 100%; max-width: 440px; min-width: 0; box-sizing: border-box; min-height: 40px; padding: 8px 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: var(--x-text); }
-.studio .xHandle input[aria-invalid="true"] { border-color: #b34a4a; }
-.studio .xHandle input:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
-.studio .xHandle small { font-size: var(--x-small); line-height: 1.7; color: #5f6a63; }
-.studio .xHandle .sourceError { font-size: var(--x-small); margin: 0; }
+.studio .xForm label { font-size: var(--x-text); font-weight: 500; color: #34463b; }
+.studio .xSteps li > .linkFormActions { margin-top: 8px; }
 .studio .xForm { display: grid; gap: 8px; }
 .studio .xTextarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: var(--x-text); line-height: 1.7; resize: vertical; }
 .studio .xTextarea:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
