@@ -79,13 +79,27 @@ test('llms.txt lists exactly the indexable registry pages that carry a note, tit
   const expected = registry.indexablePages().filter((entry) => entry.llms);
   assert.ok(expected.length >= 8);
   for (const entry of expected) {
-    const label = entry.title.replace(/[[\]]/g, '\\$&');
-    assert.ok(text.includes(`- [${label}](${SITE_URL}${entry.path})`), entry.path);
+    const line = text.split('\n').find((line) => line.includes(`](${SITE_URL}${entry.path})`));
+    assert.ok(line, entry.path);
+    const label = line.slice(3, line.indexOf(`](${SITE_URL}${entry.path})`)).replace(/\\(.)/g, '$1');
+    assert.equal(label, entry.title, entry.path);
     assert.ok(text.includes(`${SITE_URL}${entry.path})`));
   }
   const listed = [...text.split('## Optional')[0].matchAll(/\]\((https:\/\/[^)]+)\)/g)].map((match) => match[1]);
   assert.equal(listed.length, expected.length, 'nothing else is listed');
   assert.equal(new Set(listed).size, listed.length);
+});
+
+test('Markdown labels preserve brackets and existing backslashes independently', () => {
+  for (const [title, expected] of [
+    ['A [B]', String.raw`A \[B\]`],
+    [String.raw`A\[B]`, String.raw`A\\\[B\]`],
+    [String.raw`A\\[B]`, String.raw`A\\\\\[B\]`],
+  ]) {
+    const fixture = { ...page('/label'), title, llms: { section: 'Product', note: 'A note.' } };
+    const result = llmsFor(billingOn, { './registry': { indexablePages: () => [fixture], pageByPath: () => fixture } }).llmsTxt();
+    assert.ok(result.includes(`- [${expected}](${SITE_URL}/label): A note.`), title);
+  }
 });
 
 test('llms.txt facts follow the billing state and come from the shared facts', () => {

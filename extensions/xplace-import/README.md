@@ -1,4 +1,4 @@
-# Freelance Place — XPlace Import (Chrome extension, v0.2.0, Manifest V3)
+# Freelance Place — XPlace Import (Chrome extension, v0.2.1, Manifest V3)
 
 Helps XPlace users move their **own** profile and projects to Freelance Place. It shows a small invitation on XPlace,
 and only after the user clicks does it read an allowlisted part of the page and hand it to Freelance Place for review.

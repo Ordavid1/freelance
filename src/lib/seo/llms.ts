@@ -33,7 +33,7 @@ const SUMMARY = `${BRAND.name} is a Hebrew-first freelance project marketplace f
 
 const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
 // Square brackets would end a markdown link label early.
-const linkLabel = (text: string) => oneLine(text).replace(/[[\]]/g, '\\$&');
+const linkLabel = (text: string) => oneLine(text).replace(/[\\[\]]/g, '\\$&');
 const bullets = (items: readonly string[]) => items.map((item) => `- ${oneLine(item)}`).join('\n');
 // A page is mentioned only while the registry lists it as indexable.
 const listed = (path: string) => { const page = pageByPath(path); return page !== undefined && page.indexable !== false; };

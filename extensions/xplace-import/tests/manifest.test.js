@@ -11,7 +11,7 @@ test('permissions exactly storage, no host permissions or powerful keys', () => 
   assert.deepEqual(manifest.permissions, ['storage']);
   for (const k of ['host_permissions', 'optional_host_permissions', 'optional_permissions', 'externally_connectable', 'web_accessible_resources']) assert.ok(!(k in manifest), k);
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.2.0');
+  assert.equal(manifest.version, '0.2.1');
   assert.equal(manifest.incognito, 'not_allowed');
 });
 

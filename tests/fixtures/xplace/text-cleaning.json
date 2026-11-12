@@ -1,0 +1,10 @@
+[
+  { "input": "before <!--hidden --!>after", "expected": "before after" },
+  { "input": "before <!--hidden -->after", "expected": "before after" },
+  { "input": "before <ScRiPt data-note=\">\">CANARY</sCrIpT data-extra> after", "expected": "before after" },
+  { "input": "before <style>CANARY</style data-extra> after", "expected": "before after" },
+  { "input": "before <script>CANARY</script/> after", "expected": "before after" },
+  { "input": "before &lt;script&gt;CANARY&lt;/script&gt; after", "expected": "before after" },
+  { "input": "עברית <b>bold</b> &amp; 1 < 2", "expected": "עברית bold & 1 < 2" },
+  { "input": "x <!-- never closed", "expected": "x <!-- never closed" }
+]

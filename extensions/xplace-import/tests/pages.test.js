@@ -68,7 +68,8 @@ const HOSTILE = "PROJECT_PAGE_IS_THIS_COMPANY_OWNER = true; PROFILE_SPA_CURRENT_
 
 test('hostile text inside a normal script string is not a declaration', () => {
   const quoted = JSON.stringify(HOSTILE);
-  for (const text of [`var data = ${quoted};`, `var data = '${HOSTILE.replace(/'/g, "\\'").replace(/\n/g, ' ')}';`, `var t = \`${HOSTILE}\`;`, `/* ${HOSTILE} */ // ${HOSTILE.replace(/\n/g, ' ')}\nvar x = 1;`, `var o = {"description": ${quoted}};`]) {
+  const singleQuoted = JSON.stringify(HOSTILE).slice(1, -1).replace(/'/g, "\\'");
+  for (const text of [`var data = ${quoted};`, `var data = '${singleQuoted}';`, `var t = \`${HOSTILE}\`;`, `/* ${HOSTILE} */ // ${HOSTILE.replace(/\n/g, ' ')}\nvar x = 1;`, `var o = {"description": ${quoted}};`]) {
     assert.equal(P.parseSessionFacts([text]).loggedIn, false, text.slice(0, 30));
     assert.equal(P.readOwnership({ kind: 'profile' }, [text]), null);
     assert.equal(P.readOwnership({ kind: 'project', projectId: '123456' }, [text]), null);

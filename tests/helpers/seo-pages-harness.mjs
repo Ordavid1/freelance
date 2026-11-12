@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule } from './load-ts.mjs';
+import { jsonLdTexts, visibleDocument, visibleText } from './html.mjs';
 
 export const ORIGIN = 'https://freelance-place.com';
 export const baseEnv = { SITE_INDEXABLE: 'true', NEXT_PUBLIC_SITE_URL: ORIGIN };
@@ -28,11 +29,11 @@ export { createElement };
 // ---- reading markup back ----
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'", '&#39;': "'" };
 export const decode = (value) => value.replace(/&(?:amp|lt|gt|quot|#x27|#39);/g, (entity) => ENTITIES[entity]);
-export const text = (html) => decode(html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+export const text = visibleText;
 export const count = (html, pattern) => (html.match(pattern) || []).length;
-export const jsonLd = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
+export const jsonLd = (html) => jsonLdTexts(html).map((value) => JSON.parse(value));
 export const ofType = (html, type) => jsonLd(html).filter((node) => node['@type'] === type);
-export const ids = (html) => [...html.replace(/<script[\s\S]*?<\/script>/g, '').matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+export const ids = (html) => [...visibleDocument(html).querySelectorAll('[id]')].map((node) => node.id);
 export const headings = (html, level) => [...html.matchAll(new RegExp(`<h${level}[ >][\\s\\S]*?</h${level}>`, 'g'))].map((match) => decode(match[0].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim());
 
 export function indexOfOrFail(html, needle) {
