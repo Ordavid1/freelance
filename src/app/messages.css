@@ -514,3 +514,22 @@
 @media(prefers-reduced-motion:reduce){.chart-value,.analysis-bar>span{transition:none}}
 .live-analysis{container-type:inline-size}
 @container(max-width:550px){.live-analysis .compatibility-graphs{grid-template-columns:1fr}}
+
+/* The live workspace panel owns vertical scrolling. Do not trap wheel/touch
+   gestures in an unconstrained nested chat scroller. */
+.personal .studio-inbox.has-active-thread{flex:none;overflow:visible}
+.personal .studio-inbox.has-active-thread .chat-messages{flex:none;overflow:visible;overscroll-behavior:auto}
+
+.compatibility-analysis.live-analysis{padding:16px;margin:10px 0 14px;border-radius:18px}
+.live-analysis .compatibility-graphs{gap:12px;margin:14px 0}
+.live-analysis .analysis-chart{padding:14px;border-radius:14px}
+.live-analysis .analysis-ring,.live-analysis .analysis-bars{height:160px}
+.live-analysis .analysis-bars{gap:18px}
+.live-analysis .analysis-chart h3,.live-analysis .analysis-summary h3{font-size:14px}
+.live-analysis .analysis-chart header>strong{font-size:17px}
+.live-analysis .analysis-chart>p{font-size:12px;margin:6px 0}
+.live-analysis .analysis-details-toggle{padding:7px 10px;font-size:12px}
+.live-analysis .analysis-summary{padding:12px}
+.live-analysis .compatibility-conclusion{font-size:14px;line-height:1.65;margin-top:6px}
+.live-analysis .compatibility-note{font-size:11px;margin-top:10px}
+@media(max-width:650px){.compatibility-analysis.live-analysis{padding:12px}.live-analysis .analysis-ring,.live-analysis .analysis-bars{height:140px}.live-analysis .analysis-chart{padding:12px}}
