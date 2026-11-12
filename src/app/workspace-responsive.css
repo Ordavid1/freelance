@@ -286,6 +286,7 @@
   .personal .mobile-panel-content { padding-top: 16px; }
   .studio-feed { padding-top: 0; }
   .studio-feed .mobile-panel-content { padding-top: 22px; }
+  .workspace-public-content { margin-top: 24px; }
 }
 .workspace-legal-links a { text-decoration: underline; text-underline-offset: 3px; }
 .workspace-feed-footer { display: none; }
