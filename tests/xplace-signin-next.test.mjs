@@ -41,3 +41,10 @@ test('the sign-in form uses the shared allowlist for its redirect', async () => 
   assert.match(source, /window\.location\.assign\(safeNextPath\(next\)\)/);
   assert.doesNotMatch(source, /next === '\/profile\/import'/);
 });
+
+test('hasPendingHandoff is true only for a hand-off page with a valid token', async () => {
+  const { hasPendingHandoff } = loadModule('src/lib/auth/safe-next.ts');
+  assert.equal(hasPendingHandoff(`/profile/import?xplace=${TOKEN}`), true);
+  assert.equal(hasPendingHandoff(`/projects/new?xplace=${TOKEN}`), true);
+  for (const no of [null, undefined, '', '/', '/profile/import', '/projects/new', `/other?xplace=${TOKEN}`, '/profile/import?xplace=abc']) assert.equal(hasPendingHandoff(no), false, String(no));
+});
