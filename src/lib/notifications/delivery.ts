@@ -18,7 +18,7 @@ export function renderMail(uid: string, batch: Pending) {
   const links = batch.items.map(item => ({ ...item, url: `${batch.origin}/projects/${encodeURIComponent(item.id)}` }));
   return { from: batch.from, to: batch.to, subject: title,
     text: `${title}\n\n${links.map(i => `${i.title}\n${i.budget}\n${i.url}`).join('\n\n')}\n\nהפסקת עדכונים: ${unsubscribe}`,
-    html: `<div dir="rtl" lang="he" style="font-family:Arial,sans-serif;color:#17263a;max-width:600px;margin:auto"><h2>${title}</h2>${links.map(i => `<p><a href="${escape(i.url)}" style="color:#145a4e">${escape(i.title)}</a><br>${escape(i.budget)}</p>`).join('')}<hr><p><a href="${escape(unsubscribe)}">הפסקת עדכונים במייל</a> · <a href="${batch.origin}/messages">ניהול העדפות</a></p></div>`,
+    html: `<div dir="rtl" lang="he" style="font-family:Arial,sans-serif;color:#17263a;max-width:600px;margin:auto"><h2>${title}</h2>${links.map(i => `<p><a href="${escape(i.url)}" style="color:#145a4e">${escape(i.title)}</a><br>${escape(i.budget)}</p>`).join('')}<hr><p><a href="${escape(unsubscribe)}">הפסקת עדכונים במייל</a> · <a href="${batch.origin}/?view=messages">ניהול העדפות</a></p></div>`,
     headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
 

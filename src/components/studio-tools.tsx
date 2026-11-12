@@ -6,7 +6,8 @@ import { ContactControls } from './account-safety';
 import { MemberGate } from './trial-status';
 import { useViewer } from './viewer-context';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { CompatibilityAnalysis, CompatibilityMetric } from '@/lib/marketplace/compatibility-analysis';
+import { CompatibilityAnalysisCard } from './compatibility-analysis';
+import type { CompatibilityAnalysis } from '@/lib/marketplace/compatibility-analysis';
 import { SAMPLE_BID_HINT, SAMPLE_BID_SAVED, SAMPLE_HISTORY_LABEL } from '@/lib/projects/presentation';
 type Entry={id:string;tagline:string;text:string;projectTitle:string;isDemo:boolean};
 function BidFormContent({project,onSent,sample=false}:{project:string;onSent:()=>void;sample?:boolean}){
@@ -30,25 +31,6 @@ function StudioInboxContent(){
  if(viewer.status==='loading')return <section className="studio-inbox" aria-busy="true"><h1>השיחות שלך</h1></section>
  const current=conversations.find((conversation)=>conversation.id===active);
  return <section className={`studio-inbox${current?' has-active-thread':''}`}>{!current?<><h1>השיחות שלך</h1>{conversations.length?conversations.map((conversation)=><button className="conversation-item" key={conversation.id} onClick={()=>void openConversation(conversation.id)}><strong>{conversation.clientUid===uid?conversation.freelancerName:conversation.clientName}</strong><span>{conversation.projectTitle}</span><small>{conversation.lastMessage}</small></button>):<p className="empty-state">עדיין אין שיחות. אחרי שליחת הצעה, השיחה תופיע כאן.</p>}</>:<><div className="chat-thread-header"><button className="back-to-chat" onClick={()=>{requestVersion.current++;setActive(null);setMessages([]);setAnalysis(null)}}>→ חזרה לכל השיחות</button><div className="chat-thread-title"><h2>{current.clientUid===uid?current.freelancerName:current.clientName}</h2><p>{current.projectTitle}</p></div><div className="chat-thread-actions"><ContactControls key={current.id} conversationId={current.id} onCanContact={setCanContact}/></div></div><div className="chat-messages" role="log" aria-label={`הודעות עם ${current.clientUid===uid?current.freelancerName:current.clientName}`} aria-live="polite">{messages.map((message,index)=><Fragment key={message.id}><div className={`bubble ${message.senderUid===uid?'mine':''}`}>{message.text}<small>{message.senderUid===uid?'אני':message.senderName}</small></div>{index===0&&message.kind==='proposal'&&current.clientUid===uid&&analysis&&<CompatibilityAnalysisCard analysis={analysis}/>}</Fragment>)}</div>{error&&<p className="chat-error" role="alert">{error}</p>}<form className="chat-compose" onSubmit={send}><input aria-label="הודעה" disabled={!canContact} value={draft} onChange={(event)=>setDraft(event.target.value)} placeholder="כתבו הודעה…"/><button type="submit" disabled={busy||!draft.trim()||!canContact}>{busy?'שולחים…':'שליחה'}</button></form></>}</section>
-}
-
-function CompatibilityGraph({ label, metric }: { label: string; metric: CompatibilityMetric }) {
-  return <div className={`compatibility-metric${metric.score === null ? ' is-unknown' : ''}`}>
-    <div className="compatibility-metric-heading"><strong>{label}</strong><b>{metric.score === null ? '—' : `${metric.score}%`}</b></div>
-    <div className="compatibility-meter" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={metric.score ?? undefined}>
-      <span style={{ width: `${metric.score ?? 0}%` }}/>
-    </div>
-    <div className="compatibility-metric-detail"><span>{metric.total ? `${metric.matched} מתוך ${metric.total} דרישות` : 'אין דרישות מוגדרות'}</span><small>{metric.note}</small></div>
-  </div>;
-}
-
-function CompatibilityAnalysisCard({ analysis }: { analysis: CompatibilityAnalysis }) {
-  return <aside className="compatibility-analysis" aria-label="ניתוח התאמה לפרויקט">
-    <header className="compatibility-analysis-header"><div><span>התאמה לפרויקט</span><p>פרופיל מקצועי מול דרישות הפרויקט</p></div><div className={`compatibility-grade${analysis.score === null ? ' is-unknown' : ''}`}><strong>{analysis.score ?? '—'}{analysis.score !== null && <small>/100</small>}</strong><span>{analysis.label}</span></div></header>
-    <div className="compatibility-graphs"><CompatibilityGraph label="כישורים נדרשים" metric={analysis.skills}/><CompatibilityGraph label="ניסיון מתועד" metric={analysis.experience}/></div>
-    <p className="compatibility-conclusion">{analysis.conclusion}</p>
-    <small className="compatibility-note">הערכה אוטומטית לפי המידע שמופיע בפרופיל ובפרויקט.</small>
-  </aside>;
 }
 
 export function BidForm(props: React.ComponentProps<typeof BidFormContent>) { return <MemberGate><BidFormContent {...props} /></MemberGate>; }
