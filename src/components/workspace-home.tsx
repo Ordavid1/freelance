@@ -36,7 +36,7 @@ const WELCOME_CTA='התחברות והקמת פרופיל';
 const menus=['הבית שלי','פרופיל','הודעות','מנוי ותשלומים','פרסום פרויקט'];
 type ProjectSort = 'recent' | 'value-low' | 'value-high' | 'date-value' | 'applications-low' | 'applications-high';
 function budgetRange(value: string) { const numbers=value.match(/[\d,]+/g)?.map(item=>Number(item.replaceAll(',',''))).filter(Number.isFinite)||[]; return numbers.length ? [Math.min(...numbers),Math.max(...numbers)] as const : [0,0] as const; }
-type WorkspaceHomeProps = { children?: ReactNode; initialView?: 'הבית שלי' | 'פרופיל' | 'פרסום פרויקט'; initialProjects?: Project[] | null };
+type WorkspaceHomeProps = { children?: ReactNode; initialView?: 'הבית שלי' | 'פרופיל' | 'פרסום פרויקט' | 'הודעות'; initialProjects?: Project[] | null };
 export default function WorkspaceHome(props: WorkspaceHomeProps) { return <ViewerProvider><WorkspaceHomeContent {...props}/></ViewerProvider>; }
 function WorkspaceHomeContent({children, initialView = 'הבית שלי', initialProjects = null}: WorkspaceHomeProps){
  const viewer=useViewer();const signedIn=viewer.status==='signed-in';const viewerName=viewer.user?.name||viewer.user?.email?.split('@')[0]||'';
@@ -52,7 +52,7 @@ function WorkspaceHomeContent({children, initialView = 'הבית שלי', initia
   void fetch('/api/marketplace/saved-projects',{cache:'no-store'}).then(response=>response.ok?response.json():{slugs:[]}).then(data=>{if(active)setSaved(data.slugs||[])}).catch(()=>{});
   const handler=(event:Event)=>void syncProfile(event);window.addEventListener('fz-profile-updated',handler);return()=>{active=false;window.removeEventListener('fz-profile-updated',handler)}},[signedIn]);
  const [personalOpen,setPersonalOpen]=useState(true);const [projectsOpen,setProjectsOpen]=useState(false);
- const [view,setView]=useState<string>(initialView);const {mode,setMode}=useViewMode();const publisher=mode==='publisher';const setPublisher=(value:boolean)=>setMode(value?'publisher':'freelancer');const [query,setQuery]=useState('');const [open,setOpen]=useState<string|null>(null);const [sent,setSent]=useState<string[]>([]);const [projectStatus,setProjectStatus]=useState<FeedStatus>('all');const [projectSort,setProjectSort]=useState<ProjectSort>('recent');const [projectPeriod,setFeedPeriod]=useState<FeedPeriod>('all');
+ const [view,setView]=useState<string>(initialView);useEffect(()=>{setView(initialView)},[initialView]);const {mode,setMode}=useViewMode();const publisher=mode==='publisher';const setPublisher=(value:boolean)=>setMode(value?'publisher':'freelancer');const [query,setQuery]=useState('');const [open,setOpen]=useState<string|null>(null);const [sent,setSent]=useState<string[]>([]);const [projectStatus,setProjectStatus]=useState<FeedStatus>('all');const [projectSort,setProjectSort]=useState<ProjectSort>('recent');const [projectPeriod,setFeedPeriod]=useState<FeedPeriod>('all');
  async function toggleSaved(project:Project){if(project.sample)return;const nextSaved=!saved.includes(project.slug);const response=await fetch('/api/marketplace/saved-projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectSlug:project.slug,saved:nextSaved})});if(!response.ok)return;setSaved(nextSaved?saved.includes(project.slug)?saved:[...saved,project.slug]:saved.filter(slug=>slug!==project.slug))}
  const viewingOwn = publisher;
  // Until the session is known the home panel is laid out but invisible, so nothing misleading flashes and nothing shifts.

@@ -500,3 +500,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Live, full-width analysis inside the conversation rather than a message-sized card. */
+.compatibility-analysis.live-analysis{width:100%;max-width:none;padding:28px;margin:16px 0 24px;border-radius:24px;box-sizing:border-box;justify-self:stretch}
+.live-analysis .compatibility-graphs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:24px 0}
+.analysis-chart{min-width:0;border:1px solid #dfe8df;border-radius:18px;padding:22px;background:#fff}
+.analysis-chart header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.analysis-chart h3,.analysis-summary h3{margin:0;font-size:16px}.analysis-chart header>strong{color:var(--pine);font-size:20px}
+.analysis-ring{display:block;width:100%;height:240px;overflow:visible}.chart-track,.chart-value{fill:none;stroke-width:16}.chart-track{stroke:#edf1ec}.chart-value{stroke:var(--pine);stroke-linecap:round;transition:stroke-dasharray .8s ease}.chart-value:hover{stroke:#ba9426;stroke-width:20}.chart-score{fill:var(--ink);font-size:32px;font-weight:700}.chart-caption{fill:#69766f;font-size:13px}
+.analysis-bars{height:240px;display:flex;flex-direction:column;justify-content:center;gap:28px}.analysis-bar-row{display:grid;grid-template-columns:90px minmax(0,1fr) 24px;align-items:center;gap:10px;font-size:13px}.analysis-bar{height:22px;border-radius:12px;background:#edf1ec;overflow:hidden}.analysis-bar>span{display:block;height:100%;background:var(--pine);border-radius:12px;transition:width .8s ease}.analysis-bar.missing>span{background:#d4b653}.analysis-bar-row:hover .analysis-bar>span{filter:brightness(1.15)}
+.analysis-chart>p{font-size:14px;color:#69766f}.analysis-details-toggle{border:0;background:#edf5f0;color:var(--pine);padding:10px 14px;border-radius:12px}.analysis-chart-details{margin-top:14px;font-size:14px;line-height:1.7}.analysis-summary{padding:20px;border-radius:16px;background:#edf5f0}.live-analysis .compatibility-conclusion{font-size:16px;line-height:1.85;margin:10px 0 0}.live-analysis .compatibility-note{display:block;margin-top:16px;font-size:12px}
+@media(max-width:650px){.compatibility-analysis.live-analysis{padding:18px;border-radius:18px}.live-analysis .compatibility-graphs{grid-template-columns:1fr}.analysis-chart{padding:16px}.analysis-ring,.analysis-bars{height:210px}}
+@media(prefers-reduced-motion:reduce){.chart-value,.analysis-bar>span{transition:none}}
+.live-analysis{container-type:inline-size}
+@container(max-width:550px){.live-analysis .compatibility-graphs{grid-template-columns:1fr}}
