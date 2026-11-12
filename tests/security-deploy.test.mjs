@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+
+test('deploy script stays executable because deploy.yml runs it directly', () => {
+  assert.ok(statSync('scripts/deploy-engine.sh').mode & 0o111, 'scripts/deploy-engine.sh must keep its executable bit');
+});
 
 test('release script deploys only a resolved digest and stops when the digest is invalid', () => {
   for (const valid of [true, false]) {
