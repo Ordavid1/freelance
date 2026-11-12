@@ -12,3 +12,7 @@ c4043e26dd548567bc88d4b424e45a9441ecda13:deploy/production.env:linkedin-client-i
 bc826395a8386965bf2424f15be4170733b4cb74:tests/seo-indexnow.test.mjs:generic-api-key:506
 # scripts/prepare-cardcom.mjs — Secret Manager resource name, not secret contents
 284d857e260a3b9423a1406220b54dc99e581234:scripts/prepare-cardcom.mjs:generic-api-key:11
+# tests/xplace-handoff.test.mjs — Test fixture UUID used as a handoff token (tokens live one hour), not a credential
+1e6ba87a679596181db7d3bbba9019954c3c3a9d:tests/xplace-handoff.test.mjs:generic-api-key:7
+# tests/xplace-signin-next.test.mjs — Test fixture UUID used as a handoff token (tokens live one hour), not a credential
+1e6ba87a679596181db7d3bbba9019954c3c3a9d:tests/xplace-signin-next.test.mjs:generic-api-key:6

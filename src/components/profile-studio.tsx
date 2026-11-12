@@ -13,7 +13,7 @@ import '@/app/profile-entry-editor.css';
 const platforms = ['Behance', 'Website'] as const;
 type LinkPlatform = typeof platforms[number];
 type SocialProvider = 'github' | 'linkedin';
-type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string };
+type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string; avatar?: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
 type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
 type XPlaceSource = Pick<XPlaceProfileImport, 'provider' | 'sourceText' | 'profile' | 'url' | 'warnings' | 'counts' | 'ownerSignal'>;
@@ -75,6 +75,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   const [xplaceSource, setXplaceSource] = useState<XPlaceSource | null>(null);
   const [xplaceOpen, setXplaceOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>(blank);
+  const [avatarDragOver, setAvatarDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [tag, setTag] = useState('');
@@ -395,6 +396,16 @@ export function ProfileStudio({ userId }: { userId: string }) {
     }
   }
 
+  function loadAvatar(file?: File) {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/avif'].includes(file.type)) { setNotice('נא לבחור תמונת PNG, JPG, WebP או AVIF.'); return; }
+    if (file.size > 1_400_000) { setNotice('גודל התמונה יכול להיות עד 1.4MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => setProfile(current => ({ ...current, avatar: typeof reader.result === 'string' ? reader.result : current.avatar }));
+    reader.onerror = () => setNotice('לא הצלחנו לטעון את התמונה. נסו שוב.');
+    reader.readAsDataURL(file);
+  }
+
   const hasPendingImport = Object.values(importing).some(Boolean);
   const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0 || Boolean(dribbbleSource) || Boolean(xplaceSource);
 
@@ -467,7 +478,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     </div>
     <p role="status">{notice}</p>
     <div className="profile-template">
-      <h2>הפרופיל שלך <small>הכול ניתן לעריכה</small></h2>
+      <div className="freelancer-profile-heading"><h2>הפרופיל שלך <small>הכול ניתן לעריכה</small></h2><label className={`freelancer-avatar-upload${avatarDragOver ? ' is-dragging' : ''}`} onDragOver={event => { event.preventDefault(); setAvatarDragOver(true); }} onDragLeave={() => setAvatarDragOver(false)} onDrop={event => { event.preventDefault(); setAvatarDragOver(false); loadAvatar(event.dataTransfer.files[0]); }}><input type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={event => loadAvatar(event.target.files?.[0])}/>{profile.avatar ? <img src={profile.avatar} alt="תמונת הפרופיל שלך"/> : <><span aria-hidden="true">＋</span><small>תמונת פרופיל</small></>}</label></div>
       {([['name', 'שם'], ['headline', 'Tagline · במשפט אחד'], ['bio', 'Summary · הסיפור שלך']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={key === 'name' || key === 'headline' ? 1 : 3} value={profile[key]} onChange={(event) => setProfile({ ...profile, [key]: event.target.value })} placeholder="המידע מהמקורות יופיע כאן. אפשר גם לכתוב בעצמך."/></label>)}
       <ProfileEntryEditor title="תיק עבודות וקישורי מדיה" value={profile.portfolio} onChange={(portfolio) => setProfile({ ...profile, portfolio })} placeholder="תיאור עבודה, קישור או הישג"/>
       <ProfileEntryEditor title="ניסיון תעסוקתי" value={profile.experience} onChange={(experience) => setProfile({ ...profile, experience })} placeholder="תפקיד, ארגון, תקופה ותחומי אחריות"/>
