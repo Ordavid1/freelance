@@ -31,6 +31,11 @@ variable "auth_authorized_domains" {
   default     = ["localhost", "freelance-514118.firebaseapp.com", "freelance-514118.web.app"]
   description = "Identity Platform domains allowed to complete sign-in. Add the verified production hostname before enabling Google sign-in there."
 }
+variable "auth_use_canonical_domain" {
+  type        = bool
+  default     = false
+  description = "Serve Firebase's sign-in helper pages from the canonical domain (FIREBASE_AUTH_DOMAIN = canonical_domain) so the Google popup shows freelance-place.com. Enable only after https://<canonical_domain>/__/auth/handler is an authorized redirect URI on the Identity Platform Google OAuth client."
+}
 variable "engine_image" {
   type        = string
   default     = null

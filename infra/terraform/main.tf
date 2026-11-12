@@ -392,7 +392,7 @@ resource "google_cloud_run_v2_service" "engine" {
       }
       env {
         name  = "FIREBASE_AUTH_DOMAIN"
-        value = data.google_firebase_web_app_config.web.auth_domain
+        value = var.auth_use_canonical_domain ? var.canonical_domain : data.google_firebase_web_app_config.web.auth_domain
       }
       env {
         name  = "FIREBASE_WEB_APP_ID"
