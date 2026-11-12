@@ -1,6 +1,19 @@
 # Customer support in Slack — plan (12-11-26)
 
-Status: **plan only, nothing implemented.** Owner thread: "Plan moving customer support to Slack".
+Status: **Phase 0 done; Phase 1 and most of Phase 2 implemented, see the status section below.** Owner thread: "Plan moving customer support to Slack".
+
+## Status (12-11-26)
+
+- **Phase 0: done by Or.** `#support` channel created, Slack app installed, `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` stored in Secret Manager. Note: `#support` is a **public** channel (this plan said private), so the app's scopes are `channels:history` and the `message.channels` event, not the private-channel variants.
+- **Phase 1 implemented**, except step 3's `appendSupportReply` refactor: `receiveSupportReply` was left as it was, and agent replies are delivered by `src/lib/support/delivery.ts`. Steps 1, 2, 4, 5, 6 and 7 are done. Step 1 uses a small fetch client instead of `@slack/web-api` (see D5).
+- **Phase 2 items 1 and 2 implemented**: AI draft job with Send / Edit / Discard, superseded drafts, triage labels on the parent card, Close / Reopen buttons, and reopen on a new customer message. **Not done:** the urgency ping in item 2, and the Phase 2 items 3 onwards (attachments to Slack files, Assign to me, and the other Phase 2 commands in section 3.5).
+- **Decisions taken:**
+  - **D1: yes.** Terraform variables added: `slack_secrets`, `support_slack_channel_id`, `support_slack_agent_ids`, `support_slack_dispatch_enabled`, following the `resend_secrets` pattern.
+  - **D2: yes.** A 1-minute Cloud Scheduler sweep (`freelance-support-slack` → `POST /api/support/slack/dispatch`) is the safety net. Inline processing is kept for agent replies, draft sends and status changes, which run before the response.
+  - **D3: `//` or `note:` notes.** Every other thread message goes to the customer.
+  - **D4: pending until live.** Whether the Resend inbox agent is switched off waits until Slack drafts are proven live.
+  - **D5: changed.** No SDK. A small fetch client (`src/lib/support/slack/client.ts`) is used instead, so there is no new dependency.
+- Docs: `docs/support-chat.md` has a "Slack console" section with the manifest and acceptance checklist.
 
 ## 1. Recommendation in one paragraph
 

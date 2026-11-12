@@ -5,6 +5,8 @@ import { firestore } from '@/lib/db/firestore';
 import { mailbox, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
 import { digest, fetchReceivedEmail, receiveSupportReply, replyRoute, type ReceivedEmail } from '@/lib/support/service';
+import { recordInboundEmail } from '@/lib/support/conversations';
+import { kickSlackJobs } from '@/lib/support/slack/outbox';
 
 /**
  * Instant acknowledgment for every human email that reaches the support inbox.
@@ -189,5 +191,11 @@ export async function handleInboundEmail(config: SupportConfig, emailId: string)
   const email = await fetchReceivedEmail(config, emailId);
   // Owner replies to a private chat alias belong to the chat bridge, never to the auto-responder.
   if (replyRoute(email.received_for?.length ? email.received_for : email.to, config.replyDomain).length) return receiveSupportReply(config, emailId, email);
-  return sendAutoReply(config, emailId, email);
+  // Record the human email as a support conversation before acknowledging it. Recording is idempotent, so a
+  // webhook redelivery after a failed auto-reply simply re-enters here without duplicating anything.
+  const recorded = await recordInboundEmail(config, emailId, email);
+  kickSlackJobs(recorded?.jobIds ?? []);
+  // A message inside an existing conversation is not acknowledged: the customer is already talking to the team.
+  if (recorded?.existing) return { recorded: true, ignored: true, reason: 'existing-conversation' };
+  return { ...(await sendAutoReply(config, emailId, email)), recorded: Boolean(recorded) };
 }

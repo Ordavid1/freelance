@@ -8,6 +8,8 @@ import { firestore } from '@/lib/db/firestore';
 import { mailbox, validEmail, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
 import { SUPPORT_MAX_TEXT, type SupportMessage } from '@/lib/support/shared';
+import { emailNotifyEnabled, supportSlackConfig } from '@/lib/support/slack/config';
+import { enqueueSlackJobs, kickSlackJobs } from '@/lib/support/slack/outbox';
 export { SUPPORT_COOKIE } from '@/lib/support/shared';
 
 export const newSupportToken = () => randomBytes(32).toString('base64url');
@@ -52,6 +54,9 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
   const messageRef = ref.collection('messages').doc(input.id);
   // A persistent shared budget also limits clients that rotate their cookies.
   const budgetRef = db.collection('supportRateLimits').doc('outbound-hour');
+  // With Slack configured, Slack is the console; the per-message email is optional (SUPPORT_EMAIL_NOTIFY).
+  const slack = supportSlackConfig();
+  const slackOnly = Boolean(slack) && !emailNotifyEnabled();
   const reservation = await db.runTransaction(async (tx) => {
     const [conversation, existing, budget] = await Promise.all([tx.get(ref), tx.get(messageRef), tx.get(budgetRef)]);
     const data = conversation.data() as Conversation | undefined;
@@ -60,7 +65,7 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
       const message = existing.data()!;
       if (message.text !== input.text || message.contactEmail !== input.email || message.contactName !== input.name || message.page !== input.page) throw new SupportError('CONFLICT', 409, 'ההודעה השתנתה. נא לשלוח אותה כהודעה חדשה.');
       if (message.delivery !== 'sent' && Date.now() - message.createdAt.toMillis() > 23 * 3_600_000) throw new SupportError('EXPIRED_RETRY', 409, 'חלף זמן רב מהניסיון הקודם. נא לשלוח הודעה חדשה.');
-      return { conversation: data!, message };
+      return { conversation: data!, message, jobIds: [] as string[] };
     }
     const now = Date.now();
     const budgetWindow = Math.floor(now / 3_600_000);
@@ -69,21 +74,29 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
     const windowCount = data && windowStart === data.windowStart ? data.windowCount : 0;
     if (windowCount >= 10 || (data?.messageCount || 0) >= 200 || budgetCount >= 100) throw new SupportError('RATE_LIMIT', 429, 'התקבלו הרבה הודעות. אפשר לנסות שוב מאוחר יותר או לפנות במייל.');
     const next: Conversation = { uid: data?.uid || viewer?.uid || null, name: data?.name || input.name, email: data?.email || input.email, replyToken: data?.replyToken || randomBytes(16).toString('hex'), messageCount: (data?.messageCount || 0) + 1, windowStart, windowCount: windowCount + 1 };
-    const message = { sender: 'visitor', text: input.text, createdAt: Timestamp.fromMillis(now), delivery: 'pending', contactName: input.name, contactEmail: input.email, page: input.page };
-    tx.set(ref, { ...next, updatedAt: Timestamp.fromMillis(now), ...(!data ? { createdAt: Timestamp.fromMillis(now) } : {}) }, { merge: true });
+    // threadRoot is stored once, so retries of this message keep the same email headers.
+    const message = { sender: 'visitor', text: input.text, createdAt: Timestamp.fromMillis(now), delivery: slackOnly ? 'sent' : 'pending', contactName: input.name, contactEmail: input.email, page: input.page, ...(next.messageCount === 1 ? { threadRoot: true } : {}) };
+    tx.set(ref, { ...next, channel: 'chat', status: 'open', updatedAt: Timestamp.fromMillis(now), ...(!data ? { createdAt: Timestamp.fromMillis(now) } : {}) }, { merge: true });
     tx.create(messageRef, message);
     if (!data) tx.create(db.collection('supportReplyRoutes').doc(digest(next.replyToken)), { conversationId: ref.id });
     tx.set(budgetRef, { window: budgetWindow, count: budgetCount + 1 });
-    return { conversation: next, message };
+    const jobIds = slack ? enqueueSlackJobs(tx, ref.id, input.id, ['message', 'draft']) : [];
+    return { conversation: next, message, jobIds };
   });
+  kickSlackJobs(reservation.jobIds);
   if (reservation.message.delivery === 'sent') return publicMessage(input.id, reservation.message);
   const replyTo = `chat+${reservation.conversation.replyToken}@${config.replyDomain}`;
+  // The first message of a conversation is the thread root; follow-ups reference it so mail clients group them.
+  // Decided from the stored message flag, not the live messageCount, so a retried first message keeps its headers.
+  const root = `<chat-${ref.id}-root@${config.replyDomain}>`;
+  const first = reservation.message.threadRoot === true;
+  const messageIdHeader = first ? root : `<chat-${ref.id}-${input.id}@${config.replyDomain}>`;
   // Identical retries reuse the provider payload and idempotency key across instances.
   const payload = {
     from: config.from, to: [config.inbox], replyTo,
     subject: `[Chat ${ref.id.slice(0, 8)}] ${input.name} · Freelance Place`,
     text: `הודעה חדשה בצ׳אט התמיכה\n\nשם: ${input.name}\nמייל לחזרה: ${input.email}\nעמוד: ${input.page}\n\n--- הודעת המשתמש/ת ---\n${input.text}\n--- סוף ההודעה ---\n\nכדי לענות בצ׳אט, השיבו למייל הזה מעל הציטוט. התשובה תופיע בשיחה באתר.\nההודעה נשלחה מתוך האתר; פרטי הקשר ותוכן ההודעה נמסרו על ידי המשתמש/ת.`,
-    headers: { 'X-Entity-Ref-ID': ref.id },
+    headers: { 'X-Entity-Ref-ID': ref.id, 'Message-ID': messageIdHeader, ...(first ? {} : { 'In-Reply-To': root, References: root }) },
   };
   try {
     const result = await new Resend(config.apiKey).emails.send(payload, { idempotencyKey: `support/${ref.id}/${input.id}`, signal: AbortSignal.timeout(15_000) });
