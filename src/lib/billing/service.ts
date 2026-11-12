@@ -17,8 +17,8 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
   const access = await getMembershipAccess(user.uid);
   // Trial signups vault a card; the first debit is scheduled after the free trial.
   if (!['trial', 'expired'].includes(access.state)) throw new BillingError('NOT_ELIGIBLE', 409);
-  const setupOnly = access.state === 'trial';
-  if (setupOnly && (!access.trialEndsAt || access.trialEndsAt <= Date.now())) throw new BillingError('NOT_ELIGIBLE', 409);
+  const setupOnly = !!access.trialEndsAt && Date.now() < access.trialEndsAt + 24 * 60 * 60 * 1000;
+  if (setupOnly && (!access.trialEndsAt || access.trialEndsAt + 24 * 60 * 60 * 1000 <= Date.now())) throw new BillingError('NOT_ELIGIBLE', 409);
   const profile = (await firestore().collection('profiles').doc(user.uid).get()).data();
   const name = typeof profile?.name === 'string' ? profile.name.trim() : user.name?.trim();
   if (!name || name.length > 50 || !user.email || user.email.length > 50) throw new BillingError('BILLING_IDENTITY_REQUIRED', 400);
@@ -39,7 +39,7 @@ export async function startCheckout(user: AuthenticatedUser, consent: unknown) {
       }
       if (data?.status === 'creating' && Date.now() - data.createdAt.toMillis() < 60000) throw new BillingError('CHECKOUT_BUSY', 409);
     }
-    tx.create(ref, { uid: user.uid, status: 'creating', kind: setupOnly ? 'setup' : 'payment', ...(setupOnly ? { trialEndsAt: access.trialEndsAt } : {}), amountAgorot: PRICE_AGOROT, terminal: config.terminal, createdAt: Timestamp.now(), consentVersion: CONSENT_VERSION, consentAt: Timestamp.now(), name, email: user.email });
+    tx.create(ref, { uid: user.uid, status: 'creating', kind: setupOnly ? 'setup' : 'payment', ...(setupOnly ? { trialEndsAt: access.trialEndsAt! + 24 * 60 * 60 * 1000 } : {}), amountAgorot: PRICE_AGOROT, terminal: config.terminal, createdAt: Timestamp.now(), consentVersion: CONSENT_VERSION, consentAt: Timestamp.now(), name, email: user.email });
     tx.set(subscription, { pendingOrderId: ref.id, pendingCancelled: false }, { merge: true });
     return null;
   });
@@ -158,6 +158,12 @@ export async function renewSubscription(uid: string) {
     const sub = (await tx.get(subRef)).data(); const now = Date.now();
     if (!sub || (!sub.autoRenew && !sub.renewalPending) || sub.nextChargeAt.toMillis() > now || sub.leaseUntil?.toMillis() > now) return null;
     if (sub.terminal !== config.terminal || (sub.autoRenew && (!sub.token || !sub.expiry))) throw new BillingError('RENEWAL_CONFIG_MISMATCH');
+    const membership = sub.status === 'trialing' ? (await tx.get(db.collection('memberships').doc(uid))).data() : null;
+    const trialEnd = membership?.trialEndsAt?.toMillis?.();
+    if (typeof trialEnd === 'number' && now < trialEnd + 24 * 60 * 60 * 1000) {
+      tx.update(subRef, { nextChargeAt: Timestamp.fromMillis(trialEnd + 24 * 60 * 60 * 1000) });
+      return null;
+    }
     const due = sub.nextChargeAt.toMillis();
     const id = `${uid}-${due}`;
     const ref = db.collection('billingOrders').doc(id);

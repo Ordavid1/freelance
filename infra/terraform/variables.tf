@@ -120,6 +120,34 @@ variable "support_allowed_reply_emails" {
   default     = []
   description = "Additional owner/team email addresses allowed to reply into chat. The support inbox is always allowed."
 }
+variable "slack_secrets" {
+  type        = map(object({ project = string, name = string, version = string }))
+  default     = {}
+  description = "Existing Secret Manager references for SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET. Values never enter Terraform."
+  validation {
+    condition     = alltrue([for key in keys(var.slack_secrets) : contains(["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET"], key)])
+    error_message = "Only SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET are supported."
+  }
+  validation {
+    condition     = alltrue([for ref in values(var.slack_secrets) : can(regex("^[1-9][0-9]*$", ref.version))])
+    error_message = "Slack secret versions must be pinned positive version numbers."
+  }
+}
+variable "support_slack_channel_id" {
+  type        = string
+  default     = ""
+  description = "Slack channel ID of the #support console channel. Empty keeps Slack off."
+}
+variable "support_slack_agent_ids" {
+  type        = list(string)
+  default     = []
+  description = "Slack user IDs allowed to reply to customers from the support channel."
+}
+variable "support_slack_dispatch_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable the every-minute Cloud Scheduler sweep of the Slack outbox."
+}
 variable "resend_secrets" {
   type        = map(object({ project = string, name = string, version = string }))
   default     = {}

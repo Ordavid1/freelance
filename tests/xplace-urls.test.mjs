@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModule } from './helpers/load-ts.mjs';
 
-const { parseXPlaceUrl, xplaceProjectKey, XPLACE_ORIGIN } = loadModule('src/lib/imports/xplace/urls.ts');
+const { parseXPlaceUrl, resolveXPlaceProfileUrl, xplaceProjectKey, XPLACE_ORIGIN } = loadModule('src/lib/imports/xplace/urls.ts');
 
 // robots.txt of www.xplace.com as read on 2026-11-11 (User-agent: *). Re-check before widening the importer.
 const ROBOTS_DISALLOW = [
@@ -30,7 +30,7 @@ test('profile links in every supported form resolve to one canonical profile URL
     assert.equal(target.kind, 'profile');
     assert.equal(target.slug, 'ordavidone');
     assert.equal(target.canonicalUrl, `${XPLACE_ORIGIN}/il/u/ordavidone`);
-    assert.equal(target.fetchUrl, target.canonicalUrl);
+    assert.equal('fetchUrl' in target, false);
   }
 });
 
@@ -61,8 +61,12 @@ test('anything that is not an exact XPlace profile or project page is rejected',
   for (const value of rejected) assert.equal(parseXPlaceUrl(value), null, String(value).slice(0, 60));
 });
 
+test('profile targets carry no fetch URL: the server never requests profile pages', () => {
+  assert.equal('fetchUrl' in parseXPlaceUrl('https://www.xplace.com/il/u/ordavidone'), false);
+});
+
 test('the importer only ever requests paths that robots.txt allows', () => {
-  for (const form of ['https://www.xplace.com/il/u/ordavidone', 'https://www.xplace.com/il/job-bids/217664', 'https://www.xplace.com/project?id=217664']) {
+  for (const form of ['https://www.xplace.com/il/job-bids/217664', 'https://www.xplace.com/project?id=217664']) {
     const { fetchUrl } = parseXPlaceUrl(form);
     const url = new URL(fetchUrl);
     assert.equal(url.protocol, 'https:');
@@ -72,4 +76,22 @@ test('the importer only ever requests paths that robots.txt allows', () => {
   // The self-check itself must be able to fail.
   assert.equal(robotsBlocks('/il/rest/profile/1'), true);
   assert.equal(robotsBlocks('/il/jobs?sort=x'), true);
+});
+
+test('resolveXPlaceProfileUrl accepts a bare username or a profile link and returns the canonical profile page', () => {
+  const base = `${XPLACE_ORIGIN}/il/u/`;
+  const accepted = [
+    ['ordavidone', `${base}ordavidone`], [' ordavidone ', `${base}ordavidone`],
+    ['https://www.xplace.com/il/u/ordavidone', `${base}ordavidone`], ['xplace.com/u/ordavidone?x=1', `${base}ordavidone`],
+    ['john.doe', `${base}john.doe`], ['דוד_כהן', `${base}${encodeURIComponent('דוד_כהן')}`],
+  ];
+  for (const [input, expected] of accepted) assert.equal(resolveXPlaceProfileUrl(input), expected, input);
+});
+
+test('resolveXPlaceProfileUrl rejects everything else', () => {
+  const rejected = [
+    '', 'a', 'a'.repeat(81), 'has space', 'a/b', 'javascript:alert(1)', 'https://evil.example/il/u/x',
+    'https://www.xplace.com/il/job-bids/123456', 'www.xplace.com', 'xplace.com', '-abc', 12345, null, undefined,
+  ];
+  for (const input of rejected) assert.equal(resolveXPlaceProfileUrl(input), null, String(input).slice(0, 40));
 });

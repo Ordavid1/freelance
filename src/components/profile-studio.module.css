@@ -137,17 +137,36 @@
   .studio .platformButtons button.platformButton { flex: 1 0 118px; padding-inline: 9px; }
 }
 
-/* XPlace panel: up to three separated options inside one panel. */
-.studio .xPanel { display: grid; gap: 12px; margin-block: 12px 18px; padding: 12px; border: 1px solid #dce4de; border-radius: 12px; background: #fff; }
-.studio .xOption { display: grid; gap: 8px; padding: 12px; border: 1px solid #e6ece8; border-radius: 10px; background: #f7faf8; font-size: 13px; line-height: 1.7; color: #34463b; }
-.studio .xOption h4 { margin: 0; font-size: 14px; color: #202438; }
-.studio .xOption p { margin: 0; }
-.studio .xOption .linkForm { margin: 0; padding: 0; border: 0; background: none; }
-.studio .xSteps { margin: 0; padding-inline-start: 22px; display: grid; gap: 4px; }
+/* XPlace panel: up to two separated options inside one panel.
+   Text sizes follow responsive-typography.css: unchanged up to 1440px, then linear up to 20% larger at 2720px. */
+.studio .xPanel { --x-text: 16px; --x-small: 15px; --x-title: 17px; display: grid; gap: 12px; margin-block: 12px 18px; padding: 12px; border: 1px solid #dce4de; border-radius: 12px; background: #fff; }
+@media screen and (min-width: 1440px) {
+  .studio .xPanel {
+    --x-text: clamp(16px, calc(12.4px + 0.25vw), 19.2px);
+    --x-small: clamp(15px, calc(11.625px + 0.2344vw), 18px);
+    --x-title: clamp(17px, calc(13.175px + 0.2656vw), 20.4px);
+  }
+}
+.studio .xOption { display: grid; gap: 10px; padding: 14px; border: 1px solid #e6ece8; border-radius: 10px; background: #f7faf8; font-size: var(--x-text); line-height: 1.75; color: #34463b; }
+.studio .xOption h4 { margin: 0; font-size: var(--x-title); color: #202438; }
+.studio .xOption p { margin: 0; font-size: var(--x-text); }
+.studio .xSteps { margin: 0; padding-inline-start: 24px; display: grid; gap: 10px; }
+.studio .xHandle { display: grid; gap: 6px; margin-top: 6px; }
+.studio .xHandle label, .studio .xForm label { font-size: var(--x-text); font-weight: 500; color: #34463b; }
+.studio .xHandle input { width: 100%; max-width: 440px; min-width: 0; box-sizing: border-box; min-height: 40px; padding: 8px 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: var(--x-text); }
+.studio .xHandle input[aria-invalid="true"] { border-color: #b34a4a; }
+.studio .xHandle input:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
+.studio .xHandle small { font-size: var(--x-small); line-height: 1.7; color: #5f6a63; }
+.studio .xHandle .sourceError { font-size: var(--x-small); margin: 0; }
 .studio .xForm { display: grid; gap: 8px; }
-.studio .xForm label { font-size: 13px; font-weight: 500; color: #34463b; }
-.studio .xTextarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: 14px; resize: vertical; }
+.studio .xTextarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid #cfdad3; border-radius: 8px; background: #fff; color: #242b27; font-size: var(--x-text); line-height: 1.7; resize: vertical; }
 .studio .xTextarea:focus-visible { outline: 2px solid #267a52; outline-offset: 2px; }
-.studio .xLinkButton { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 14px; border: 1px solid #dce4de; border-radius: 8px; background: #fff; color: #495a4f; font-size: 12px; text-decoration: none; }
-.studio .xLinkButton:focus-visible { outline: 2px solid #267a52; outline-offset: 3px; }
-.studio .xOption p.xWarn { padding: 6px 9px; border-radius: 8px; background: #fff7e6; color: #6b4a0b; font-size: 12px; }
+.studio .xForm .checkRow { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; line-height: 1.7; cursor: pointer; }
+.studio .xForm .checkRow input { width: 20px; height: 20px; min-width: 20px; margin: 4px 0 0; accent-color: #202438; }
+.studio .xForm .sourceError { font-size: var(--x-small); }
+.studio .xPanel .linkFormActions button { min-height: 40px; font-size: var(--x-small); }
+.studio .xLinkButton { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 7px 18px; border: 1px solid #b9d800; border-radius: 8px; background: var(--logo-lime, #ceef00); color: #151719; font-size: var(--x-small); font-weight: 600; text-decoration: none; }
+.studio .xLinkButton:hover { background: var(--logo-lime-bright, #e0ff2a); }
+.studio .xLinkButton:focus-visible { outline: 2px solid #151719; outline-offset: 3px; }
+.studio .xOption p.xWarn { padding: 8px 12px; border-radius: 8px; background: #fff7e6; color: #6b4a0b; font-size: var(--x-small); }
+.studio .xOption p.xAlt { margin-top: 4px; padding-top: 12px; border-top: 1px solid #dce4de; font-size: var(--x-small); color: #4a5a50; }

@@ -2,8 +2,9 @@
 //
 // XPLACE_IMPORT_ENABLED=true     shows the XPlace source and import UI and accepts the payloads the
 //                                browser extension captured on the user's own XPlace pages.
-// XPLACE_LINK_IMPORT_ENABLED=true additionally lets the server read a pasted public XPlace link
+// XPLACE_LINK_IMPORT_ENABLED=true additionally lets the server read a pasted public XPlace PROJECT link
 //                                (an automated fetch from our servers; see docs/xplace-import.md).
+//                                Profiles are never read from a link: they come from the extension or pasted text.
 export function isXPlaceImportEnabled(): boolean {
   return process.env.XPLACE_IMPORT_ENABLED === 'true';
 }

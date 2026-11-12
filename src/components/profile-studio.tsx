@@ -1,9 +1,9 @@
 'use client';
 import { trackEvent } from '@/lib/analytics';
+import { compressProfileImage } from '@/lib/profile/compress-image';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { parseXPlaceUrl } from '@/lib/imports/xplace/urls';
 import type { XPlaceProfileImport } from '@/lib/imports/types';
 import { PlatformIcon, SourceCheck } from './profile-source-icons';
 import { HandoffNotice, useAutoHandoff, useXPlaceFlags, useXPlaceIngest } from './xplace-handoff';
@@ -14,7 +14,7 @@ import '@/app/profile-entry-editor.css';
 const platforms = ['Behance', 'Website'] as const;
 type LinkPlatform = typeof platforms[number];
 type SocialProvider = 'github' | 'linkedin';
-type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string };
+type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string; avatar?: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
 type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
 type XPlaceSource = Pick<XPlaceProfileImport, 'provider' | 'sourceText' | 'profile' | 'url' | 'warnings' | 'counts' | 'ownerSignal'>;
@@ -75,11 +75,8 @@ export function ProfileStudio({ userId }: { userId: string }) {
   const xplaceFlags = useXPlaceFlags();
   const [xplaceSource, setXplaceSource] = useState<XPlaceSource | null>(null);
   const [xplaceOpen, setXplaceOpen] = useState(false);
-  const [xplaceUrl, setXplaceUrl] = useState('');
-  const [xplaceOwner, setXplaceOwner] = useState(false);
-  const [xplaceBusy, setXplaceBusy] = useState(false);
-  const [xplaceError, setXplaceError] = useState('');
   const [profile, setProfile] = useState<Profile>(blank);
+  const [avatarDragOver, setAvatarDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [tag, setTag] = useState('');
@@ -306,7 +303,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     try { if (next) sessionStorage.setItem(xplaceKey, JSON.stringify(next)); else sessionStorage.removeItem(xplaceKey); } catch { /* The import stays in the current editor. */ }
   }
 
-  // Every XPlace path (extension hand-off, launch, pasted text, pasted link) ends here.
+  // Every XPlace path (extension hand-off, launch, pasted text) ends here.
   function applyXPlaceImport(data: XPlaceProfileImport) {
     const imported: XPlaceSource = {
       provider: 'xplace', sourceText: data.sourceText, profile: data.profile, url: data.url, warnings: data.warnings,
@@ -316,30 +313,10 @@ export function ProfileStudio({ userId }: { userId: string }) {
     persistXPlace(imported);
     trackEvent('xplace_profile_import_completed');
     setXplaceOpen(false);
-    setXplaceError('');
     setNotice('פרטי XPlace נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.');
   }
   const xplaceIngest = useXPlaceIngest<XPlaceProfileImport>('profile', applyXPlaceImport);
   useAutoHandoff(xplaceIngest, xplaceFlags, true);
-
-  async function importXPlace() {
-    const target = parseXPlaceUrl(xplaceUrl);
-    if (!target || target.kind !== 'profile') { setXplaceError('הדביקו קישור לפרופיל ציבורי ב־XPlace.'); return; }
-    if (!xplaceOwner) return;
-    trackEvent('xplace_profile_import_started');
-    setXplaceBusy(true);
-    setXplaceError('');
-    try {
-      const response = await fetch('/api/integrations/xplace/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: xplaceUrl.trim(), attested: true }) });
-      const data = await response.json().catch(() => null) as (Partial<XPlaceProfileImport> & { code?: string; error?: string }) | null;
-      if (!response.ok || !data || typeof data.sourceText !== 'string') throw new Error(data?.error || 'הייבוא מ־XPlace נכשל. נסו שוב.');
-      applyXPlaceImport({ ...(data as XPlaceProfileImport), url: data.url || target.canonicalUrl, warnings: Array.isArray(data.warnings) ? data.warnings : [] });
-      setXplaceUrl('');
-      setXplaceOwner(false);
-    } catch (error) {
-      setXplaceError(error instanceof Error ? error.message : 'הייבוא מ־XPlace נכשל. נסו שוב.');
-    } finally { setXplaceBusy(false); }
-  }
 
   function removeXPlaceImport() {
     setXplaceSource(null);
@@ -420,6 +397,14 @@ export function ProfileStudio({ userId }: { userId: string }) {
     }
   }
 
+  async function loadAvatar(file?: File) {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/avif'].includes(file.type)) { setNotice('נא לבחור תמונת PNG, JPG, WebP או AVIF.'); return; }
+    if (file.size > 3 * 1024 * 1024) { setNotice('גודל התמונה יכול להיות עד 3MB.'); return; }
+    try { const avatar = await compressProfileImage(file); setProfile(current => ({ ...current, avatar })); setNotice('התמונה נוספה לפרופיל. שמרו את הפרופיל כדי להחיל את השינוי.'); }
+    catch { setNotice('לא הצלחנו לטעון את התמונה. נסו לבחור תמונה אחרת.'); }
+  }
+
   const hasPendingImport = Object.values(importing).some(Boolean);
   const hasSources = files.length > 0 || Object.values(links).some(Boolean) || Object.keys(socialSources).length > 0 || Boolean(dribbbleSource) || Boolean(xplaceSource);
 
@@ -449,7 +434,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
           <PlatformIcon platform="dribbble" /><span dir="ltr">Dribbble</span>{dribbbleSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
           {connecting === 'dribbble' && <span className={styles.connectingText}>מתחברים…</span>}
         </button>
-        {xplaceFlags.enabled && <button type="button" className={`${styles.platformButton} ${xplaceSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(xplaceSource)} aria-expanded={xplaceOpen} aria-controls="profile-xplace-panel" onClick={() => { setXplaceOpen(!xplaceOpen); setXplaceError(''); }}>
+        {xplaceFlags.enabled && <button type="button" className={`${styles.platformButton} ${xplaceSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(xplaceSource)} aria-expanded={xplaceOpen} aria-controls="profile-xplace-panel" onClick={() => setXplaceOpen(!xplaceOpen)}>
           <PlatformIcon platform="xplace" /><span dir="ltr">XPlace</span>{xplaceSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
         </button>}
         {platforms.map((platform) => <button type="button" key={platform} className={`${styles.platformButton} ${links[platform] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(links[platform])} aria-expanded={source === platform} onClick={() => source === platform ? setSource(null) : editLink(platform)}><PlatformIcon platform={platform} /><span dir="ltr">{platform}</span>{links[platform] ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}</button>)}
@@ -462,16 +447,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
         <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink}>אישור הקישור</button><button type="button" onClick={() => { setSource(null); setLinkError(''); }}>ביטול</button></div>
       </form>}
       <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm}/>
-      {xplaceFlags.enabled && xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => { setXplaceOpen(false); setXplaceError(''); }} linkForm={xplaceFlags.linkImport ? (
-        <form id="profile-xplace-form" className={styles.linkForm} onSubmit={(event) => { event.preventDefault(); if (!xplaceBusy) void importXPlace(); }}>
-        <label htmlFor="profile-xplace-url">קישור לפרופיל ה־XPlace שלכם</label>
-        <input id="profile-xplace-url" type="url" dir="ltr" placeholder="https://www.xplace.com/il/u/your-name" required value={xplaceUrl} disabled={xplaceBusy} aria-describedby={xplaceError ? 'profile-xplace-error' : 'profile-xplace-hint'} aria-invalid={Boolean(xplaceError)} onChange={(event) => { setXplaceUrl(event.target.value); setXplaceError(''); }}/>
-        <label className={styles.checkRow}><input type="checkbox" required checked={xplaceOwner} disabled={xplaceBusy} onChange={(event) => setXplaceOwner(event.target.checked)}/><span>אני הבעלים/ת של הפרופיל הזה ב־XPlace.</span></label>
-        <small id="profile-xplace-hint">נקרא רק מה ש־XPlace מציגה לכל מבקר: כותרת, תיאור ותמונה. כדי לייבא גם ניסיון, כישורים והשכלה, שמרו את הפרופיל כ־PDF (הדפסה ← שמירה כ־PDF) וצרפו אותו כמסמך.</small>
-        <div aria-live="polite">{xplaceError && <p id="profile-xplace-error" role="alert" className={styles.sourceError}>{xplaceError}</p>}</div>
-        <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink} disabled={xplaceBusy || !xplaceOwner}>{xplaceBusy ? 'מייבאים…' : 'ייבוא מ־XPlace'}</button><button type="button" disabled={xplaceBusy} onClick={() => { setXplaceOpen(false); setXplaceError(''); }}>ביטול</button></div>
-      </form>
-      ) : null}/>}
+      {xplaceFlags.enabled && xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => setXplaceOpen(false)}/>}
       <div className={styles.sourceCards}>
       {platforms.filter((platform) => links[platform]).map((platform) => <article className={styles.sourceCard} key={platform}>
         <PlatformIcon platform={platform} /><div className={styles.sourceDetails}><strong>{platform} נוסף <SourceCheck /></strong><a href={links[platform]} target="_blank" rel="noreferrer" dir="ltr">{links[platform]}</a><small>הקישור אושר ליצירת הפרופיל</small></div>
@@ -501,7 +477,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     </div>
     <p role="status">{notice}</p>
     <div className="profile-template">
-      <h2>הפרופיל שלך <small>הכול ניתן לעריכה</small></h2>
+      <div className="freelancer-profile-heading"><h2>הפרופיל שלך <small>הכול ניתן לעריכה</small></h2><label className={`freelancer-avatar-upload${avatarDragOver ? ' is-dragging' : ''}`} onDragOver={event => { event.preventDefault(); setAvatarDragOver(true); }} onDragLeave={() => setAvatarDragOver(false)} onDrop={event => { event.preventDefault(); setAvatarDragOver(false); loadAvatar(event.dataTransfer.files[0]); }}><input type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={event => loadAvatar(event.target.files?.[0])}/>{profile.avatar ? <img src={profile.avatar} alt="תמונת הפרופיל שלך"/> : <><span aria-hidden="true">＋</span><small>תמונת פרופיל</small></>}</label></div>
       {([['name', 'שם'], ['headline', 'Tagline · במשפט אחד'], ['bio', 'Summary · הסיפור שלך']] as const).map(([key, label]) => <label key={key}>{label}<textarea rows={key === 'name' || key === 'headline' ? 1 : 3} value={profile[key]} onChange={(event) => setProfile({ ...profile, [key]: event.target.value })} placeholder="המידע מהמקורות יופיע כאן. אפשר גם לכתוב בעצמך."/></label>)}
       <ProfileEntryEditor title="תיק עבודות וקישורי מדיה" value={profile.portfolio} onChange={(portfolio) => setProfile({ ...profile, portfolio })} placeholder="תיאור עבודה, קישור או הישג"/>
       <ProfileEntryEditor title="ניסיון תעסוקתי" value={profile.experience} onChange={(experience) => setProfile({ ...profile, experience })} placeholder="תפקיד, ארגון, תקופה ותחומי אחריות"/>

@@ -14,7 +14,7 @@
     "test:proposals": "node --test tests/proposals.test.mjs",
     "test:seed": "node --experimental-transform-types --test tests/seed-projects.test.mjs",
     "test:home": "node --test tests/home-render.test.mjs",
-    "test:support": "node --experimental-transform-types --experimental-test-module-mocks --test tests/support.test.mjs tests/support-autoreply.test.mjs",
+    "test:support": "node --experimental-transform-types --experimental-test-module-mocks --test tests/support.test.mjs tests/support-autoreply.test.mjs tests/support-slack-platform.test.mjs tests/support-slack-core.test.mjs tests/support-ai-triage.test.mjs tests/support-slack-routes.test.mjs",
     "seed:projects": "node --experimental-transform-types scripts/seed-projects/seed-projects.ts --catalog scripts/seed-projects/catalog.he.json",
     "seo:indexnow": "node scripts/indexnow-submit.mjs"
   },

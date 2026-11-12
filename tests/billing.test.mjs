@@ -130,7 +130,7 @@ test('trial signup works despite a legacy publisher label without capturing a ch
  let payload;const transport=fakeFetch(body=>{payload=body;return {ResponseCode:0,LowProfileId:lp,Url:'https://secure.cardcom.solutions/test-checkout'};});
  const session=await service.startCheckout({uid:'u',name:'Test',email:'test@example.com'},true);
  assert.equal(payload.Operation,'CreateTokenOnly');assert.equal(payload.Amount,1);assert.equal(payload.AdvancedDefinition.JValidateType,5);assert.equal(payload.Document,undefined);
- const order=rows.get('billingOrders/'+session.orderId);assert.equal(order.kind,'setup');assert.equal(order.trialEndsAt,accessRecord.trialEndsAt);transport.mock.restore();
+ const order=rows.get('billingOrders/'+session.orderId);assert.equal(order.kind,'setup');assert.equal(order.trialEndsAt,accessRecord.trialEndsAt+86400000);transport.mock.restore();
 });
 test('trial card setup is idempotent, preserves free access and only debits after trial end',async()=>{
  setup();const trialEnd=Date.now()+86400000;
