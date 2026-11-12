@@ -6,6 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
+import { analyzeCompatibility } from '@/lib/marketplace/compatibility-analysis';
 
 export const runtime = 'nodejs';
 
@@ -25,9 +26,25 @@ export async function GET(request: Request) {
       const conversation = await ref.get();
       if (!conversation.exists || !belongsTo(conversation.data()!, user.uid)) return NextResponse.json({ error: 'השיחה לא נמצאה.' }, { status: 404 });
       const messages = await ref.collection('messages').orderBy('createdAt', 'asc').limit(200).get();
+      const record = conversation.data()!;
+      let analysis = null;
+      // Only the project publisher receives a derived summary; raw freelancer profile data stays private.
+      const isProposalThread = messages.docs[0]?.get('kind') === 'proposal';
+      if (record.clientUid === user.uid && isProposalThread && typeof record.projectSlug === 'string' && typeof record.freelancerUid === 'string') {
+        try {
+          const [project, profile] = await Promise.all([
+            db.collection('projects').doc(record.projectSlug).get(),
+            db.collection('profiles').doc(record.freelancerUid).get(),
+          ]);
+          if (project.exists) analysis = analyzeCompatibility(project.data() || {}, profile.exists ? profile.data() || {} : null);
+        } catch {
+          // A profile lookup should not prevent participants from opening their conversation.
+        }
+      }
       return NextResponse.json({
-        conversation: { id: conversation.id, ...conversation.data() },
+        conversation: { id: conversation.id, ...record },
         messages: messages.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+        ...(analysis ? { analysis } : {}),
       }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const [asClient, asFreelancer] = await Promise.all([

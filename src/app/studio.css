@@ -29,3 +29,55 @@
 .adjacent-work-choice{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:14px;line-height:1.7}.adjacent-work-choice input{accent-color:#6a7900;width:16px;height:16px;flex:none}.skill-match-badge{display:inline-block;border-radius:8px;padding:5px 10px;font-size:11px;margin:0 0 8px;background:#edf5e4;color:#3c5928;max-width:100%;overflow-wrap:anywhere}.skill-match-badge.adjacent{background:#f6f2df;color:#725c20}
 
 .freelancer-profile-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}.profile-template .freelancer-profile-heading h2{flex:1;margin:0}.freelancer-avatar-upload{position:relative;display:flex;flex:0 0 84px;width:84px;height:84px;align-items:center;justify-content:center;flex-direction:column;gap:3px;overflow:hidden;border:1px dashed #a7ba58;border-radius:22px;background:#f8faee;color:#536524;text-align:center;cursor:pointer;transition:background .16s,border-color .16s,transform .16s}.freelancer-avatar-upload:hover,.freelancer-avatar-upload.is-dragging{border-color:#88a500;background:#eff6cc;transform:translateY(-1px)}.freelancer-avatar-upload input{position:absolute!important;inset:0;width:100%!important;height:100%;opacity:0;cursor:pointer}.freelancer-avatar-upload>span{font-size:25px;line-height:1}.freelancer-avatar-upload small{font-size:10px;color:inherit}.freelancer-avatar-upload img{width:100%;height:100%;object-fit:cover}
+
+/* Proposal forms and application cards use the workspace's pine, sage and paper tones. */
+.proposal-form{margin-top:22px;padding:22px;border:1px solid #e4e9e1;border-radius:16px;background:#fbfcf9}
+.proposal-form label{display:block;margin:18px 0;font-size:13px;line-height:1.6;color:#31423a}
+.proposal-form label:first-child{margin-top:0}
+.proposal-form textarea,.proposal-form input,.proposal-form select{border:1px solid #d8e0d7;border-radius:10px;background:#fff;padding:12px 14px;margin-top:8px;font-size:13px;line-height:1.7;color:var(--ink)}
+.proposal-form textarea{min-height:132px;resize:vertical}
+.proposal-form .proposal-privacy,.project-expanded form .proposal-privacy{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid #dfe8d8;border-radius:12px;background:#f3f7eb;color:#3d5039;cursor:pointer}
+.proposal-form .proposal-privacy input[type="checkbox"],.project-expanded form .proposal-privacy input[type="checkbox"]{display:block;flex:none;width:18px;height:18px;margin:2px 0 0;padding:0;accent-color:#55752f}
+.proposal-privacy span{display:grid;gap:4px}
+.proposal-privacy strong{font-size:13px;font-weight:600}
+.proposal-privacy small{font-size:11px;line-height:1.65;color:#6f7b69}
+.proposal-form .proposal-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.proposal-form .proposal-row label{margin:10px 0 4px}
+.proposal-form .form-actions{align-items:center;gap:14px;margin-top:22px}
+.proposal-form .button-dark{background:#20594d;color:#fff;border-radius:10px;padding:12px 18px}
+.project-close-action{position:absolute;z-index:3;top:22px;left:110px;display:grid;justify-items:start;gap:4px;max-width:130px}
+.project-close-action button{border:1px solid #d8e1d2;border-radius:9px;background:#f3f7e9;color:#3f5a31;padding:8px 11px;font-size:11px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s}
+.project-close-action button:hover:not(:disabled){background:#eaf2ca;border-color:#b7c967}
+.project-close-action button:disabled{opacity:.65;cursor:wait}
+.project-close-action [role="alert"]{max-width:130px;font-size:10px;line-height:1.4;color:#a13d2d;background:#fff;border-radius:6px;padding:4px 6px;box-shadow:0 2px 8px #20243810}
+.project-summary:has(.project-close-action) .project-category{padding-left:250px}
+.closed .project-category{padding-left:30px}
+.closed .expand-project h2{margin-bottom:12px}
+.bid-comparison{padding:24px 30px 28px;background:#fcfcfa}
+.bid-comparison>.proposal-row{align-items:center;gap:14px;margin-bottom:16px}
+.bid-comparison h3{margin:0;color:var(--ink);font-size:16px}
+.bid-comparison>.proposal-row>span{border-radius:999px;background:#eef2e8;color:#627253;padding:6px 10px;font-size:11px}
+.bid-comparison>p{font-size:13px;color:#738078;line-height:1.75}
+.proposal-card{display:grid;gap:14px;margin-top:14px;padding:20px;border:1px solid #e2e8e0;border-radius:16px;background:#fff;box-shadow:0 5px 18px #27392b08}
+.proposal-card>.proposal-row{align-items:center;gap:12px 20px;padding-bottom:13px;border-bottom:1px solid #edf0ea}
+.proposal-card>.proposal-row strong:first-child{font-size:15px;color:#26352e}
+.proposal-private-badge{display:inline-flex;margin-inline-start:8px;border-radius:999px;background:#f0f5d9;color:#59692e;padding:4px 8px;font-size:10px;font-weight:600;vertical-align:middle}
+.proposal-card>.proposal-row strong:last-child{font-size:13px;color:#315c4f}
+.proposal-card p{margin:0;color:#56645b;font-size:13px;line-height:1.9;overflow-wrap:anywhere;white-space:pre-wrap}
+.proposal-card small{color:#808a83;font-size:11px;line-height:1.6}
+.proposal-card .button-outline{justify-self:start;border-color:#d6e0d4;border-radius:9px;padding:10px 14px;color:#31584d;background:#f8faf6}
+.application-card{padding:clamp(24px,3vw,34px);border-color:#e0e7dc;background:linear-gradient(145deg,#fff 55%,#fbfcf8)}
+.personal .application-card{padding:22px}
+.application-badges{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.application-status,.application-privacy-badge{display:inline-flex;align-items:center;min-height:29px;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:600}
+.application-status{color:#315c4f;background:#eaf3ed}
+.application-privacy-badge{color:#59692e;background:#f0f5d9}
+.application-card h2{margin:20px 0 14px;line-height:1.45}
+.personal .application-card h2{margin:22px 0 16px;font-size:19px}
+.application-card .application-offer-label{margin:24px 0 8px;color:#536258}
+.application-card .application-message{padding:16px 18px;border:1px solid #e6ebe3;border-radius:13px;background:#f8faf6;color:#35443b;line-height:1.9}
+.application-card>p{margin:16px 0;line-height:1.8}
+.application-actions{gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid #edf0ea}
+.application-actions .button-outline{padding:11px 15px;background:#fff;border:1px solid #d8e1d6;color:#31584d}
+.application-actions button{border-radius:9px;background:#fff5f2;padding:10px 13px}
+@media(max-width:760px){.proposal-form{padding:17px}.proposal-form .proposal-row{grid-template-columns:1fr;gap:0}.project-close-action{top:17px;left:92px}.project-summary:has(.project-close-action) .project-category{padding-left:235px}.bid-comparison{padding:19px}.proposal-card{padding:16px}.application-card{padding:20px}.application-card .application-message{padding:13px 14px}}

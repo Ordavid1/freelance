@@ -56,6 +56,7 @@ export async function GET(request: Request) {
           delivery: typeof record.delivery === 'string' ? record.delivery : '',
           status: isDemo ? 'test' : typeof record.status === 'string' ? record.status : 'submitted',
           isDemo,
+          privateFromPublic: record.privateFromPublic === true,
           createdAt: timestampMillis(record.createdAt),
         };
       })
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
   }
 }
 
-async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: string, input: { projectSlug: string; projectTitle: string; message: string; amount: number; pricingType: unknown; delivery: string }) {
+async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: string, input: { projectSlug: string; projectTitle: string; message: string; amount: number; pricingType: unknown; delivery: string; privateFromPublic: boolean }) {
   try {
     const demoProposalId = createHash('sha256').update(`${input.projectSlug}:${uid}`).digest('hex');
     await db.collection('demo-proposals').doc(demoProposalId).set({
@@ -76,6 +77,7 @@ async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: strin
       projectTitle: input.projectTitle,
       freelancerUid: uid,
       message: input.message,
+      privateFromPublic: input.privateFromPublic,
       amount: input.amount,
       currency: 'ILS',
       pricingType: input.pricingType,
@@ -106,7 +108,8 @@ export async function POST(request: Request) {
   const delivery = body?.delivery;
   const amount = Number(body?.amount);
   const pricingType = body?.pricingType;
-  if (typeof projectSlug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug) || typeof message !== 'string' || message.trim().length < 20 || message.length > 4000 || typeof delivery !== 'string' || delivery.trim().length < 2 || delivery.length > 120 || !Number.isFinite(amount) || amount <= 0 || amount > 100_000_000 || (pricingType !== 'fixed' && pricingType !== 'hourly')) {
+  const privateFromPublic = body?.privateFromPublic;
+  if (typeof projectSlug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug) || typeof message !== 'string' || message.trim().length < 20 || message.length > 4000 || typeof delivery !== 'string' || delivery.trim().length < 2 || delivery.length > 120 || !Number.isFinite(amount) || amount <= 0 || amount > 100_000_000 || (pricingType !== 'fixed' && pricingType !== 'hourly') || (privateFromPublic !== undefined && typeof privateFromPublic !== 'boolean')) {
     return NextResponse.json({ error: 'בדקו את המחיר, זמן האספקה ותוכן ההצעה.' }, { status: 400 });
   }
 
@@ -125,7 +128,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
     }
   }
-  if (sampleTitle !== null) return savePracticeProposal(db, user.uid, { projectSlug, projectTitle: sampleTitle, message: message.trim(), amount, pricingType, delivery: delivery.trim() });
+  if (sampleTitle !== null) return savePracticeProposal(db, user.uid, { projectSlug, projectTitle: sampleTitle, message: message.trim(), amount, pricingType, delivery: delivery.trim(), privateFromPublic: privateFromPublic === true });
 
   const projectRef = db.collection('projects').doc(projectSlug);
   const proposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
       const proposal = {
         projectSlug, projectTitle: project.get('title'), clientUid: project.get('ownerUid'), freelancerUid: user.uid,
         freelancerName: user.name || user.email?.split('@')[0] || 'פרילנסר/ית', amount, currency: 'ILS', pricingType,
-        delivery: delivery.trim(), message: message.trim(), status: 'submitted', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+        delivery: delivery.trim(), message: message.trim(), privateFromPublic: privateFromPublic === true, status: 'submitted', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
       };
       transaction.create(proposalRef, proposal);
       transaction.create(conversationRef, {

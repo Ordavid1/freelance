@@ -7,6 +7,7 @@ import './globals.css';
 import './discovery.css';
 import './legal.css';
 import './responsive-typography.css';
+import './messages.css';
 import './site-footer.css';
 import { SiteFooter } from '@/components/site-footer';
 import { SupportChatProvider } from '@/components/support-chat';

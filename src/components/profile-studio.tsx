@@ -3,9 +3,8 @@ import { trackEvent } from '@/lib/analytics';
 import { compressProfileImage } from '@/lib/profile/compress-image';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import type { XPlaceProfileImport } from '@/lib/imports/types';
-import { PlatformIcon, SourceCheck } from './profile-source-icons';
+import { PlatformIcon, SourceCheck, SourceDisclosure } from './profile-source-icons';
 import { HandoffNotice, useAutoHandoff, useXPlaceFlags, useXPlaceIngest } from './xplace-handoff';
 import { XPlaceProfilePanel } from './xplace-profile-panel';
 import styles from './profile-studio.module.css';
@@ -14,6 +13,7 @@ import '@/app/profile-entry-editor.css';
 const platforms = ['Behance', 'Website'] as const;
 type LinkPlatform = typeof platforms[number];
 type SocialProvider = 'github' | 'linkedin';
+type SourcePanelKey = LinkPlatform | SocialProvider | 'dribbble' | 'xplace';
 type Profile = { name: string; headline: string; bio: string; skills: string[]; portfolio: string; experience: string; education: string; website?: string; avatar?: string };
 type SocialSource = { provider: SocialProvider; sourceText: string; profile: Partial<Profile>; url: string; connectionId: string };
 type DribbbleSource = { provider: 'dribbble'; sourceText: string; profile: Partial<Profile>; url: string };
@@ -65,6 +65,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   const [links, setLinks] = useState<Partial<Record<LinkPlatform, string>>>({});
   const [linkDrafts, setLinkDrafts] = useState<Partial<Record<LinkPlatform, string>>>({});
   const [source, setSource] = useState<LinkPlatform | null>(null);
+  const [expandedSource, setExpandedSource] = useState<SourcePanelKey | null>(null);
   const [linkError, setLinkError] = useState('');
   const [socialConnections, setSocialConnections] = useState<Partial<Record<SocialProvider, string>>>({});
   const [socialSources, setSocialSources] = useState<Partial<Record<SocialProvider, SocialSource>>>({});
@@ -221,6 +222,8 @@ export function ProfileStudio({ userId }: { userId: string }) {
   }
 
   function editLink(platform: LinkPlatform) {
+    setExpandedSource(null);
+    setXplaceOpen(false);
     setSource(platform);
     setLinkDrafts((current) => ({ ...current, [platform]: current[platform] ?? links[platform] ?? '' }));
     setLinkError('');
@@ -228,17 +231,19 @@ export function ProfileStudio({ userId }: { userId: string }) {
 
   function approveLink() {
     if (!source) return;
+    const approvedPlatform = source;
     try {
-      const url = new URL((linkDrafts[source] || '').trim());
+      const url = new URL((linkDrafts[approvedPlatform] || '').trim());
       if (!['https:', 'http:'].includes(url.protocol) || !url.hostname.includes('.') || url.username || url.password) throw new Error('הוסיפו כתובת אתר ציבורית שמתחילה ב־https://.');
-      if (source === 'Behance' && url.hostname !== 'behance.net' && !url.hostname.endsWith('.behance.net')) throw new Error('הוסיפו קישור לפרופיל או לפרויקט ציבורי ב־Behance.');
-      const nextLinks = { ...links, [source]: url.href };
+      if (approvedPlatform === 'Behance' && url.hostname !== 'behance.net' && !url.hostname.endsWith('.behance.net')) throw new Error('הוסיפו קישור לפרופיל או לפרויקט ציבורי ב־Behance.');
+      const nextLinks = { ...links, [approvedPlatform]: url.href };
       setLinks(nextLinks);
-      if (source === 'Website') setProfile((current) => ({ ...current, website: url.href, portfolio: url.href }));
+      if (approvedPlatform === 'Website') setProfile((current) => ({ ...current, website: url.href, portfolio: url.href }));
       try { sessionStorage.setItem(approvedLinksKey, JSON.stringify(nextLinks)); } catch { /* The approved link remains available in the current editor. */ }
-      setLinkDrafts((current) => ({ ...current, [source]: url.href }));
-      setNotice(`הקישור ל־${source} אושר ונוסף למקורות. הוא ייקרא בלחיצה על יצירת פרופיל בעזרת AI.`);
+      setLinkDrafts((current) => ({ ...current, [approvedPlatform]: url.href }));
+      setNotice(`הקישור ל־${approvedPlatform} אושר ונוסף למקורות. הוא ייקרא בלחיצה על יצירת פרופיל בעזרת AI.`);
       setSource(null);
+      setExpandedSource(approvedPlatform);
       setLinkError('');
     } catch (error) {
       setLinkError(error instanceof TypeError ? 'הוסיפו כתובת אתר מלאה שמתחילה ב־https://.' : error instanceof Error ? error.message : 'הכתובת אינה תקינה.');
@@ -253,10 +258,40 @@ export function ProfileStudio({ userId }: { userId: string }) {
     try { sessionStorage.setItem(approvedLinksKey, JSON.stringify(nextLinks)); } catch { /* Removal still applies to the current editor. */ }
     setLinkDrafts((current) => { const next = { ...current }; delete next[platform]; return next; });
     if (source === platform) setSource(null);
+    if (expandedSource === platform) setExpandedSource(null);
     setNotice(`הקישור ל־${platform} הוסר מהמקורות.`);
   }
 
+  function toggleSourceDetails(key: SourcePanelKey) {
+    setSource(null);
+    setLinkError('');
+    setXplaceOpen(false);
+    setExpandedSource((current) => current === key ? null : key);
+  }
+
+  function toggleLinkSource(platform: LinkPlatform) {
+    if (links[platform]) toggleSourceDetails(platform);
+    else if (source === platform) {
+      setSource(null);
+      setLinkError('');
+    } else editLink(platform);
+  }
+
+  function toggleXPlace() {
+    if (xplaceSource) {
+      toggleSourceDetails('xplace');
+      return;
+    }
+    setExpandedSource(null);
+    setSource(null);
+    setLinkError('');
+    setXplaceOpen((current) => !current);
+  }
+
   async function connectSocial(provider: SocialProvider) {
+    setExpandedSource(null);
+    setSource(null);
+    setXplaceOpen(false);
     setConnecting(provider);
     setNotice('');
     try {
@@ -283,6 +318,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
             finished = true;
             const connectionId = event.payload.connectionId;
             setSocialConnections((current) => ({ ...current, [provider]: connectionId }));
+            setExpandedSource(provider);
             connect.close();
             try {
               const loaded = await importSocialSource(provider, connectionId);
@@ -313,6 +349,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     persistXPlace(imported);
     trackEvent('xplace_profile_import_completed');
     setXplaceOpen(false);
+    setExpandedSource('xplace');
     setNotice('פרטי XPlace נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.');
   }
   const xplaceIngest = useXPlaceIngest<XPlaceProfileImport>('profile', applyXPlaceImport);
@@ -321,6 +358,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
   function removeXPlaceImport() {
     setXplaceSource(null);
     persistXPlace(null);
+    setExpandedSource((current) => current === 'xplace' ? null : current);
     setNotice('המידע שיובא מ־XPlace הוסר מהמקורות.');
   }
 
@@ -328,6 +366,8 @@ export function ProfileStudio({ userId }: { userId: string }) {
     try {
       sessionStorage.setItem(dribbbleDraftKey, JSON.stringify({ links, linkDrafts, source, profile, tag }));
     } catch { /* OAuth can continue when browser storage is unavailable. */ }
+    setExpandedSource(null);
+    setXplaceOpen(false);
     setConnecting('dribbble');
     setNotice('מעבירים אותך ל־Dribbble לאישור קריאת פרטי הפרופיל והעבודות הציבוריות.');
     window.location.assign('/api/integrations/dribbble/connect');
@@ -343,6 +383,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     setSocialConnections((current) => { const next = { ...current }; delete next[provider]; return next; });
     setImportErrors((current) => { const next = { ...current }; delete next[provider]; return next; });
     setImporting((current) => ({ ...current, [provider]: false }));
+    setExpandedSource((current) => current === provider ? null : current);
     setNotice(`חיבור ${providerLabels[provider]} נותק. אפשר לבטל הרשאה גם בהגדרות הספק; מידע שכבר נשמר בפרופיל לא נמחק.`);
   }
 
@@ -350,6 +391,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     const response = await fetch('/api/integrations/dribbble', { method: 'DELETE' }).catch(() => null);
     if (!response?.ok) { setNotice('לא הצלחנו להסיר את ייבוא Dribbble. נסו שוב.'); return; }
     setDribbbleSource(null);
+    setExpandedSource((current) => current === 'dribbble' ? null : current);
     setNotice('המידע שיובא מ־Dribbble הוסר. לביטול הרשאת האפליקציה, בקרו בהגדרות החשבון ב־Dribbble.');
   }
 
@@ -413,7 +455,6 @@ export function ProfileStudio({ userId }: { userId: string }) {
     <p>קל להקים פרופיל: מחברים אתר או מוסיפים מסמך, ואנחנו עוזרים למלא את הפרטים. אפשר גם למלא לבד.</p>
     <div className="source-workbench">
       <h2>המקורות שלך</h2>
-      <p className="legal-inline-notice">בחירה או גרירה של קובץ שומרת אותו באופן פרטי בחשבון מיד. יצירת טיוטה ב־AI היא פעולה נפרדת: רק בלחיצה על ״יצירת פרופיל בעזרת AI״ נשלח את המקורות שנבחרו ל־Google Vertex AI. אפשר לערוך פרופיל ידנית ולמחוק מסמכים בעורך. <Link href="/privacy#uploads">פרטי העיבוד, השמירה וזכויותיכם</Link>.</p>
       <label className="profile-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void addFiles(Array.from(event.dataTransfer.files)); }}>
         <span>↥</span><strong>גררו לכאן את העבודה שלכם</strong>
         <input className={styles.fileInput} aria-label="בחירת מסמכי פרופיל" type="file" multiple accept=".pdf,.txt,.md" disabled={uploading} onChange={(event) => { void addFiles(Array.from(event.target.files || [])); event.currentTarget.value = ''; }}/>
@@ -425,21 +466,21 @@ export function ProfileStudio({ userId }: { userId: string }) {
 
       <h3>חיבור לפרופילים המקצועיים</h3>
       <div className={`social-sources ${styles.platformButtons}`}>
-        {(['linkedin', 'github'] as const).map((provider) => <button type="button" key={provider} className={`${styles.platformButton} ${socialConnections[provider] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(socialConnections[provider])} aria-label={`${providerLabels[provider]}${socialConnections[provider] ? ' מחובר' : ' — חיבור חשבון'}`} disabled={connecting !== null} onClick={() => socialConnections[provider] ? document.getElementById(`profile-source-${provider}`)?.focus() : void connectSocial(provider)}>
+        {(['linkedin', 'github'] as const).map((provider) => <button type="button" key={provider} className={`${styles.platformButton} ${socialConnections[provider] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(socialConnections[provider])} aria-expanded={socialConnections[provider] ? expandedSource === provider : undefined} aria-controls={socialConnections[provider] ? 'profile-source-detail' : undefined} aria-label={`${providerLabels[provider]}${socialConnections[provider] ? ' מחובר' : ' — חיבור חשבון'}`} disabled={connecting !== null} onClick={() => socialConnections[provider] ? toggleSourceDetails(provider) : void connectSocial(provider)}>
           <PlatformIcon platform={provider} /><span dir="ltr">{providerLabels[provider]}</span>
-          {socialConnections[provider] ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
+          {socialConnections[provider] ? <SourceDisclosure expanded={expandedSource === provider}/> : <span className={styles.addMark} aria-hidden="true">＋</span>}
           {connecting === provider && <span className={styles.connectingText}>מתחברים…</span>}
         </button>)}
-        <button type="button" className={`${styles.platformButton} ${dribbbleSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(dribbbleSource)} aria-label={`Dribbble${dribbbleSource ? ' מחובר' : ' — חיבור חשבון'}`} disabled={connecting !== null} onClick={() => dribbbleSource ? document.getElementById('profile-source-dribbble')?.focus() : connectDribbble()}>
-          <PlatformIcon platform="dribbble" /><span dir="ltr">Dribbble</span>{dribbbleSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
+        <button type="button" className={`${styles.platformButton} ${dribbbleSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(dribbbleSource)} aria-expanded={dribbbleSource ? expandedSource === 'dribbble' : undefined} aria-controls={dribbbleSource ? 'profile-source-detail' : undefined} aria-label={`Dribbble${dribbbleSource ? ' מחובר' : ' — חיבור חשבון'}`} disabled={connecting !== null} onClick={() => dribbbleSource ? toggleSourceDetails('dribbble') : connectDribbble()}>
+          <PlatformIcon platform="dribbble" /><span dir="ltr">Dribbble</span>{dribbbleSource ? <SourceDisclosure expanded={expandedSource === 'dribbble'}/> : <span className={styles.addMark} aria-hidden="true">＋</span>}
           {connecting === 'dribbble' && <span className={styles.connectingText}>מתחברים…</span>}
         </button>
-        {xplaceFlags.enabled && <button type="button" className={`${styles.platformButton} ${xplaceSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(xplaceSource)} aria-expanded={xplaceOpen} aria-controls="profile-xplace-panel" onClick={() => setXplaceOpen(!xplaceOpen)}>
-          <PlatformIcon platform="xplace" /><span dir="ltr">XPlace</span>{xplaceSource ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}
+        {xplaceFlags.enabled && <button type="button" className={`${styles.platformButton} ${xplaceSource ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(xplaceSource)} aria-expanded={xplaceSource ? expandedSource === 'xplace' : xplaceOpen} aria-controls={xplaceSource ? 'profile-source-detail' : 'profile-xplace-panel-region'} onClick={toggleXPlace}>
+          <PlatformIcon platform="xplace" /><span dir="ltr">XPlace</span>{xplaceSource ? <SourceDisclosure expanded={expandedSource === 'xplace'}/> : <span className={styles.addMark} aria-hidden="true">＋</span>}
         </button>}
-        {platforms.map((platform) => <button type="button" key={platform} className={`${styles.platformButton} ${links[platform] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(links[platform])} aria-expanded={source === platform} onClick={() => source === platform ? setSource(null) : editLink(platform)}><PlatformIcon platform={platform} /><span dir="ltr">{platform}</span>{links[platform] ? <SourceCheck /> : <span className={styles.addMark} aria-hidden="true">＋</span>}</button>)}
+        {platforms.map((platform) => <button type="button" key={platform} className={`${styles.platformButton} ${links[platform] ? styles.platformButtonConnected : ''}`} aria-pressed={Boolean(links[platform])} aria-expanded={links[platform] ? expandedSource === platform : source === platform} aria-controls={links[platform] ? 'profile-source-detail' : source === platform ? 'profile-source-link-form' : undefined} onClick={() => toggleLinkSource(platform)}><PlatformIcon platform={platform} /><span dir="ltr">{platform}</span>{links[platform] ? <SourceDisclosure expanded={expandedSource === platform}/> : <span className={styles.addMark} aria-hidden="true">＋</span>}</button>)}
       </div>
-      {source && <form className={styles.linkForm} onSubmit={(event) => { event.preventDefault(); approveLink(); }}>
+      {source && <form id="profile-source-link-form" className={styles.linkForm} onSubmit={(event) => { event.preventDefault(); approveLink(); }}>
         <label htmlFor="profile-source-url">קישור ציבורי ל־{source}</label>
         <input id="profile-source-url" type="url" dir="ltr" placeholder={source === 'Behance' ? 'https://www.behance.net/your-profile' : 'https://your-website.com'} required value={linkDrafts[source] || ''} aria-describedby={linkError ? 'profile-source-url-error' : 'profile-source-url-hint'} aria-invalid={Boolean(linkError)} onChange={(event) => { setLinkDrafts({ ...linkDrafts, [source]: event.target.value }); setLinkError(''); }}/>
         <small id="profile-source-url-hint">אשרו את הקישור כדי להוסיף אותו למקורות ליצירת הפרופיל.</small>
@@ -447,32 +488,32 @@ export function ProfileStudio({ userId }: { userId: string }) {
         <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink}>אישור הקישור</button><button type="button" onClick={() => { setSource(null); setLinkError(''); }}>ביטול</button></div>
       </form>}
       <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm}/>
-      {xplaceFlags.enabled && xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => setXplaceOpen(false)}/>}
-      <div className={styles.sourceCards}>
-      {platforms.filter((platform) => links[platform]).map((platform) => <article className={styles.sourceCard} key={platform}>
+      {xplaceFlags.enabled && <div id="profile-xplace-panel-region">{xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => setXplaceOpen(false)}/>}</div>}
+      <div id="profile-source-detail" className={`${styles.sourceCards} ${expandedSource ? '' : styles.sourceCardsEmpty}`} role="region" aria-label="פרטי המקור שנבחר" aria-live="polite" aria-hidden={!expandedSource}>
+      {platforms.filter((platform) => links[platform] && expandedSource === platform).map((platform) => <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key={platform}>
         <PlatformIcon platform={platform} /><div className={styles.sourceDetails}><strong>{platform} נוסף <SourceCheck /></strong><a href={links[platform]} target="_blank" rel="noreferrer" dir="ltr">{links[platform]}</a><small>הקישור אושר ליצירת הפרופיל</small></div>
         <div className={styles.sourceActions}><button type="button" onClick={() => editLink(platform)}>עריכה</button><button type="button" onClick={() => removeLink(platform)} aria-label={`הסרת קישור ${platform}`}>הסרה</button></div>
       </article>)}
-      {(['linkedin', 'github'] as const).filter((provider) => socialConnections[provider]).map((provider) => {
+      {(['linkedin', 'github'] as const).filter((provider) => socialConnections[provider] && expandedSource === provider).map((provider) => {
         const imported = socialSources[provider];
-        return <article className={styles.sourceCard} key={provider} id={`profile-source-${provider}`} tabIndex={-1}>
+        return <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key={provider} id={`profile-source-${provider}`} tabIndex={-1}>
           <PlatformIcon platform={provider} /><div className={styles.sourceDetails}><strong>{providerLabels[provider]} מחובר <SourceCheck /></strong><small>{importing[provider] ? 'מייבאים את פרטי הפרופיל…' : imported ? imported.profile.name || 'פרטי הפרופיל ייכללו ביצירה' : 'ההרשאה לחשבון התקבלה'}</small>{imported?.url && <a href={imported.url} target="_blank" rel="noreferrer">פתיחת הפרופיל ↗</a>}{importErrors[provider] && <p className={styles.sourceError} role="status">{importErrors[provider]}</p>}</div>
           <div className={styles.sourceActions}><button type="button" disabled={Boolean(importing[provider])} onClick={() => void importSocialSource(provider, socialConnections[provider]!)}>{importErrors[provider] ? 'ניסיון ייבוא נוסף' : 'רענון פרטים'}</button><button type="button" disabled={Boolean(importing[provider])} onClick={() => void disconnectSocial(provider)} aria-label={`ניתוק ${providerLabels[provider]}`}>ניתוק</button></div>
         </article>;
       })}
-      {dribbbleSource && <article className={styles.sourceCard} key="dribbble" id="profile-source-dribbble" tabIndex={-1}>
+      {dribbbleSource && expandedSource === 'dribbble' && <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key="dribbble" id="profile-source-dribbble" tabIndex={-1}>
         <PlatformIcon platform="dribbble" /><div className={styles.sourceDetails}><strong>Dribbble יובא <SourceCheck /></strong><small>{dribbbleSource.profile.name || 'פרטי הפרופיל והעבודות ייכללו ביצירה'}</small>{dribbbleSource.url && <a href={dribbbleSource.url} target="_blank" rel="noreferrer">פתיחת הפרופיל ↗</a>}</div>
         <div className={styles.sourceActions}><button type="button" disabled={connecting !== null} onClick={connectDribbble}>רענון ייבוא</button><button type="button" onClick={() => void removeDribbbleImport()} aria-label="הסרת ייבוא Dribbble">הסרת ייבוא</button></div>
       </article>}
-      {xplaceSource && <article className={styles.sourceCard} key="xplace" id="profile-source-xplace" tabIndex={-1}>
+      {xplaceSource && expandedSource === 'xplace' && <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key="xplace" id="profile-source-xplace" tabIndex={-1}>
         <PlatformIcon platform="xplace" /><div className={styles.sourceDetails}><strong>XPlace יובא <SourceCheck /></strong><small>{xplaceSource.profile?.headline || xplaceSource.profile?.name || (xplaceSource.url ? 'פרטי הפרופיל הציבוריים ייכללו ביצירה' : 'הטקסט שהודבק ייכלל ביצירה')}</small>{xplaceSource.counts && <small>{xplaceSource.counts.expertise} תחומי התמחות · {xplaceSource.counts.employment} מקומות עבודה · {xplaceSource.counts.education} תארים</small>}{xplaceSource.ownerSignal === true && <small>XPlace זיהתה שהפרופיל הזה שלכם.</small>}{xplaceSource.url && <a href={xplaceSource.url} target="_blank" rel="noreferrer">פתיחת הפרופיל ↗</a>}{xplaceSource.warnings[0] && <small className={styles.sourceNote}>{xplaceSource.warnings[0]}</small>}</div>
-        <div className={styles.sourceActions}><button type="button" onClick={removeXPlaceImport} aria-label="הסרת ייבוא XPlace">הסרת ייבוא</button></div>
+        <div className={styles.sourceActions}><button type="button" onClick={() => { setExpandedSource(null); setXplaceOpen(true); }} aria-label="עדכון ייבוא XPlace">עדכון ייבוא</button><button type="button" onClick={removeXPlaceImport} aria-label="הסרת ייבוא XPlace">הסרת ייבוא</button></div>
       </article>}
       </div>
       <small>GitHub ו־LinkedIn יתחברו בחלון מאובטח. אפשר להסיר את הייבוא בכל עת לפני יצירת הפרופיל.</small>
-      <small className={styles.sourceHint}>LinkedIn מספק בחיבור הזה שם, תמונת פרופיל ושפה בלבד. להוספת ניסיון תעסוקתי וכישורים, צרפו קורות חיים או אתר מקצועי.</small>
-      <small>Dribbble מייבא פרופיל ועבודות שפורסמו בלבד. הסרת המידע מכאן אינה מבטלת את הרשאת Dribbble. <a href="https://dribbble.com/account/applications" target="_blank" rel="noreferrer">ניהול הרשאות ב־Dribbble ↗</a></small>
-      <p className="legal-inline-notice">לחיצה על ״יצירת פרופיל בעזרת AI״ מבקשת לשלוח את המסמכים, הקישורים והמידע המיובא שמופיעים כאן ל־Google Vertex AI לצורך יצירת הטיוטה. אפשר למלא ולשמור פרופיל ידנית בלי להשתמש ב־AI. <Link href="/privacy#uploads">פרטי העיבוד</Link> · <Link href="/terms#ai">תנאי השימוש בכלי AI</Link>.</p>
+      <small className={styles.sourceHint}>GitHub מייבא שם, שם משתמש, תיאור, חברה, מיקום, אתר אישי וקישור לפרופיל. מאגרים וקוד אינם מיובאים.</small>
+      <small className={styles.sourceHint}>LinkedIn מייבא שם, קישור לפרופיל, כותרת מקצועית ואימייל אם הם נמסרים בהרשאות החשבון. ניסיון תעסוקתי וכישורים אינם מיובאים.</small>
+      <small>Dribbble מייבא שם, שם משתמש, ביוגרפיה, מיקום, אתר וקישור לפרופיל, ועד 20 עבודות שפורסמו (כותרות, תיאורים, תגיות וקישורים). הסרת הייבוא אינה מבטלת הרשאה. <a href="https://dribbble.com/account/applications" target="_blank" rel="noreferrer">ניהול הרשאות ↗</a></small>
       <button type="button" className="generate-profile" disabled={busy || hasPendingImport || !hasSources} onClick={generate}>{busy ? 'יוצרים את הפרופיל…' : hasPendingImport ? 'מייבאים את המקורות…' : '✦ יצירת פרופיל בעזרת AI'}</button>
     </div>
     <p role="status">{notice}</p>

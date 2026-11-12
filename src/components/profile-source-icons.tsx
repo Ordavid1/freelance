@@ -13,3 +13,7 @@ export function PlatformIcon({ platform }: { platform: Platform }) {
 export function SourceCheck() {
   return <svg data-source-check="true" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#17834F"/><path d="m5.5 10 3 3 6-6" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
+
+export function SourceDisclosure({ expanded = false }: { expanded?: boolean }) {
+  return <svg data-source-disclosure="true" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#17834F"/><path d="m6 8 4 4 4-4" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform={expanded ? 'rotate(180 10 10)' : undefined}/></svg>;
+}

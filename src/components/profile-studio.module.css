@@ -61,6 +61,15 @@
 }
 
 .sourceCards { display: grid; gap: 10px; margin-block: 12px 18px; }
+.sourceCardsEmpty { display: none; }
+.sourceCardReveal { overflow: hidden; animation: sourcePanelReveal .24s ease both; }
+@keyframes sourcePanelReveal {
+  from { max-height: 0; opacity: 0; transform: translateY(-8px); }
+  to { max-height: 600px; opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sourceCardReveal { animation: none; }
+}
 .studio .sourceHint { display: block; margin-block: 8px; line-height: 1.7; }
 
 .studio .sourceCard {

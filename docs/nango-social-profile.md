@@ -15,8 +15,8 @@ The profile editor uses Nango Connect for user authorization. Google/Firebase si
 - The signed-in user's Firebase UID is attached to a short-lived Nango Connect session.
 - Nango's Connect UI performs OAuth in the browser.
 - Server routes list only connections tagged to that Firebase UID and verify ownership before making provider requests.
-- GitHub imports the user's public profile and up to 20 recent public repositories. Private repository content is not requested.
-- LinkedIn imports the profile fields returned by its OpenID Connect userinfo endpoint and the scopes approved for the integration.
+- GitHub imports fields from the user's `/user` profile endpoint: name, username, bio, company, location, blog and profile URL. It does not request repositories or code.
+- LinkedIn imports name, profile URL, headline and email when those values are returned by its OpenID Connect userinfo endpoint and approved scopes.
 - Connected imports reload when the profile editor opens. They are sent to Vertex when the user selects Create profile with AI, beside the processing notice; there is no separate checkbox.
 
 ## Environment values
@@ -53,4 +53,4 @@ For the existing Nango `github` (User OAuth) integration:
 - Expire user access tokens: on; Nango handles token refresh
 - Requested import scope: `read:user`
 
-Keep wildcard matching and Device Flow disabled; Device Flow is intended for command-line/headless clients, while Freelance Place uses browser OAuth. Expiring user access tokens can stay enabled; Nango manages refresh. The importer reads the public profile and up to 20 recent public repositories. The callback is Nango's callback, distinct from the direct Dribbble callback hosted by Freelance Place.
+Keep wildcard matching and Device Flow disabled; Device Flow is intended for command-line/headless clients, while Freelance Place uses browser OAuth. Expiring user access tokens can stay enabled; Nango manages refresh. The GitHub importer reads profile fields from `/user` and does not request repository data. The callback is Nango's callback, distinct from the direct Dribbble callback hosted by Freelance Place.
