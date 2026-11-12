@@ -16,7 +16,8 @@ async function post(url: string, payload?: unknown) {
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload === undefined ? undefined : JSON.stringify(payload) });
   return { response, data: await response.json().catch(() => ({})) };
 }
-export function BillingPanel({ eligible = false, trialEndsAt }: { eligible?: boolean; trialEndsAt?: number | null }) {
+export function BillingPanel({ eligible = false, trialEndsAt: trialEnd }: { eligible?: boolean; trialEndsAt?: number | null }) {
+  const trialEndsAt = trialEnd ? trialEnd + 24 * 60 * 60 * 1000 : null;
   const [status, setStatus] = useState<Status | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState<'checkout' | 'card' | 'cancel' | null>(null);
