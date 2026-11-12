@@ -9,7 +9,7 @@ import { profileIsComplete, shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/m
 
 export const runtime = 'nodejs';
 
-const textFields = ['name', 'headline', 'bio', 'portfolio', 'experience', 'education', 'website', 'phone', 'email', 'logo'] as const;
+const textFields = ['name', 'headline', 'bio', 'portfolio', 'experience', 'education', 'website', 'phone', 'email', 'logo', 'avatar'] as const;
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -38,7 +38,7 @@ export async function PUT(request: Request) {
   for (const key of textFields) {
     const value = input[key];
     if (value !== undefined && typeof value !== 'string') return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
-    if (typeof value === 'string') clean[key] = value.slice(0, key === 'bio' ? 1500 : key === 'portfolio' || key === 'experience' || key === 'education' ? 4000 : key === 'logo' ? 2_000_000 : 200);
+    if (typeof value === 'string') clean[key] = value.slice(0, key === 'bio' ? 1500 : key === 'portfolio' || key === 'experience' || key === 'education' ? 4000 : key === 'logo' || key === 'avatar' ? 2_000_000 : 200);
   }
   const skills = input.skills ?? [];
   if (!Array.isArray(skills) || skills.length > 50 || skills.some((skill) => typeof skill !== 'string' || skill.length > 60)) {
