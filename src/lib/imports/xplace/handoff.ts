@@ -4,7 +4,8 @@
 // Flow: the extension content script on XPlace captures the user's own page, the extension
 // background stores the payload under a random token for one hour and opens
 //   <site>/profile/import?xplace=<token>   (profile)   or   <site>/projects/new?xplace=<token>   (project)
-// The extension's bridge content script runs on exactly those two paths. The page asks it for the payload with
+// The extension's bridge content script runs on the whole site origin; the background only accepts the
+// `?xplace=<token>` URL rule on exactly those two paths. The page asks the bridge for the payload with
 // window.postMessage and sends it to the ingest API; the bridge never talks to the network.
 
 import { XPLACE_ORIGIN } from './urls';

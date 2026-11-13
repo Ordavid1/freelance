@@ -1,0 +1,1185 @@
+{
+  "repository": "Ordavid1/freelance",
+  "reviewed_commit": "4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727",
+  "date": "2026-11-12",
+  "source": "Local CodeQL reproduction; NOT a GitHub alert-state export. GitHub endpoint returned HTTP 403 security_events=read required.",
+  "codeql_version": "2.27.4",
+  "query_suites": [
+    "javascript-code-scanning.qls",
+    "python-code-scanning.qls"
+  ],
+  "javascript_count": 21,
+  "python_count": 0,
+  "findings": [
+    {
+      "local_id": "L01",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/client-side-unvalidated-url-redirection",
+      "rule_name": "js/client-side-unvalidated-url-redirection",
+      "codeql_security_severity": "6.1",
+      "path": "src/components/sign-in-form.tsx",
+      "region": {
+        "startLine": 33,
+        "startColumn": 28,
+        "endColumn": 46
+      },
+      "message": "Untrusted URL redirection depends on a [user-provided value](1).",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/components/sign-in-form.tsx#L33",
+      "flows": [
+        [
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 33
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 11
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 14
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 14
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 33
+          }
+        ]
+      ],
+      "triage_priority": "P2",
+      "triage_risk": "Low",
+      "triage_disposition": "Likely false positive for the reported security boundary; see plan",
+      "planned_batch": "B",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L02",
+      "github_alert_number_from_screenshot": 15,
+      "rule_id": "js/incomplete-url-substring-sanitization",
+      "rule_name": "js/incomplete-url-substring-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-schema.test.mjs",
+      "region": {
+        "startLine": 68,
+        "startColumn": 59,
+        "endColumn": 87
+      },
+      "message": "'[https://freelance-place.com](1)' may be followed by an arbitrary host name.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-schema.test.mjs#L68",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L03",
+      "github_alert_number_from_screenshot": 21,
+      "rule_id": "js/incomplete-url-substring-sanitization",
+      "rule_name": "js/incomplete-url-substring-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/xplace-fetch.test.mjs",
+      "region": {
+        "startLine": 192,
+        "startColumn": 14,
+        "endColumn": 45
+      },
+      "message": "'[xplace.com](1)' can be anywhere in the URL, and arbitrary hosts may come before or after it.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/xplace-fetch.test.mjs#L192",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Likely false positive for the reported security boundary; see plan",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L04",
+      "github_alert_number_from_screenshot": 17,
+      "rule_id": "js/incomplete-sanitization",
+      "rule_name": "js/incomplete-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "extensions/xplace-import/tests/pages.test.js",
+      "region": {
+        "startLine": 71,
+        "startColumn": 63,
+        "endColumn": 78
+      },
+      "message": "This does not escape backslash characters in the input.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/extensions/xplace-import/tests/pages.test.js#L71",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L05",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-sanitization",
+      "rule_name": "js/incomplete-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "src/lib/seo/llms.ts",
+      "region": {
+        "startLine": 36,
+        "startColumn": 37,
+        "endColumn": 58
+      },
+      "message": "This does not escape backslash characters in the input.",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/lib/seo/llms.ts#L36",
+      "triage_priority": "P2",
+      "triage_risk": "Low",
+      "triage_disposition": "Production correctness/parsing fix; no executable XSS demonstrated",
+      "planned_batch": "C",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L06",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-sanitization",
+      "rule_name": "js/incomplete-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-llms.test.mjs",
+      "region": {
+        "startLine": 82,
+        "startColumn": 19,
+        "endColumn": 38
+      },
+      "message": "This does not escape backslash characters in the input.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-llms.test.mjs#L82",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "C",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L07",
+      "github_alert_number_from_screenshot": 18,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "extensions/xplace-import/src/shared/clean.js",
+      "region": {
+        "startLine": 43,
+        "startColumn": 46,
+        "endColumn": 49
+      },
+      "message": "This regular expression only parses --> and not --!> as a HTML comment end tag.",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/extensions/xplace-import/src/shared/clean.js#L43",
+      "triage_priority": "P2",
+      "triage_risk": "Low",
+      "triage_disposition": "Production correctness/parsing fix; no executable XSS demonstrated",
+      "planned_batch": "A",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L08",
+      "github_alert_number_from_screenshot": 19,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "src/lib/imports/xplace/clean.ts",
+      "region": {
+        "startLine": 104,
+        "startColumn": 15,
+        "endColumn": 51
+      },
+      "message": "This regular expression does not match script end tags like </script\\t\\n bar>.",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/lib/imports/xplace/clean.ts#L104",
+      "triage_priority": "P1",
+      "triage_risk": "Medium",
+      "triage_disposition": "Production correctness/parsing fix; no executable XSS demonstrated",
+      "planned_batch": "A",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L09",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "src/lib/integrations/dribbble.ts",
+      "region": {
+        "startLine": 60,
+        "startColumn": 15,
+        "endColumn": 51
+      },
+      "message": "This regular expression does not match script end tags like </script\\t\\n bar>.",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/lib/integrations/dribbble.ts#L60",
+      "triage_priority": "P1",
+      "triage_risk": "Medium",
+      "triage_disposition": "Production correctness/parsing fix; no executable XSS demonstrated",
+      "planned_batch": "A",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L10",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "tests/helpers/seo-pages-harness.mjs",
+      "region": {
+        "startLine": 31,
+        "startColumn": 52,
+        "endColumn": 77
+      },
+      "message": "This regular expression does not match upper case <SCRIPT> tags.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/helpers/seo-pages-harness.mjs#L31",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L11",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "tests/helpers/seo-pages-harness.mjs",
+      "region": {
+        "startLine": 35,
+        "startColumn": 48,
+        "endColumn": 73
+      },
+      "message": "This regular expression does not match upper case <SCRIPT> tags.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/helpers/seo-pages-harness.mjs#L35",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L12",
+      "github_alert_number_from_screenshot": 12,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-guide-article.test.mjs",
+      "region": {
+        "startLine": 16,
+        "startColumn": 39,
+        "endColumn": 64
+      },
+      "message": "This regular expression does not match upper case <SCRIPT> tags.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-guide-article.test.mjs#L16",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L13",
+      "github_alert_number_from_screenshot": 13,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-schema.test.mjs",
+      "region": {
+        "startLine": 160,
+        "startColumn": 38,
+        "endColumn": 66
+      },
+      "message": "This regular expression does not match upper case <SCRIPT> tags.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-schema.test.mjs#L160",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L14",
+      "github_alert_number_from_screenshot": 14,
+      "rule_id": "js/bad-tag-filter",
+      "rule_name": "js/bad-tag-filter",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-pages.test.mjs",
+      "region": {
+        "startLine": 471,
+        "startColumn": 37,
+        "endColumn": 62
+      },
+      "message": "This regular expression does not match upper case <SCRIPT> tags.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-pages.test.mjs#L471",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L15",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/double-escaping",
+      "rule_name": "js/double-escaping",
+      "codeql_security_severity": "7.8",
+      "path": "src/lib/integrations/dribbble.ts",
+      "region": {
+        "startLine": 59,
+        "startColumn": 10,
+        "endLine": 66,
+        "endColumn": 29
+      },
+      "message": "This replacement may produce '&' characters that are double-unescaped [here](1).",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/lib/integrations/dribbble.ts#L59",
+      "triage_priority": "P1",
+      "triage_risk": "Medium",
+      "triage_disposition": "Production correctness/parsing fix; no executable XSS demonstrated",
+      "planned_batch": "A",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L16",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-multi-character-sanitization",
+      "rule_name": "js/incomplete-multi-character-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/helpers/seo-pages-harness.mjs",
+      "region": {
+        "startLine": 35,
+        "startColumn": 34,
+        "endColumn": 80
+      },
+      "message": "This string may still contain [<script](1), which may cause an HTML element injection vulnerability.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/helpers/seo-pages-harness.mjs#L35",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L17",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-multi-character-sanitization",
+      "rule_name": "js/incomplete-multi-character-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-guide-article.test.mjs",
+      "region": {
+        "startLine": 16,
+        "startColumn": 25,
+        "endColumn": 71
+      },
+      "message": "This string may still contain [<script](1), which may cause an HTML element injection vulnerability.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-guide-article.test.mjs#L16",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L18",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-multi-character-sanitization",
+      "rule_name": "js/incomplete-multi-character-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-guide-article.test.mjs",
+      "region": {
+        "startLine": 142,
+        "startColumn": 23,
+        "endColumn": 54
+      },
+      "message": "This string may still contain [<script](1), which may cause an HTML element injection vulnerability.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-guide-article.test.mjs#L142",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L19",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/incomplete-multi-character-sanitization",
+      "rule_name": "js/incomplete-multi-character-sanitization",
+      "codeql_security_severity": "7.8",
+      "path": "tests/seo-pages.test.mjs",
+      "region": {
+        "startLine": 471,
+        "startColumn": 23,
+        "endColumn": 69
+      },
+      "message": "This string may still contain [<script](1), which may cause an HTML element injection vulnerability.",
+      "scope": "test",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/tests/seo-pages.test.mjs#L471",
+      "triage_priority": "P3",
+      "triage_risk": "Informational / low (test-only)",
+      "triage_disposition": "Test-only correctness/inspection fix",
+      "planned_batch": "D",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L20",
+      "github_alert_number_from_screenshot": null,
+      "rule_id": "js/xss-through-dom",
+      "rule_name": "js/xss-through-dom",
+      "codeql_security_severity": "7.8",
+      "path": "src/components/profile-studio.tsx",
+      "region": {
+        "startLine": 36,
+        "startColumn": 51,
+        "endColumn": 54
+      },
+      "message": "[DOM text](1) is reinterpreted as HTML without escaping meta-characters.\n[DOM text](2) is reinterpreted as HTML without escaping meta-characters.\n[DOM text](3) is reinterpreted as HTML without escaping meta-characters.",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/components/profile-studio.tsx#L36",
+      "flows": [
+        [
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 39
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 27
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 36
+          }
+        ],
+        [
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 39
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 483
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 483
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 483
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 483
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 483
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 27
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 36
+          }
+        ],
+        [
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 53
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 47
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 27
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 36
+          }
+        ],
+        [
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 57
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 45
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 45
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 56
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 78
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 482
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 44
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 27
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 28
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 46
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 51
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 31
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/profile-studio.tsx",
+            "line": 36
+          }
+        ]
+      ],
+      "triage_priority": "P2",
+      "triage_risk": "Low",
+      "triage_disposition": "Likely false positive for the reported security boundary; see plan",
+      "planned_batch": "B",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    },
+    {
+      "local_id": "L21",
+      "github_alert_number_from_screenshot": 16,
+      "rule_id": "js/xss",
+      "rule_name": "js/xss",
+      "codeql_security_severity": "7.8",
+      "path": "src/components/sign-in-form.tsx",
+      "region": {
+        "startLine": 33,
+        "startColumn": 28,
+        "endColumn": 46
+      },
+      "message": "Cross-site scripting vulnerability due to [user-provided value](1).",
+      "scope": "production",
+      "code_url": "https://github.com/Ordavid1/freelance/blob/4e0b9e4bb6fdc94d52a3ff9ce0c9c0d04949d727/src/components/sign-in-form.tsx#L33",
+      "flows": [
+        [
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 32
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 33
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 11
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 14
+          },
+          {
+            "path": "src/lib/auth/safe-next.ts",
+            "line": 14
+          },
+          {
+            "path": "src/components/sign-in-form.tsx",
+            "line": 33
+          }
+        ]
+      ],
+      "triage_priority": "P2",
+      "triage_risk": "Low",
+      "triage_disposition": "Likely false positive for the reported security boundary; see plan",
+      "planned_batch": "B",
+      "remediation_status": "Addressed by code/test changes; original rule/location absent from a full zero-result local scan. GitHub main closure pending merge/analysis."
+    }
+  ],
+  "query_packs": {
+    "codeql/javascript-queries": "2.5.0",
+    "codeql/python-queries": "1.9.0"
+  },
+  "reference_actions_run": "https://github.com/Ordavid1/freelance/actions/runs/43220891396",
+  "baseline_tests": {
+    "application_targeted_passed": 311,
+    "extension_passed": 97,
+    "profile_sources_passed": 1,
+    "failed": 0
+  },
+  "access_recheck": {
+    "date": "2026-11-12",
+    "context": "User reported GitHub settings updated; rechecked existing available access paths.",
+    "workspace_alert_api": "HTTP 403 Resource not accessible by integration",
+    "connected_github_plugin_alert_fetch": "Rejected as unsupported URL endpoint (HTTP 400 INVALID_ARGUMENT)",
+    "github_plugin_catalog_status": "ENABLED and installed",
+    "installation_id": 150320683,
+    "installation_account": "Ordavid1",
+    "repository_selection": "all",
+    "dedicated_code_scanning_mcp_tool_exposed": false,
+    "live_alert_ids_and_states_reconciled": false
+  },
+  "remediation_verification": "2026-11-12-code-scanning-verification.json",
+  "remediation_summary": {
+    "original_findings": 21,
+    "remaining_local_javascript_findings": 0,
+    "remaining_local_python_findings": 0,
+    "github_alert_states_verified": false
+  }
+}

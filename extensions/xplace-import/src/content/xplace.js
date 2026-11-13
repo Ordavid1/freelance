@@ -46,12 +46,6 @@
       doc, config,
       handlers: {
         onCta: () => run(),
-        onNotNow: () => { state = S.snooze(state, now(), config.SNOOZE_DAYS); S.saveState(storage, state); cardOpen = false; focusNext = 'pill'; render(); },
-        onNever: () => {
-          state = S.dismissForever(state); S.saveState(storage, state);
-          cardOpen = false; notice = M.hiddenNotice; render();
-          win.setTimeout(() => { notice = ''; render(); }, 6000);
-        },
         onSettings: () => { send({ type: 'open-options' }); },
         onOpenCard: () => { cardOpen = true; focusNext = 'card'; render(); },
         onCloseCard: () => { if (notice) notice = ''; cardOpen = false; focusNext = 'pill'; render(); },

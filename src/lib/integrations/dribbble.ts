@@ -1,5 +1,7 @@
 import 'server-only';
 import { randomBytes } from 'node:crypto';
+import { convert } from 'html-to-text';
+import { parseFragment, serialize } from 'parse5';
 
 export const DRIBBBLE_STATE_COOKIE = 'dribbble_oauth_state';
 export const DRIBBBLE_STATE_TTL_SECONDS = 10 * 60;
@@ -56,18 +58,20 @@ export function validateDribbbleOAuthState(cookieValue: string | undefined, stat
 
 export function cleanDribbbleText(value: unknown, max = 1000): string {
   if (typeof value !== 'string') return '';
-  return value
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
-    .replace(/&lt;script\b[^&]*&gt;[\s\S]*?&lt;\/script\s*&gt;/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&lt;[^&]*&gt;/g, ' ')
-    .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;|&#34;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
+  // Parse bounded HTML once. Entity-encoded markup stays literal plain text;
+  // this result must still be escaped by its eventual text/React sink.
+  // Normalize HTML with browser parsing rules first (including end-tag
+  // attributes and slash closers). Serialization re-escapes text entities, so
+  // the converter below still performs only one effective entity decode.
+  const html = serialize(parseFragment(value.slice(0, 30_000)));
+  return convert(html, {
+    wordwrap: false,
+    selectors: [
+      { selector: 'script', format: 'skip' }, { selector: 'style', format: 'skip' },
+      { selector: 'a', options: { ignoreHref: true } }, { selector: 'img', format: 'skip' },
+      ...['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map((selector) => ({ selector, options: { uppercase: false } })),
+    ],
+  })
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

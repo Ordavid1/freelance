@@ -53,7 +53,10 @@ export async function postIngest<T>(payload: unknown, attested: boolean): Promis
 }
 
 export const HANDOFF_MESSAGES = {
-  timeout: 'לא קיבלנו מידע מהתוסף. ודאו שהתוסף מותקן ופעיל, ואז התחילו מחדש מתוך XPlace.',
+  // No answer and no sign of the extension on this page: not installed, switched off, or not allowed on this site.
+  timeout: 'התוסף לא פעיל בדף הזה. ודאו שהוא מותקן ושמותר לו לפעול ב־freelance-place.com (ב־chrome://extensions, בפרטי התוסף, תחת "גישה לאתר"), ואז לחצו "ניסיון נוסף" או התחילו מחדש מתוך XPlace.',
+  // The extension is on the page but did not hand the data over in time.
+  silent: 'התוסף פעיל אבל לא החזיר את המידע בזמן. לחצו "ניסיון נוסף". אם זה חוזר, התחילו מחדש מתוך XPlace.',
   expired: 'הקישור מהתוסף פג תוקף. התחילו מחדש מתוך XPlace.',
   invalid: 'המידע שנקלט מהתוסף אינו תקין. התחילו מחדש מתוך XPlace.',
 } as const;
@@ -65,7 +68,7 @@ export type HandoffPhase =
   | { name: 'attest'; token: string; payload: Record<string, unknown> }
   | { name: 'importing'; ownerDetected: boolean }
   | { name: 'done' }
-  | { name: 'error'; message: string }
+  | { name: 'error'; message: string; retry?: boolean }
   | { name: 'signin' }
   | { name: 'wrong-kind'; token: string; actual: Kind };
 
@@ -109,7 +112,13 @@ export function useXPlaceIngest<T extends XPlaceProfileImport | XPlaceProjectImp
   const fail = useCallback((error: unknown) => {
     const reason = error instanceof HandoffError ? error.reason : 'unavailable';
     if (reason === 'cancelled') { setPhase({ name: 'idle' }); return; }
-    setPhase({ name: 'error', message: reason === 'timeout' ? HANDOFF_MESSAGES.timeout : reason === 'expired' ? HANDOFF_MESSAGES.expired : HANDOFF_MESSAGES.invalid });
+    if (reason === 'timeout') {
+      // Tell "the extension is not running on this page" apart from "it did not answer in time"; both can be retried
+      // (the payload waits in the extension for an hour).
+      void isExtensionInstalled({ timeoutMs: 300 }).then((installed) => setPhase({ name: 'error', message: installed ? HANDOFF_MESSAGES.silent : HANDOFF_MESSAGES.timeout, retry: true }));
+      return;
+    }
+    setPhase({ name: 'error', message: reason === 'expired' ? HANDOFF_MESSAGES.expired : HANDOFF_MESSAGES.invalid });
   }, []);
 
   return { phase, setPhase, accept, confirm, fail };
@@ -118,11 +127,16 @@ export function useXPlaceIngest<T extends XPlaceProfileImport | XPlaceProjectImp
 /**
  * Automatic hand-off on page load: when `?xplace=<token>` is present, reads the payload from the extension's bridge
  * and feeds it to the ingest flow. `signedIn` is null while the session is unknown; a signed-out viewer is sent to
- * sign-in with the full path and query preserved. Runs at most once per mount.
+ * sign-in with the full path and query preserved. Starts at most once per mount. Returns `retry`, which reads the
+ * token in the address bar again (for the "try again" button after a timeout).
  */
-export function useAutoHandoff(ingest: ReturnType<typeof useXPlaceIngest>, flags: XPlaceFlags, signedIn: boolean | null) {
+export function useAutoHandoff(ingest: ReturnType<typeof useXPlaceIngest>, flags: XPlaceFlags, signedIn: boolean | null): () => void {
   const started = useRef(false);
   const { setPhase, accept, fail } = ingest;
+  const read = useCallback((token: string) => {
+    setPhase({ name: 'reading' });
+    requestHandoffPayload(token).then((payload) => accept(token, payload), fail);
+  }, [setPhase, accept, fail]);
   useEffect(() => {
     if (started.current || !flags.loaded || signedIn === null) return;
     started.current = true;
@@ -130,9 +144,9 @@ export function useAutoHandoff(ingest: ReturnType<typeof useXPlaceIngest>, flags
     if (!token) return;
     if (!flags.enabled) { setPhase({ name: 'error', message: 'ייבוא מ־XPlace עדיין לא זמין.' }); return; }
     if (!signedIn) { setPhase({ name: 'signin' }); return; }
-    setPhase({ name: 'reading' });
-    requestHandoffPayload(token).then((payload) => accept(token, payload), fail);
-  }, [flags.loaded, flags.enabled, signedIn, setPhase, accept, fail]);
+    read(token);
+  }, [flags.loaded, flags.enabled, signedIn, setPhase, read]);
+  return useCallback(() => { const token = takeHandoffToken(); if (token) read(token); }, [read]);
 }
 
 /** Sign-in link for the current page; the query string (with the hand-off token) survives the detour. */
@@ -147,11 +161,11 @@ const WRONG_KIND = {
 } as const;
 
 /** Renders the current phase of a hand-off. Renders nothing while idle or done. */
-export function HandoffNotice({ phase, kind, onConfirm }: { phase: HandoffPhase; kind: Kind; onConfirm: () => void }) {
+export function HandoffNotice({ phase, kind, onConfirm, onRetry }: { phase: HandoffPhase; kind: Kind; onConfirm: () => void; onRetry?: () => void }) {
   if (phase.name === 'idle' || phase.name === 'done') return null;
   if (phase.name === 'reading') return <div className={styles.notice} role="status"><p>קוראים את המידע מהתוסף…</p></div>;
   if (phase.name === 'importing') return <div className={styles.notice} role="status">{phase.ownerDetected && <p className={styles.owner}>{OWNER_TEXT[kind]}</p>}<p>מייבאים…</p></div>;
-  if (phase.name === 'error') return <div className={styles.notice}><p role="alert" className={styles.error}>{phase.message}</p></div>;
+  if (phase.name === 'error') return <div className={styles.notice}><p role="alert" className={styles.error}>{phase.message}</p>{phase.retry && onRetry && <div className={styles.actions}><button type="button" className={styles.button} onClick={onRetry}>ניסיון נוסף</button></div>}</div>;
   if (phase.name === 'signin') return <div className={styles.notice}><p>כדי להשלים את הייבוא מ־XPlace יש להתחבר ל־Freelance Place. הנתונים מחכים לכם בתוסף.</p><div className={styles.actions}><a className={styles.link} href={currentSignInHref()}>התחברות</a></div></div>;
   if (phase.name === 'wrong-kind') {
     const info = WRONG_KIND[phase.actual];

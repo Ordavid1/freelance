@@ -9,13 +9,11 @@ import { chromium } from 'playwright';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ext = path.resolve(here, '../../dist-dev');
 const profileHtml = fs.readFileSync(path.resolve(here, '../fixtures/profile-own.html'), 'utf8');
-const cache = path.join(os.homedir(), 'Library/Caches/ms-playwright');
-const exe = process.env.CHROMIUM_PATH || fs.readdirSync(cache).filter((d) => /^chromium-\d+$/.test(d)).sort().reverse()
-  .map((d) => path.join(cache, d, 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing')).find((p) => fs.existsSync(p));
+const exe = process.env.CHROMIUM_PATH || chromium.executablePath();
 
 const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fpx-e2e-'));
 const ctx = await chromium.launchPersistentContext(userDir, {
-  headless: false, executablePath: exe,
+  headless: process.env.HEADLESS === '1', executablePath: exe,
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
 });
 let failed = false;
@@ -47,7 +45,7 @@ try {
   const entry = Object.values(staged)[0];
   check(entry && entry.payload && entry.payload.kind === 'profile' && !JSON.stringify(entry).includes('CANARY'), 'payload staged, no canaries');
   const marker = await fpPage.evaluate(() => document.documentElement.getAttribute('data-fp-xplace-extension'));
-  check(marker === '0.2.0', `bridge marker attribute ${marker}`);
+  check(marker === '0.2.1', `bridge marker attribute ${marker}`);
   const reply = await fpPage.evaluate((token) => new Promise((resolve) => {
     window.addEventListener('message', (e) => { if (e.data && e.data.channel === 'fp-xplace-response') resolve(e.data); });
     window.postMessage({ channel: 'fp-xplace-request', token, action: 'read' }, location.origin);

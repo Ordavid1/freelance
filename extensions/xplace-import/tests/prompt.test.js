@@ -15,7 +15,7 @@ test('policy: logged out and forever hide everything', () => {
   assert.equal(S.decide(ctxOf(), S.dismissForever(st), 0, cfg).visible, false);
 });
 
-test('policy: own page opens every visit, other pages once per 24h, snooze 3 days', () => {
+test('policy: own page opens every visit, other pages once per 24h', () => {
   let st = S.normalise(null);
   const own = ctxOf({ isOwn: true });
   assert.equal(S.decide(own, st, 1000, cfg).autoOpenCard, true);
@@ -25,10 +25,6 @@ test('policy: own page opens every visit, other pages once per 24h, snooze 3 day
   assert.equal(S.decide(other, st, 1000 + 23 * HOUR, cfg).autoOpenCard, false);
   assert.equal(S.decide(other, st, 1000 + 23 * HOUR, cfg).pill, true);
   assert.equal(S.decide(other, st, 1000 + 25 * HOUR, cfg).autoOpenCard, true);
-  const sn = S.snooze(st, 5000, cfg.SNOOZE_DAYS);
-  assert.equal(S.decide(own, sn, 5000 + 71 * HOUR, cfg).autoOpenCard, false);
-  assert.equal(S.decide(own, sn, 5000 + 73 * HOUR, cfg).autoOpenCard, true);
-  assert.equal(S.decide(own, sn, 6000, cfg).pill, true, 'pill stays while snoozed');
   assert.equal(S.decide(own, st, 9000, cfg, true).autoOpenCard, false, 'already opened on this URL');
   assert.equal(S.decide(own, st, 9000, { ...cfg, AUTO_OPEN_OWN_PAGES: 'never' }).autoOpenCard, false);
 });
@@ -37,11 +33,19 @@ test('policy: re-enable and storage round trip with a fake area', async () => {
   const { chrome } = fakeChrome();
   let st = await S.loadState(chrome.storage.local);
   assert.equal(st.dismissedForever, false);
-  await S.saveState(chrome.storage.local, S.dismissForever(S.snooze(st, 10, 3)));
+  await S.saveState(chrome.storage.local, S.dismissForever(st));
   st = await S.loadState(chrome.storage.local);
-  assert.equal(st.dismissedForever, true); assert.equal(st.snoozeUntil, 10 + 3 * 24 * HOUR);
+  assert.equal(st.dismissedForever, true);
   st = S.enable(st);
   assert.equal(S.decide(ctxOf(), st, 0, cfg).visible, true);
+});
+
+test('policy: a snooze saved by an earlier version is ignored (the invitation comes back)', async () => {
+  const { chrome } = fakeChrome();
+  await chrome.storage.local.set({ [S.KEY]: { dismissedForever: false, snoozeUntil: 9e15, lastAutoOpen: 5 } });
+  const st = await S.loadState(chrome.storage.local);
+  assert.deepEqual(st, { dismissedForever: false, lastAutoOpen: 5 });
+  assert.equal(S.decide(ctxOf({ isOwn: true }), st, 1000, cfg).autoOpenCard, true);
 });
 
 // ---------- controller with jsdom ----------
@@ -68,12 +72,15 @@ test('own profile: card auto-opens with copy, disclosure, brand line and dialog 
   assert.equal(s.ctl.model.cardOpen, true);
   const root = s.ctl.ui.shadow;
   const t = root.textContent;
-  for (const want of ['Freelance Place · תוסף', 'העבירו את הפרופיל שלכם ל־Freelance Place', 'בלחיצה אחת', 'אתם בודקים ועורכים הכול לפני שמירה', 'לא משנים ולא מוחקים דבר ב־XPlace', 'העתקת הפרופיל', 'לא עכשיו', 'אל תציגו שוב', 'הגדרות',
+  for (const want of ['Freelance Place · תוסף', 'העבירו את הפרופיל שלכם ל־Freelance Place', 'בלחיצה אחת', 'אתם בודקים ועורכים הכול לפני שמירה', 'לא משנים ולא מוחקים דבר ב־XPlace', 'העתקת הפרופיל', 'הגדרות',
     'לפני הלחיצה נבדק רק אם אתם מחוברים ובעלי הדף. תוכן הפרופיל נקרא ונשלח ל־Freelance Place רק בלחיצה שלכם, לעריכה.']) assert.ok(t.includes(want), want);
   const card = root.querySelector('[role="dialog"]');
   assert.equal(card.getAttribute('aria-modal'), 'false');
   assert.ok(root.querySelector('style') || true);
-  assert.ok(!/\d+\s*(שעות|דקות)|מהר|אחרון|עכשיו!/.test(t.replace('לא עכשיו', '')), 'no urgency wording');
+  assert.ok(!/\d+\s*(שעות|דקות)|מהר|אחרון|עכשיו!/.test(t), 'no urgency wording');
+  // The card is closed with its X; there are no "not now" / "do not show again" buttons any more.
+  assert.ok(!t.includes('לא עכשיו') && !t.includes('אל תציגו שוב'));
+  assert.deepEqual([...root.querySelectorAll('[data-action]')].map((b) => b.getAttribute('data-action')).sort(), ['onCloseCard', 'onCta', 'onSettings']);
   assert.equal(s.ctl.ui.host.parentNode, s.doc.documentElement);
 });
 
@@ -90,7 +97,7 @@ test('card then pill: Esc collapses, pill opens it again, pill can be hidden', a
   assert.equal(s.ctl.ui.host, null);
 });
 
-test('other page: pill only, card once per 24 h; not now snoozes; forever hides; settings opens options', async () => {
+test('other page: pill only, card once per 24 h; settings opens options', async () => {
   const s = setup({ url: 'https://www.xplace.com/il/', html: fixture('profile-own.html') });
   s.ctl.state; // eslint
   await s.ctl.tick();
@@ -106,17 +113,17 @@ test('other page: pill only, card once per 24 h; not now snoozes; forever hides;
   assert.equal(s.ctl.model.cardOpen, true);
   s.ctl.ui.shadow.querySelector('[data-action="onSettings"]').click();
   assert.ok(s.sent.some((m) => m.type === 'open-options'));
-  s.ctl.ui.shadow.querySelector('[data-action="onNotNow"]').click();
-  assert.ok(s.ctl.state.snoozeUntil > 0);
-  s.advance(26 * HOUR); s.href = 'https://www.xplace.com/il/projects/3'; await s.ctl.tick();
-  assert.equal(s.ctl.model.cardOpen, false, 'snoozed');
-  s.ctl.ui.shadow.querySelector('[data-action="onOpenCard"]').click();
-  s.ctl.ui.shadow.querySelector('[data-action="onNever"]').click();
-  assert.equal(s.ctl.state.dismissedForever, true);
-  assert.match(s.ctl.model.notice, /הגדרות התוסף/);
-  s.ctl.ui.shadow.querySelector('[data-action="onCloseCard"]').click();
-  await s.ctl.tick();
-  assert.equal(s.ctl.ui.host, null, 'nothing visible after forever');
+});
+
+test('switched off in the options page: nothing is shown, even when the page is visited again', async () => {
+  const s = setup({ url: 'https://www.xplace.com/il/' });
+  await s.chrome.storage.local.set({ [S.KEY]: { dismissedForever: true } });
+  await s.ctl.start();
+  try {
+    await s.ctl.tick();
+    assert.equal(s.ctl.ui.host, null, 'nothing visible while switched off');
+    assert.equal(s.ctl.model.cardOpen, false);
+  } finally { s.ctl.stop(); }
 });
 
 test('host element is re-attached when the page removes it', async () => {
@@ -181,6 +188,21 @@ test('publisher on a non-own page: CTA opens Freelance Place projects/new', asyn
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(s.sent.find((m) => m.type === 'open-fp'), { type: 'open-fp', target: 'projects-new' });
   assert.ok(s.ctl.ui.shadow.textContent.includes('ושום תוכן לא נקרא מהעמוד ולא נשלח.'));
+});
+
+test('publisher (buyer) account on its own profile: profile copy, and the click captures the profile', async () => {
+  const s = setup({ html: fixture('profile-own.html').replace("'PROVIDER'", "'BUYER'"), replies: { stage: { ok: true, closed: false } } });
+  await s.ctl.tick();
+  const t = s.ctl.ui.shadow.textContent;
+  assert.ok(t.includes('העבירו את הפרופיל שלכם ל־Freelance Place') && t.includes('העתקת הפרופיל'));
+  assert.ok(!t.includes('פרסמו את הפרויקטים שלכם'), 'not the publisher copy');
+  s.sent.length = 0;
+  s.ctl.ui.shadow.querySelector('[data-action="onCta"]').click();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(!s.sent.some((m) => m.type === 'open-fp'), 'does not just open Freelance Place');
+  const stage = s.sent.find((m) => m.type === 'stage');
+  assert.ok(stage && stage.payload.kind === 'profile' && stage.payload.ownerSignal === true);
+  assert.equal(s.ctl.model.status, 'done');
 });
 
 test('own project page (new format): project copy, capture from inline JSON, no fetch', async () => {
@@ -322,13 +344,12 @@ test('M3: incomplete context is retried a bounded number of times', async () => 
   assert.ok(calls <= 12, `calls ${calls}`);
 });
 
-test('M3: after "do not show again" nothing is parsed per tick, but a launch URL still works', async () => {
+test('M3: while switched off in the options page nothing is parsed per tick, but a launch URL still works', async () => {
   const s = setup();
+  await s.chrome.storage.local.set({ [S.KEY]: { dismissedForever: true } });
   await s.ctl.start();
   await s.ctl.tick();
-  s.ctl.ui.shadow.querySelector('[data-action="onNever"]').click();
-  s.ctl.ui.shadow.querySelector('[data-action="onCloseCard"]').click();
-  await s.ctl.tick();
+  assert.equal(s.ctl.ui.host, null);
   let calls = 0;
   const orig = FPX.pages.describeContext;
   FPX.pages.describeContext = (...a) => { calls += 1; return orig(...a); };

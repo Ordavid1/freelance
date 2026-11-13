@@ -20,7 +20,7 @@ import ts from 'typescript';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const nodeRequire = createRequire(import.meta.url);
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.json'];
-const REAL_PACKAGES = ['react', 'react/jsx-runtime', 'react-dom/server'];
+const REAL_PACKAGES = ['react', 'react/jsx-runtime', 'react-dom/server', 'parse5', 'html-to-text'];
 
 function isFile(file) {
   try { return statSync(file).isFile(); } catch { return false; }

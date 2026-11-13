@@ -245,8 +245,11 @@
       if (ownerSignal === true) isOwn = !slugKnown || slugMatches;
       else if (ownerSignal === null) isOwn = slugMatches;
     }
+    // The user's own profile always offers the profile import, whatever the account type: XPlace gives a publisher
+    // (buyer) account a profile page too, and only the owner flag decides whether it is theirs.
     let variant = 'freelancer';
     if (page.kind === 'project' && isOwn) variant = 'own-project';
+    else if (page.kind === 'profile' && isOwn) variant = 'freelancer';
     else if (session.accountType === 'publisher') variant = 'publisher';
     return { page, session, ownerSignal, isOwn, variant, href: String(href) };
   }

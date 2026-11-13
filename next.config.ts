@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   // HSTS for every route. No includeSubDomains or preload: those are irreversible commitments for other hosts.
   async headers() {
     return [
-      { source: '/:path*', headers: [
+      // /__/auth/* (Firebase sign-in helpers, see src/proxy.ts) sets its own framing policy: its iframe is embedded by this site.
+      { source: '/((?!__/auth/).*)', headers: [
         { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
         { key: 'X-Content-Type-Options', value: 'nosniff' },
         { key: 'X-Frame-Options', value: 'DENY' },

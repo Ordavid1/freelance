@@ -37,7 +37,7 @@ export function MyApplications({ revision = 0 }: { revision?: number }) {
       <h2><Link href={`/projects/${encodeURIComponent(item.projectSlug)}`}>{item.projectTitle}</Link></h2>
       <h4 className="application-offer-label">ההצעה ששלחת</h4><p className="application-message">{item.message}</p>
       <p><strong>{new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(item.amount)}</strong> · {item.pricingType === 'hourly' ? 'לשעה' : 'מחיר קבוע'} · {item.delivery}</p>
-      {item.isDemo ? <p>ההצעה הזו נשמרה רק בחשבון שלך כדי לבדוק את טופס ההגשה. היא לא נשלחה למפרסם/ת.</p> : <div className="application-actions"><Link className="button-outline" href={`/messages?conversation=${encodeURIComponent(item.conversationId)}`}>הודעה למפרסם/ת</Link>{item.status === 'submitted' && <button disabled={busy === item.id} onClick={() => void withdraw(item.id)}>{busy === item.id ? 'מבטלים…' : 'ביטול ההצעה'}</button>}</div>}
+      {item.isDemo ? <p>ההצעה הזו נשמרה רק בחשבון שלך כדי לבדוק את טופס ההגשה. היא לא נשלחה למפרסם/ת.</p> : <div className="application-actions"><a className="button-outline" href={`/?view=messages&conversation=${encodeURIComponent(item.conversationId)}`}>הודעה למפרסם/ת</a>{item.status === 'submitted' && <button disabled={busy === item.id} onClick={() => void withdraw(item.id)}>{busy === item.id ? 'מבטלים…' : 'ביטול ההצעה'}</button>}</div>}
     </article>)}
   </section>;
 }

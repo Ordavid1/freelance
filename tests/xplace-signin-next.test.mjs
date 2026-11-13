@@ -22,6 +22,17 @@ test('anything else in the query string is refused', () => {
   }
 });
 
+test('raw controls, duplicate tokens, and URL normalization cannot broaden the handoff allowlist', () => {
+  for (const path of ['/profile/import', '/projects/new']) {
+    for (const suffix of ['\n', '\r', '\t', '\u0000', `&xplace=${TOKEN}`, '#fragment', '?other=1', '%0a']) {
+      assert.equal(safeNextPath(`${path}?xplace=${TOKEN}${suffix}`), '/');
+    }
+  }
+  for (const bad of [`/other/../profile/import?xplace=${TOKEN}`, `/profile%2fimport?xplace=${TOKEN}`, `/\\evil.test?xplace=${TOKEN}`]) {
+    assert.equal(safeNextPath(bad), '/', bad);
+  }
+});
+
 test('signInHref encodes the path and query, and the round trip through URLSearchParams is accepted', () => {
   const href = signInHref(`/projects/new?xplace=${TOKEN}`);
   assert.equal(href, `/signin?next=%2Fprojects%2Fnew%3Fxplace%3D${TOKEN}`);

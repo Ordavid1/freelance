@@ -27,16 +27,22 @@ function stripMarkup(value: string): string {
   let noCommentEnd = false;
   let noScriptEnd = false;
   let noStyleEnd = false;
-  const closers = { script: /<\/script\s*>/gi, style: /<\/style\s*>/gi };
+  const commentCloser = /--!?>/g;
+  // Find a closing-name boundary, then its delimiter separately. A single
+  // regex with an unbounded attribute tail retries quadratically when a page
+  // contains many unterminated closing tags.
+  const closers = { script: /<\/script(?=[\t\n\f\r />])/gi, style: /<\/style(?=[\t\n\f\r />])/gi };
   while (i < value.length) {
     const lt = value.indexOf('<', i);
     if (lt === -1) { out += value.slice(i); break; }
     out += value.slice(i, lt);
     i = lt + 1;
     if (value.startsWith('!--', i)) {
-      const end = noCommentEnd ? -1 : value.indexOf('-->', i + 3);
+      commentCloser.lastIndex = i + 3;
+      const comment = noCommentEnd ? null : commentCloser.exec(value);
+      const end = comment?.index ?? -1;
       if (end === -1) { noCommentEnd = true; out += '<'; continue; }
-      i = end + 3;
+      i = end + comment![0].length;
       continue;
     }
     let j = i;
@@ -53,7 +59,8 @@ function stripMarkup(value: string): string {
       if (!done) {
         closers[key].lastIndex = i;
         const found = closers[key].exec(value);
-        end = found ? found.index + found[0].length : -1;
+        const gt = found ? value.indexOf('>', found.index + found[0].length) : -1;
+        end = gt === -1 ? -1 : gt + 1;
       }
       if (end === -1) { if (key === 'script') noScriptEnd = true; else noStyleEnd = true; out += ' '; continue; }
       i = end;
@@ -96,27 +103,4 @@ export function cleanText(value: unknown, max: number, options: { paragraphs?: b
 export function isUsableText(value: string): boolean {
   if (!value || value.includes('{{') || value.includes('}}')) return false;
   return !/^(www\.)?xplace(\.com)?$/i.test(value.trim());
-}
-
-/** HTML without script and style blocks, so text inside scripts can never pose as page markup. */
-export function withoutScripts(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ');
-}
-
-/** Every `content` of `<meta {attr}="{name}">` in document order (raw attribute text, still entity-encoded). */
-export function metaValues(html: string, attr: 'name' | 'property' | 'itemprop', name: string): string[] {
-  const out: string[] = [];
-  for (const tag of html.matchAll(/<meta\b[^>]*>/gi)) {
-    const attrs: Record<string, string> = {};
-    for (const a of tag[0].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) attrs[a[1].toLowerCase()] = a[2] ?? a[3] ?? '';
-    if (attrs[attr] === name && typeof attrs.content === 'string') out.push(attrs.content);
-  }
-  return out;
-}
-
-/** Raw text of the `<title>` element, when present. */
-export function titleTag(html: string): string {
-  return /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1] ?? '';
 }

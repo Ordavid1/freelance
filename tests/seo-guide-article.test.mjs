@@ -3,6 +3,7 @@
 // the structured data. Routes, registry entries and policy checks are in seo-pages.test.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { documentFor, visibleText } from './helpers/html.mjs';
 import { bareGuide, bothGuide, fixtureGuides, infoContent, sampleGuide } from './fixtures/seo-pages.fixtures.mjs';
 import {
   assertInOrder, assertWellFormed, bylineTime, count, createElement, decode, detailsFaq, faqPairs, headings, jsonLd, load, ofType,
@@ -13,7 +14,6 @@ const article = load('src/components/discovery/guide-article.tsx', { guides: fix
 const registry = load('src/lib/seo/registry.ts', { guides: fixtureGuides });
 const { formatHebrewDate } = load('src/lib/seo/dates.ts');
 const renderGuide = (guide) => render(createElement(article.GuideArticle, { guide }));
-const strip = (html) => html.replace(/<script[\s\S]*?<\/script>/g, '');
 
 test('GuideArticle: one H1 with the direct answer directly under it, then byline, contents and sections', () => {
   const html = renderGuide(sampleGuide);
@@ -139,7 +139,7 @@ test('GuideArticle: the disclaimer is a visible note', () => {
   const html = renderGuide(sampleGuide);
   const note = /<div class="ga-disclaimer" role="note">([\s\S]*?)<\/div>/.exec(html);
   assert.ok(note, 'note present');
-  assert.equal(decode(note[1].replace(/<[^>]+>/g, '')), `הבהרה: ${sampleGuide.disclaimer}`);
+  assert.equal(visibleText(note[1]), `הבהרה: ${sampleGuide.disclaimer}`);
 });
 
 test('GuideArticle: related reading uses registry titles and skips unknown and own pages and repeats', () => {
@@ -164,7 +164,7 @@ test('relatedLinks also skips pages that are not indexable', () => {
 test('GuideArticle: author text is escaped, never interpreted as markup', () => {
   const html = renderGuide(sampleGuide);
   assert.ok(html.includes('&lt;b&gt;מודגש&lt;/b&gt; &amp; &quot;מירכאות&quot;'));
-  assert.doesNotMatch(strip(html), /<b>/);
+  assert.equal(documentFor(html).querySelectorAll('b').length, 0);
   assert.ok(html.includes('Figma-component-library-handover-checklist-version-final-approved-2026'), 'long Latin tokens render as text');
 });
 

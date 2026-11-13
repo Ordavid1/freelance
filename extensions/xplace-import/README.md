@@ -1,4 +1,4 @@
-# Freelance Place — XPlace Import (Chrome extension, v0.2.0, Manifest V3)
+# Freelance Place — XPlace Import (Chrome extension, v0.2.1, Manifest V3)
 
 Helps XPlace users move their **own** profile and projects to Freelance Place. It shows a small invitation on XPlace,
 and only after the user clicks does it read an allowlisted part of the page and hand it to Freelance Place for review.
@@ -16,7 +16,6 @@ This folder is **not** part of the app's npm workspace: run `npm install` inside
 | `FP_ORIGIN` | `https://freelance-place.com` | Freelance Place origin (rewritten by `build:dev`) |
 | `AUTO_OPEN_OWN_PAGES` | `'always'` | Card auto-opens on the user's own profile/project: `'always'`, `'daily'`, `'never'` |
 | `AUTO_OPEN_OTHER_PAGES_HOURS` | `24` | Card auto-opens on any other XPlace page at most once per N hours (`0` = never) |
-| `SNOOZE_DAYS` | `3` | `לא עכשיו` holds back the automatic card for N days (the pill stays) |
 | `CARD_MAX_WIDTH_PX`, `CARD_MAX_HEIGHT_PERCENT`, `BOTTOM_SHEET_BELOW_PX` | `360`, `70`, `480` | Layout limits; below 480 px the card is a bottom sheet |
 | `CAPTURE_WAIT_MS` | `15000` | Wait for the Angular profile blocks before capturing what exists |
 | `MAX_PAYLOAD_BYTES` | `250000` | Hard cap on a staged payload |
@@ -28,10 +27,14 @@ The Web Store "minimal distractions" guideline is the review risk for this exten
 limited to the user's own pages (always) and to other pages once every 24 hours, why the card is a small, clearly labelled
 (`Freelance Place · תוסף`), non-blocking corner element (max 360 px wide, max 70% of the viewport height). It never blocks the page and is
 dismissible, but it does sit over part of the page in the corner, so it can cover content there. On screens narrower than 480 px it is a bottom
-sheet that never opens by itself (pill only; it opens when the user taps the pill), why it can be closed with Esc or a visible close button, why the pill
-can be hidden, and why `אל תציגו שוב` hides everything permanently. The card contains a visible data-use disclosure.
-Turning the knobs up (for example `AUTO_OPEN_OTHER_PAGES_HOURS: 1`) raises that risk. After `אל תציגו שוב`, the invitation
-is re-enabled in the extension options page (chrome://extensions -> Details -> Extension options).
+sheet that never opens by itself (pill only; it opens when the user taps the pill), why it can be closed with its X or Esc, why the pill
+can be hidden, and why the options page (`הגדרות` in the card, or chrome://extensions -> Details -> Extension options) switches the invitation off for good
+and back on. Since 0.2.1 the card has no `לא עכשיו` and `אל תציגו שוב` buttons (Or's decision, 2026-11-12: the X is enough); the options switch is the permanent
+opt-out. A snooze saved by 0.2.0 is ignored. The card contains a visible data-use disclosure.
+Turning the knobs up (for example `AUTO_OPEN_OTHER_PAGES_HOURS: 1`) raises that risk.
+
+Which card is shown: on the user's own profile page always the profile import (`העתקת הפרופיל`), whatever the XPlace account type (a publisher/buyer account has a
+profile page too); on the user's own project the project import; on any other page a freelancer account gets the profile import and a publisher account gets a link that opens Freelance Place.
 
 ## What it does and does not read (privacy)
 
@@ -45,14 +48,14 @@ is re-enabled in the extension options page (chrome://extensions -> Details -> E
   `fetch('/project?id=<id>')` at click time.
 - The payload goes extension -> background (`chrome.storage.session`, one hour) -> the user's own Freelance Place tab, which sends it to its
   authenticated API. No analytics, no remote code, no logging of page content. Permissions: `storage` only; no host permissions; not allowed in incognito (`incognito: not_allowed`).
-- Before a click the extension only checks login and page-ownership flags (a cached parse of inline scripts per URL; stopped completely after `אל תציגו שוב`). Launch and auto-capture triggers are single use: the background grants them once per token, and the address-bar parameters are removed before capturing.
+- Before a click the extension only checks login and page-ownership flags (a cached parse of inline scripts per URL; stopped completely while the options page has the invitation switched off). Launch and auto-capture triggers are single use: the background grants them once per token, and the address-bar parameters are removed before capturing.
 
 ## Hand-off protocol
 
 The bridge content script matches the whole Freelance Place origin (`https://freelance-place.com/*`, `run_at: document_start`), not just the two hand-off paths: the
 profile studio can be rendered on `/` and navigation there is client-side, so no document load ever happens on a matching hand-off URL. The background
 accepts `await` from any main-frame page of that origin; the `?xplace=<token>` URL rule (fallback flow, the extension opens the tab itself) still works only on
-`/profile/import` and `/projects/new`, and tokens that came through the await flow are readable only by the registered tab.
+`/profile/import` and `/projects/new`, and tokens that came through the await flow are readable only by the registered tab. Both paths render the live workspace (never an older page shell). While no bridge answers, the page asks for the payload again every 1.5 s for 12 s, then tells the user whether the extension is on the page at all and offers `ניסיון נוסף` (the payload waits in the extension for an hour).
 
 Matches `src/lib/imports/xplace/handoff.ts`: `fp-xplace-request` (read/clear), `fp-xplace-response`, `fp-xplace-ready` and the
 `data-fp-xplace-extension` attribute. Launch flow from the website: open `https://www.xplace.com/il/?fp_import=profile&fp_ref=<token>`

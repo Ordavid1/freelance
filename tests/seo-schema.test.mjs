@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { jsonLdTexts } from './helpers/html.mjs';
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -65,7 +66,7 @@ test('policy: every URL in builder output is absolute on SITE_URL (or an externa
         assert.ok(value.startsWith(`${ORIGIN}/`) || value === ORIGIN, `${name}.${key}: ${value}`);
         assert.doesNotMatch(value, /localhost/);
       }
-      if (key === 'logo' && value && value.url) assert.ok(value.url.startsWith(ORIGIN));
+      if (key === 'logo' && value && value.url) assert.equal(new URL(value.url).origin, ORIGIN);
     });
   }
   assert.equal(allOutputs().webPageMinimal.citation, 'https://www.xplace.com/');
@@ -152,12 +153,12 @@ test('membership service is emitted only while billing is available and uses the
 test('rendered structured data components emit parseable, escaped JSON-LD from the builders', () => {
   const stubs = { 'next/image': { __esModule: true, default: () => null }, 'next/link': { __esModule: true, default: ({ href, children }) => createElement('a', { href }, children) } };
   const { Questions, CollectionData } = loadModule('src/components/discovery/public-content.tsx', { env, stubs });
-  const blocks = (html) => [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
+  const blocks = (html) => jsonLdTexts(html).map((value) => JSON.parse(value));
   const faqHtml = renderToStaticMarkup(Questions({ items: [{ question: 'האם <b>x</b> & y?', answer: 'כן.' }] }));
   const [faq] = blocks(faqHtml);
   assert.equal(faq['@context'], 'https://schema.org');
   assert.equal(faq['@type'], 'FAQPage');
-  assert.doesNotMatch(faqHtml.match(/<script[^>]*>(.*?)<\/script>/)[1], /[<>&]/);
+  assert.doesNotMatch(jsonLdTexts(faqHtml)[0], /[<>&]/);
   // Callers pass discoverable projects only (publication.ts); the component lists exactly those, and nothing when there are none.
   const projects = [
     { slug: 'real', title: 'פרויקט א', skills: [] },

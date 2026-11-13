@@ -1,6 +1,7 @@
 import { ImportError } from '../errors';
 import type { XPlaceProjectDraft, XPlaceProjectImport, XPlaceTarget } from '../types';
-import { cleanText, isUsableText, metaValues, titleTag, withoutScripts } from './clean';
+import { cleanText, isUsableText } from './clean';
+import { attribute, contents, isElement, metaValues, parseProjectHtml, type ProjectHtml } from './project-html';
 
 type ProjectTarget = Extract<XPlaceTarget, { kind: 'project' }>;
 type Draft = { title: string; description: string; budget: string; deadline: string; skills: string[]; publisherName: string };
@@ -169,20 +170,26 @@ function fromFlight(html: string, target: ProjectTarget): Draft | null {
 
 // ---------- layer 2: label-driven HTML ----------
 
-function pageIdMatches(page: string, target: ProjectTarget): boolean {
+function pageIdMatches(page: ProjectHtml, target: ProjectTarget): boolean {
   const url = metaValues(page, 'property', 'og:url')[0];
   if (!url) return true;
   const id = /[?&]id=(\d+)/.exec(url)?.[1] ?? /job-bids\/(\d+)/.exec(url)?.[1];
   return !id || id === target.projectId;
 }
 
-function fromHtml(page: string): Draft | null {
-  const title = /<h1\b[^>]*>([\s\S]*?)<\/h1\s*>/i.exec(page)?.[1];
-  const description = /<h3\b[^>]*>\s*פרטי הפרויקט\s*<\/h3\s*>\s*<p\b[^>]*>([\s\S]*?)<\/p\s*>/i.exec(page)?.[1];
-  const list = /<ul\b[^>]*class="[^"]*expertise-viewer_categoriesListWrap[^"]*"[^>]*>([\s\S]*?)<\/ul\s*>/i.exec(page)?.[1] ?? '';
-  const names = [...list.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li\s*>/gi)].map((item) => cleanText(item[1], 200));
-  const labelled = (label: string) => cleanText(
-    new RegExp(`<b\\b[^>]*>\\s*${label}\\s*<\\/b\\s*>([\\s\\S]*?)<\\/span\\s*>`, 'i').exec(page)?.[1], 120);
+function fromHtml(page: ProjectHtml): Draft | null {
+  const title = contents(page.elements.find((node) => node.tagName === 'h1'));
+  const heading = page.elements.find((node) => node.tagName === 'h3' && cleanText(contents(node), 120) === 'פרטי הפרויקט');
+  const siblings = heading?.parentNode?.childNodes ?? [];
+  const following = siblings.slice(heading ? siblings.indexOf(heading) + 1 : siblings.length).find(isElement);
+  const description = contents(following?.tagName === 'p' ? following : undefined);
+  const list = page.elements.find((node) => node.tagName === 'ul' && attribute(node, 'class')?.split(/\s+/).some((name) => name.startsWith('expertise-viewer_categoriesListWrap')));
+  const names = (list?.childNodes ?? []).filter(isElement).filter((node) => node.tagName === 'li').map((node) => cleanText(contents(node), 200));
+  const labelled = (label: string) => {
+    const node = page.elements.find((node) => node.tagName === 'b' && cleanText(contents(node), 120) === label);
+    const parent = node?.parentNode;
+    return parent && isElement(parent) && parent.tagName === 'span' ? cleanText(contents(parent), 120) : '';
+  };
   const amount = /\d[\d,]*/.exec(labelled('תקציב הפרויקט'))?.[0].replace(/,/g, '');
   return normalizeProject({
     title, description, categories: names, publisherName: '',
@@ -193,7 +200,7 @@ function fromHtml(page: string): Draft | null {
 
 // ---------- layer 3: meta tags ----------
 
-function fromMeta(page: string): Draft | null {
+function fromMeta(page: ProjectHtml): Draft | null {
   const strip = (value: string) => value.replace(/^\s*פרויקט\s*:\s*/, '').replace(/\s*\|\s*XPlace\s*$/i, '');
   const pick = (values: string[], max: number, paragraphs: boolean) => {
     for (const raw of values) {
@@ -202,7 +209,7 @@ function fromMeta(page: string): Draft | null {
     }
     return '';
   };
-  const title = pick([...metaValues(page, 'property', 'og:title'), titleTag(page)].map(strip), TITLE_MAX, false);
+  const title = pick([...metaValues(page, 'property', 'og:title'), contents(page.elements.find((node) => node.tagName === 'title'))].map(strip), TITLE_MAX, false);
   const description = pick([...metaValues(page, 'property', 'og:description'), ...metaValues(page, 'name', 'description')], DESCRIPTION_MAX, true);
   if (!title || !description) return null;
   return normalizeProject({ title, description, amount: null, dueDate: null, categories: [], publisherName: '' });
@@ -214,12 +221,15 @@ function fromMeta(page: string): Draft | null {
  */
 export function parseXPlaceProjectHtml(html: string, target: ProjectTarget): Omit<XPlaceProjectImport, 'fetchedAt'> {
   const source = String(html ?? '');
-  const page = withoutScripts(source);
-
   let draft = fromFlight(source, target);
   let partial = false;
-  if (!draft && pageIdMatches(page, target)) draft = fromHtml(page);
-  if (!draft && pageIdMatches(page, target)) { draft = fromMeta(page); partial = Boolean(draft); }
+  if (!draft) {
+    const page = parseProjectHtml(source);
+    if (pageIdMatches(page, target)) {
+      draft = fromHtml(page);
+      if (!draft) { draft = fromMeta(page); partial = Boolean(draft); }
+    }
+  }
   if (!draft) throw new ImportError('NOT_ENOUGH_DATA');
 
   return {

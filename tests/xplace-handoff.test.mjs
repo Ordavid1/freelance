@@ -80,6 +80,36 @@ test('requestHandoffPayload: an error or empty answer means expired, silence mea
   assert.equal(await reason(client.requestHandoffPayload('not-a-token', { win: fakeWindow().win })), 'expired');
 });
 
+test('requestHandoffPayload asks again while nobody answers, and stops once answered', async () => {
+  const { win, posted, deliver } = fakeWindow();
+  const pending = client.requestHandoffPayload(TOKEN, { win, timeoutMs: 2000, resendMs: 10 });
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.ok(posted.length >= 3, `asked again, ${posted.length} requests`);
+  assert.ok(posted.every(([m, o]) => m.channel === 'fp-xplace-request' && m.token === TOKEN && m.action === 'read' && o === ORIGIN));
+  deliver(response(TOKEN, { payload: { kind: 'project' } }));
+  assert.equal((await pending).kind, 'project');
+  const settled = posted.length;
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(posted.length, settled, 'no more requests after the answer');
+});
+
+test('requestHandoffPayload stops asking after a timeout or an abort', async () => {
+  const slow = fakeWindow();
+  assert.equal(await reason(client.requestHandoffPayload(TOKEN, { win: slow.win, timeoutMs: 40, resendMs: 10 })), 'timeout');
+  const afterTimeout = slow.posted.length;
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(slow.posted.length, afterTimeout);
+  const { win, posted } = fakeWindow();
+  const controller = new AbortController();
+  const pending = reason(client.requestHandoffPayload(TOKEN, { win, timeoutMs: 1000, resendMs: 10, signal: controller.signal }));
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  controller.abort();
+  assert.equal(await pending, 'cancelled');
+  const afterAbort = posted.length;
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(posted.length, afterAbort);
+});
+
 test('clearHandoff posts a clear request only for a valid token', () => {
   const { win, posted } = fakeWindow();
   client.clearHandoff('bad', win);

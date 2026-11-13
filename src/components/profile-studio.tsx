@@ -1,6 +1,7 @@
 'use client';
 import { trackEvent } from '@/lib/analytics';
 import { compressProfileImage } from '@/lib/profile/compress-image';
+import { portfolioLink } from '@/lib/profile/portfolio-link';
 
 import { useEffect, useRef, useState } from 'react';
 import type { XPlaceProfileImport } from '@/lib/imports/types';
@@ -29,13 +30,14 @@ function splitEntries(value: string) {
 }
 
 function PortfolioLine({ entry, index, onChange, onRemove }: { entry: string; index: number; onChange: (value: string) => void; onRemove: () => void }) {
-  const url = entry.match(/https?:\/\/[^\s)]+/i)?.[0];
-  const title = url ? entry.replace(url, '').replace(/[|:–—-]\s*$/, '').trim() || new URL(url).hostname : entry;
+  const link = portfolioLink(entry);
+  const url = link?.href;
+  const title = url ? entry.replace(/https?:\/\/[^\s)<>"']+/i, '').replace(/[|:–—-]\s*$/, '').trim() || link.hostname : entry;
   return <div className="profile-entry-pill portfolio-entry-pill">
     <span className="profile-entry-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
     {url ? <a className="portfolio-preview" href={url} target="_blank" rel="noopener noreferrer" aria-label={`פתיחת ${title} בכרטיסייה חדשה`}>
       <img src={`https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(url)}&sz=128`} alt="" loading="lazy" />
-      <span><strong>{title}</strong><small dir="ltr">{new URL(url).hostname}</small></span><b aria-hidden="true">↗</b>
+      <span><strong>{title}</strong><small dir="ltr">{link?.hostname}</small></span><b aria-hidden="true">↗</b>
     </a> : <textarea aria-label={`תיק עבודות, פריט ${index + 1}`} rows={1} value={entry} onChange={(event) => onChange(event.target.value)} />}
     <button className="profile-entry-remove" type="button" onClick={onRemove} aria-label={`הסרת פריט ${index + 1}`}>×</button>
   </div>;
@@ -353,7 +355,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
     setNotice('פרטי XPlace נטענו. לחצו על יצירת פרופיל בעזרת AI כדי לשלב אותם בפרופיל.');
   }
   const xplaceIngest = useXPlaceIngest<XPlaceProfileImport>('profile', applyXPlaceImport);
-  useAutoHandoff(xplaceIngest, xplaceFlags, true);
+  const retryHandoff = useAutoHandoff(xplaceIngest, xplaceFlags, true);
 
   function removeXPlaceImport() {
     setXplaceSource(null);
@@ -487,7 +489,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
         {linkError && <p id="profile-source-url-error" role="alert" className={styles.sourceError}>{linkError}</p>}
         <div className={styles.linkFormActions}><button type="submit" className={styles.approveLink}>אישור הקישור</button><button type="button" onClick={() => { setSource(null); setLinkError(''); }}>ביטול</button></div>
       </form>}
-      <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm}/>
+      <HandoffNotice phase={xplaceIngest.phase} kind="profile" onConfirm={xplaceIngest.confirm} onRetry={retryHandoff}/>
       {xplaceFlags.enabled && <div id="profile-xplace-panel-region">{xplaceOpen && <XPlaceProfilePanel flags={xplaceFlags} ingest={xplaceIngest} onImported={applyXPlaceImport} onClose={() => setXplaceOpen(false)}/>}</div>}
       <div id="profile-source-detail" className={`${styles.sourceCards} ${expandedSource ? '' : styles.sourceCardsEmpty}`} role="region" aria-label="פרטי המקור שנבחר" aria-live="polite" aria-hidden={!expandedSource}>
       {platforms.filter((platform) => links[platform] && expandedSource === platform).map((platform) => <article className={`${styles.sourceCard} ${styles.sourceCardReveal}`} key={platform}>

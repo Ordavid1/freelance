@@ -1,0 +1,55 @@
+{
+  "repository": "Ordavid1/freelance",
+  "source_base_commit": "0ae211030daaf7db53093d6a21b4e160565932a8",
+  "branch": "codex/fix-code-scanning",
+  "date": "2026-11-12",
+  "source_input_sha256": "77e1a3b0c9eefb1cedcace43af4ca4e80fda36de43856d2648f468ace0718ef2",
+  "source_input_file_count": 321,
+  "codeql": {
+    "version": "2.27.4",
+    "query_packs": {
+      "codeql/javascript-queries": "2.5.0",
+      "codeql/python-queries": "1.9.0"
+    },
+    "results": {
+      "javascript": {
+        "findings": 0,
+        "suite": "javascript-code-scanning.qls",
+        "sarif_sha256": "a6fac828c49fd7ad05656437c590976f0f23205f75606c9b29fbf8569acaaf45"
+      },
+      "python": {
+        "findings": 0,
+        "suite": "python-code-scanning.qls",
+        "sarif_sha256": "6b834fd750cb1e40421791c919b0c215b2b10a9f42a7286943c97a8862d8d1f0"
+      }
+    },
+    "tests_in_scope": true,
+    "suppressions_added": false,
+    "scan_exclusions_added": false
+  },
+  "validation": {
+    "application_tests": {
+      "passed": 530,
+      "failed": 0
+    },
+    "extension_tests": {
+      "passed": 98,
+      "failed": 0
+    },
+    "python_tests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "production_build": "passed",
+    "production_dependency_audit": "0 vulnerabilities",
+    "extension_package": {
+      "version": "0.2.1",
+      "bytes": 42470,
+      "checks": "passed"
+    },
+    "extension_browser_flow": "passed using bundled Playwright Chromium; six consent/handoff/bridge checks"
+  },
+  "live_github_alert_state": "Not verified: alert API returns 403. No alerts dismissed. Main should close fixed alerts only after merge and successful main analysis.",
+  "release_boundary": "This PR does not deploy the application or publish extension 0.2.1."
+}

@@ -4,6 +4,11 @@ const assert = require('node:assert/strict');
 const { FPX } = require('./helpers/load');
 const V = FPX.payload.validateCapturedPayload;
 
+test('extension text cleaning follows the shared server conformance corpus', () => {
+  const cases = require('../../../tests/fixtures/xplace/text-cleaning.json');
+  for (const { input, expected } of cases) assert.equal(FPX.clean.cleanText(input, 1000), expected, input);
+});
+
 const base = { kind: 'profile', url: 'https://www.xplace.com/il/u/a', ownerSignal: true, headline: 'h', slogan: '', location: '', about: 'a', languages: [], expertise: [], employment: [], education: [], otherSections: [], links: [] };
 
 test('rebuilds only allowed keys and drops extras', () => {
@@ -32,7 +37,7 @@ test('caps lists and rejects non-http links', () => {
 
 test('cleanText is linear on hostile markup and still strips encoded tags', () => {
   const { cleanText } = FPX.clean;
-  for (const hostile of ['<a'.repeat(20000), '<!--'.repeat(10000), '<'.repeat(30000), '<script '.repeat(8000), '</a'.repeat(20000)]) {
+  for (const hostile of ['<a'.repeat(20000), '<!--'.repeat(10000), '<'.repeat(30000), '<script '.repeat(8000), '<script>' + '</script '.repeat(10000), '<style>' + '</style '.repeat(10000), '</a'.repeat(20000)]) {
     const t0 = process.hrtime.bigint();
     cleanText(hostile, 500);
     const ms = Number(process.hrtime.bigint() - t0) / 1e6;

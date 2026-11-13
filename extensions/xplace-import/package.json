@@ -1,6 +1,6 @@
 {
   "name": "freelance-place-xplace-import",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Freelance Place - XPlace Import (Chrome extension, Manifest V3). Not part of the app workspace.",
   "scripts": {
