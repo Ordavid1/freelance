@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useExtensionInstalled, useXPlaceFlags } from './xplace-handoff';
 import styles from './extension-announcement.module.css';
@@ -23,6 +23,18 @@ export function ExtensionAnnouncement() {
 
   const visible = dismissed === false && installed === false && flags.enabled && Boolean(flags.extensionUrl);
   useEffect(() => { if (visible) trackEvent('extension_announcement_shown'); }, [visible]);
+  // Viewport-sized layouts (the workspace, an open conversation) subtract this so the bar never pushes them off screen.
+  const barRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const bar = barRef.current;
+    if (!visible || !bar) { root.style.removeProperty('--announcement-height'); return; }
+    const sync = () => root.style.setProperty('--announcement-height', `${bar.offsetHeight}px`);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(bar);
+    return () => { observer.disconnect(); root.style.removeProperty('--announcement-height'); };
+  }, [visible]);
   if (!visible) return null;
 
   function close() {
@@ -31,7 +43,7 @@ export function ExtensionAnnouncement() {
     trackEvent('extension_announcement_dismissed');
   }
 
-  return <aside className={styles.bar} aria-label="הודעה על התוסף ל־Chrome">
+  return <aside ref={barRef} className={styles.bar} aria-label="הודעה על התוסף ל־Chrome">
     <p className={styles.text}><strong>חדש: התוסף של Freelance Place ל־Chrome.</strong> עוברים מ־XPlace בלחיצה אחת: הפרופיל והפרויקטים שלכם מגיעים אלינו, בלי להקליד מחדש.</p>
     <a className={styles.cta} href={flags.extensionUrl} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('extension_announcement_install_clicked')}>הורדת התוסף</a>
     <button type="button" className={styles.close} aria-label="סגירת ההודעה" onClick={close}>×</button>
