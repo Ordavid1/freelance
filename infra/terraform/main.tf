@@ -459,6 +459,14 @@ resource "google_cloud_run_v2_service" "engine" {
         value = var.support_reply_domain
       }
       env {
+        name  = "RESEND_AUDIENCE_SEGMENT_ID"
+        value = var.resend_audience_segment_id
+      }
+      env {
+        name  = "RESEND_AUDIENCE_NEW_CONTACTS"
+        value = var.resend_audience_new_contacts
+      }
+      env {
         name  = "SUPPORT_ALLOWED_REPLY_EMAILS"
         value = join(",", var.support_allowed_reply_emails)
       }
