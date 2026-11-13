@@ -29,7 +29,7 @@ Every Google sign-in is mirrored into one Resend segment (the audience that broa
 | `RESEND_AUDIENCE_SEGMENT_ID` | the Resend segment to fill, for example the existing "General" segment |
 | `RESEND_AUDIENCE_NEW_CONTACTS` | `unsubscribed` (default) or `subscribed` for contacts created by sign-in |
 
-Terraform: set `resend_audience_segment_id` and, if wanted, `resend_audience_new_contacts = "subscribed"` in the production tfvars; they are passed to Cloud Run as the two variables above. Apply Terraform to enable the sync. Merging the code changes nothing until then.
+Every release sets both variables from `deploy/production.env` (`scripts/deploy-engine.sh`), and the Terraform variable defaults match. To change them, edit both. Terraform: `resend_audience_segment_id` and, if wanted, `resend_audience_new_contacts = "subscribed"` in the production tfvars; they are passed to Cloud Run as the two variables above. Apply Terraform to enable the sync. Merging the code changes nothing until then.
 
 **Decision (2026-11-13, Or):** sign-in contacts are created subscribed. The privacy and terms pages are to be updated by Or before the first broadcast; every broadcast carries the Resend unsubscribe link.
 

@@ -10,7 +10,7 @@ gcloud builds submit . --project="$PROJECT_ID" --config=deploy/cloudbuild.yaml -
 task_digest=$(gcloud artifacts docker images describe "$IMAGE" --project="$PROJECT_ID" --format='value(image_summary.digest)')
 [[ "$task_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Could not verify the built image digest.' >&2; exit 1; }
 task_release_image="${IMAGE%:*}@$task_digest"
-# First creation belongs to Terraform; subsequent releases update the image and the XPlace import flags only.
+# First creation belongs to Terraform; subsequent releases update the image, the XPlace import flags and the Resend audience settings only.
 gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" >/dev/null || { echo "Initialize Cloud Run with terraform apply -var=engine_image=$task_release_image" >&2; exit 1; }
-gcloud run services update "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$task_release_image" --update-env-vars="XPLACE_IMPORT_ENABLED=${XPLACE_IMPORT_ENABLED:-false},XPLACE_LINK_IMPORT_ENABLED=${XPLACE_LINK_IMPORT_ENABLED:-false},XPLACE_EXTENSION_URL=${XPLACE_EXTENSION_URL:-}" --quiet
+gcloud run services update "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$task_release_image" --update-env-vars="XPLACE_IMPORT_ENABLED=${XPLACE_IMPORT_ENABLED:-false},XPLACE_LINK_IMPORT_ENABLED=${XPLACE_LINK_IMPORT_ENABLED:-false},XPLACE_EXTENSION_URL=${XPLACE_EXTENSION_URL:-},RESEND_AUDIENCE_SEGMENT_ID=${RESEND_AUDIENCE_SEGMENT_ID:-},RESEND_AUDIENCE_NEW_CONTACTS=${RESEND_AUDIENCE_NEW_CONTACTS:-unsubscribed}" --quiet
 gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)'

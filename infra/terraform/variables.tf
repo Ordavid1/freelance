@@ -155,13 +155,13 @@ variable "support_slack_dispatch_enabled" {
 }
 variable "resend_audience_segment_id" {
   type        = string
-  default     = ""
+  default     = "ac381bd9-541f-4fcd-ae6f-577c6f7f373c"
   description = "Resend segment that Google sign-in users are added to. Empty keeps the sign-in audience sync off."
 }
 variable "resend_audience_new_contacts" {
   type        = string
-  default     = "unsubscribed"
-  description = "Subscription state of contacts created by sign-in: unsubscribed (default) or subscribed."
+  default     = "subscribed"
+  description = "Subscription state of contacts created by sign-in: unsubscribed or subscribed."
   validation {
     condition     = contains(["unsubscribed", "subscribed"], var.resend_audience_new_contacts)
     error_message = "resend_audience_new_contacts must be unsubscribed or subscribed."
