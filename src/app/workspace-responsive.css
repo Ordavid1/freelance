@@ -10,8 +10,8 @@
     box-sizing: border-box;
     width: 100%;
     max-width: none;
-    height: 100svh;
-    min-height: 100svh;
+    height: calc(100svh - var(--announcement-height, 0px));
+    min-height: calc(100svh - var(--announcement-height, 0px));
     overflow: hidden;
     grid-template-columns: minmax(340px, 2fr) minmax(0, 3fr);
     gap: clamp(18px, 2vw, 32px);

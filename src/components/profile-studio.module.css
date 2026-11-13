@@ -172,5 +172,7 @@
 .studio .xLinkButton { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 7px 18px; border: 1px solid #b9d800; border-radius: 8px; background: var(--logo-lime, #ceef00); color: #151719; font-size: var(--x-small); font-weight: 600; text-decoration: none; }
 .studio .xLinkButton:hover { background: var(--logo-lime-bright, #e0ff2a); }
 .studio .xLinkButton:focus-visible { outline: 2px solid #151719; outline-offset: 3px; }
+.studio .linkFormActions button.xLinkButton { background: var(--logo-lime, #ceef00); border-color: #b9d800; color: #151719; font-weight: 600; cursor: pointer; }
+.studio .linkFormActions button.xLinkButton:hover { background: var(--logo-lime-bright, #e0ff2a); }
 .studio .xOption p.xWarn { padding: 8px 12px; border-radius: 8px; background: #fff7e6; color: #6b4a0b; font-size: var(--x-small); }
 .studio .xOption p.xAlt { margin-top: 4px; padding-top: 12px; border-top: 1px solid #dce4de; font-size: var(--x-small); color: #4a5a50; }
