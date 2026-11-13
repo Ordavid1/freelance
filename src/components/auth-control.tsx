@@ -19,6 +19,11 @@ async function loadFirebaseAuth() {
 }
 type FirebaseAuthClient = Awaited<ReturnType<typeof loadFirebaseAuth>>;
 
+function googleNameParts(profile: Record<string, unknown> | null | undefined) {
+  const part = (value: unknown) => (typeof value === 'string' ? value.slice(0, 100) : undefined);
+  return { givenName: part(profile?.given_name), familyName: part(profile?.family_name) };
+}
+
 export function AuthControl() {
   return <SupportHeaderActions><AuthControlContent /></SupportHeaderActions>;
 }
@@ -81,7 +86,8 @@ function AuthControlContent() {
         const sessionResponse = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken }),
+          // Google's separate first and last name exist only in this sign-in result; Firebase does not keep them.
+          body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken, profile: googleNameParts(sdk.getAdditionalUserInfo(credential)?.profile) }),
         });
         if (!sessionResponse.ok) {
           const data = await sessionResponse.json().catch(() => ({}));
