@@ -29,3 +29,9 @@ export function nextForPage(pathname: string, search: string): string {
   const token = new URLSearchParams(search).get(HANDOFF_QUERY_PARAM);
   return isHandoffToken(token) ? `${pathname}?${HANDOFF_QUERY_PARAM}=${token}` : pathname;
 }
+
+/** True when a `next` value is a hand-off page carrying a valid token, i.e. an extension import is waiting behind the sign-in. */
+export function hasPendingHandoff(next: string | null | undefined): boolean {
+  // safeNextPath only returns a token-bearing hand-off URL for a valid one; the bare profile path and `/` carry no `?`.
+  return safeNextPath(next).includes(`?${HANDOFF_QUERY_PARAM}=`);
+}

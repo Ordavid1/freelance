@@ -2,8 +2,8 @@
 .app-shell:has(.messages-page .studio-inbox.has-active-thread) {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100svh;
+  height: calc(100vh - var(--announcement-height, 0px));
+  height: calc(100svh - var(--announcement-height, 0px));
   min-height: 0;
 }
 
@@ -362,14 +362,14 @@
 
 @media (max-width: 820px) {
   .app-shell:has(.messages-page .studio-inbox.has-active-thread) {
-    height: 100vh;
-    height: 100svh;
+    height: calc(100vh - var(--announcement-height, 0px));
+    height: calc(100svh - var(--announcement-height, 0px));
   }
 
   .app-shell:has(.messages-page .studio-inbox.has-active-thread) > .workspace {
     flex: 0 0 auto;
     /* Leave a little breathing room above the fixed mobile navigation. */
-    height: calc(100svh - 140px);
+    height: calc(100svh - 140px - var(--announcement-height, 0px));
     min-height: 0;
     margin-block: 0;
     overflow: hidden;

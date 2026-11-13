@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useViewMode } from './view-mode';
 import { ProfileStudio } from './profile-studio';
 import { HANDOFF_PATHS } from '@/lib/imports/xplace/handoff';
-import { nextForPage, signInHref } from '@/lib/auth/safe-next';
+import { hasPendingHandoff, nextForPage, signInHref } from '@/lib/auth/safe-next';
+import { PendingImportNotice } from './xplace-pending-notice';
 import { compressProfileImage } from '@/lib/profile/compress-image';
 export function ProfileSetup() {
   const { mode: role, setMode: setRole } = useViewMode();
@@ -16,7 +17,7 @@ export function ProfileSetup() {
   const [signInNext, setSignInNext] = useState<string>(HANDOFF_PATHS.profile);
   useEffect(() => { setSignInNext(nextForPage(HANDOFF_PATHS.profile, window.location.search)); }, []);
   if (sessionState === 'loading') return <p role="status">בודקים את החיבור לחשבון…</p>;
-  if (sessionState === 'signed-out') return <section className="signin-panel"><h2>מתחברים כדי לבנות את הפרופיל שלך</h2><p>יש להתחבר לחשבון Freelance Place לפני חיבור חשבונות מקצועיים, העלאת מסמכים ושמירת הפרופיל. אם החיבור הקודם פג, התחברו מחדש.</p><Link className="button button-dark" href={signInHref(signInNext)}>התחברות או פתיחת חשבון</Link></section>;
+  if (sessionState === 'signed-out') return <section className="signin-panel"><h2>מתחברים כדי לבנות את הפרופיל שלך</h2>{hasPendingHandoff(signInNext) && <PendingImportNotice/>}<p>יש להתחבר לחשבון Freelance Place לפני חיבור חשבונות מקצועיים, העלאת מסמכים ושמירת הפרופיל. אם החיבור הקודם פג, התחברו מחדש.</p><Link className="button button-dark" href={signInHref(signInNext)}>התחברות או פתיחת חשבון</Link></section>;
   return <div><div className="role-choice" aria-label="תצוגת הפרופיל"><button type="button" aria-pressed={role === 'freelancer'} className={role === 'freelancer' ? 'selected' : ''} onClick={() => setRole('freelancer')}>אני פרילנסר/ית</button><button type="button" aria-pressed={role === 'publisher'} className={role === 'publisher' ? 'selected' : ''} onClick={() => setRole('publisher')}>אני מחפש/ת פרילנסר</button></div>{role === 'publisher' ? <PublisherProfileSetup /> : <ProfileStudio key={userId} userId={userId} />}</div>;
 }
 function PublisherProfileSetup() {

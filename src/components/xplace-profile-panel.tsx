@@ -74,9 +74,12 @@ export function XPlaceProfilePanel({ flags, ingest, onImported, onClose }: {
         <p>פותחים את XPlace בלשונית חדשה, התוסף קורא את הפרופיל שלכם ומחזיר אתכם לכאן. בזמן גלישה ב־<a href={`${XPLACE_ORIGIN}/`} target="_blank" rel="noopener noreferrer" dir="ltr">XPlace</a> תופיע גם הזמנה להעתקת הפרופיל.</p>
         {launch === 'waiting'
           ? <div className={styles.linkFormActions}><p role="status">פתחנו את XPlace בלשונית חדשה. התוסף קורא את הפרופיל שלכם ויחזיר אתכם לכאן.</p><button type="button" onClick={cancelLaunch}>ביטול</button></div>
-          : <div className={styles.linkFormActions}><button type="button" className={styles.approveLink} onClick={startLaunch}>פתיחת XPlace וייבוא אוטומטי</button></div>}
+          : <div className={styles.linkFormActions}><button type="button" className={styles.xLinkButton} onClick={startLaunch}>פתיחת XPlace וייבוא אוטומטי</button></div>}
         {launch === 'error' && <p role="alert" className={styles.sourceError}>{LAUNCH_TIMEOUT_TEXT}</p>}
-      </> : <p>כדי לייבא בלחיצה אחת, <a href={flags.extensionUrl} target="_blank" rel="noopener noreferrer">התקינו את התוסף של Freelance Place ל־Chrome</a> ורעננו את העמוד.</p>}
+      </> : <>
+        <p>כדי לייבא את הפרופיל מ־XPlace בלחיצה אחת, מתקינים קודם את התוסף של Freelance Place ל־Chrome ואז מרעננים את העמוד.</p>
+        <div className={styles.linkFormActions}><a className={styles.xLinkButton} href={flags.extensionUrl} target="_blank" rel="noopener noreferrer">התקנת התוסף ל־Chrome</a></div>
+      </>}
     </section>}
 
     <section className={styles.xOption} aria-labelledby={`${id}-paste`}>

@@ -4,14 +4,17 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { GoogleAuthProvider, setPersistence, signInWithPopup, signOut, type Auth } from '@firebase/auth';
 import { getClientAuth } from '@/lib/auth/firebase-client';
-import { safeNextPath } from '@/lib/auth/safe-next';
+import { hasPendingHandoff, safeNextPath } from '@/lib/auth/safe-next';
+import { PendingImportNotice } from './xplace-pending-notice';
 
 export function SignInForm() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleSignInEnabled, setGoogleSignInEnabled] = useState(false);
+  const [importPending, setImportPending] = useState(false);
 
+  useEffect(() => { setImportPending(hasPendingHandoff(new URLSearchParams(window.location.search).get('next'))); }, []);
   useEffect(() => { getClientAuth().then(({ googleSignInEnabled: enabled }) => setGoogleSignInEnabled(enabled)).catch(() => {}); }, []);
 
   async function establishSession(auth: Auth, authUser: Awaited<ReturnType<typeof signInWithPopup>>['user']) {
@@ -46,6 +49,7 @@ export function SignInForm() {
   }
 
   return <section className="signin-panel">
+    {importPending && <PendingImportNotice/>}
     <button className="google-signin" type="button" disabled={busy || !googleSignInEnabled} onClick={googleSignIn}><span aria-hidden="true">G</span> המשך עם Google</button>
     {!googleSignInEnabled && <p className="error-text" role="status">התחברות Google עדיין לא זמינה. יש לבדוק את הגדרות Google Identity Platform.</p>}
     {notice && <p className="signin-notice" role="status">{notice}</p>}
