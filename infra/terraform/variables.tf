@@ -153,6 +153,20 @@ variable "support_slack_dispatch_enabled" {
   default     = false
   description = "Enable the every-minute Cloud Scheduler sweep of the Slack outbox."
 }
+variable "resend_audience_segment_id" {
+  type        = string
+  default     = ""
+  description = "Resend segment that Google sign-in users are added to. Empty keeps the sign-in audience sync off."
+}
+variable "resend_audience_new_contacts" {
+  type        = string
+  default     = "unsubscribed"
+  description = "Subscription state of contacts created by sign-in: unsubscribed (default) or subscribed."
+  validation {
+    condition     = contains(["unsubscribed", "subscribed"], var.resend_audience_new_contacts)
+    error_message = "resend_audience_new_contacts must be unsubscribed or subscribed."
+  }
+}
 variable "resend_secrets" {
   type        = map(object({ project = string, name = string, version = string }))
   default     = {}

@@ -1,9 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth/firebase-admin';
 import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
 import { readJsonBody } from '@/lib/security/request-body';
+import { recordSignInContact } from '@/lib/audience/signin-sync';
 
 import { SUPPORT_COOKIE } from '@/lib/support/shared';
 
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Verify your email and sign in again.' }, { status: 401 });
     }
     const session = await adminAuth().createSessionCookie(body.idToken, { expiresIn: FIVE_DAYS_MS });
+    // Mirror the verified identity into the Resend audience after the response is sent. The name
+    // parts come from the signed-in person's own Google profile; they only fill a greeting and are
+    // sanitised and length-limited, never used for access decisions.
+    const profile = body.profile && typeof body.profile === 'object' ? body.profile as Record<string, unknown> : {};
+    if (typeof decoded.email === 'string') {
+      const identity = { uid: decoded.uid, email: decoded.email, displayName: typeof decoded.name === 'string' ? decoded.name : null, givenName: profile.givenName, familyName: profile.familyName };
+      after(() => recordSignInContact(identity));
+    }
     const response = NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
     response.cookies.set(SESSION_COOKIE, session, sessionCookieOptions());
     response.cookies.set('fz_csrf', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
