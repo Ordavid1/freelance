@@ -1,0 +1,12 @@
+/* Site-wide announcement bar: brand ink with the logo lime accent (same palette as the workspace and support chat). */
+.bar { position: relative; z-index: 20; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 48px; padding: 8px 52px 8px 16px; background: #151719; color: #fff; font-family: var(--font-hebrew); font-size: 14px; line-height: 1.5; text-align: center; }
+.text { margin: 0; min-width: 0; }
+.text strong { color: #ceef00; font-weight: 700; }
+.cta { flex: none; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 5px 16px; border: 1px solid #b9d800; border-radius: 8px; background: #ceef00; color: #151719; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.cta:hover { background: #e0ff2a; }
+.close { position: absolute; inset-block: 0; inset-inline-end: 8px; display: grid; place-items: center; width: 36px; margin: auto 0; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.close:hover { background: #ffffff1f; }
+.cta:focus-visible, .close:focus-visible { outline: 2px solid #ceef00; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .bar { flex-direction: column; gap: 6px; padding: 10px 46px 10px 14px; font-size: 13px; }
+}

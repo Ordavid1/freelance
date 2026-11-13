@@ -15,6 +15,7 @@ import { supportContactEmail } from '@/lib/support/config';
 import Script from 'next/script';
 import { headers } from 'next/headers';
 import { Analytics } from '@/components/analytics';
+import { ExtensionAnnouncement } from '@/components/extension-announcement';
 
 const heebo = Heebo({ subsets: ['hebrew', 'latin'], variable: '--font-heebo', display: 'swap' });
 const space = Space_Grotesk({ subsets: ['latin'], variable: '--font-space', display: 'swap' });
@@ -34,5 +35,5 @@ export const metadata: Metadata = {
 };
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const nonce = (await headers()).get('x-nonce') || undefined;
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Analytics /><Script nonce={nonce} id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-CM5KEE7G13', {send_page_view: false});`}</Script><Script nonce={nonce} src="https://www.googletagmanager.com/gtag/js?id=G-CM5KEE7G13" strategy="afterInteractive" /><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Analytics /><ExtensionAnnouncement /><Script nonce={nonce} id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-CM5KEE7G13', {send_page_view: false});`}</Script><Script nonce={nonce} src="https://www.googletagmanager.com/gtag/js?id=G-CM5KEE7G13" strategy="afterInteractive" /><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
 }
