@@ -2,4 +2,4 @@
 // Pure data: imported by the legal pages, public facts, structured data and the footer.
 export const legalOperator = 'Aether AI Assimilation';
 export const legalEmail = 'or@ailead.work';
-export const legalUpdated = '2026-11-10';
+export const legalUpdated = '2026-11-15';
