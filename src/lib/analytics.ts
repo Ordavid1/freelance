@@ -29,11 +29,38 @@ export function trackEventBeforeNavigation(name: string, parameters: EventParame
   });
 }
 
+const PENDING_SIGN_UP_KEY = 'fp-pending-sign-up-uid';
+
+function pendingSignUpUid(): string | null {
+  try { return window.localStorage.getItem(PENDING_SIGN_UP_KEY); } catch { return null; }
+}
+
+function setPendingSignUpUid(uid: string | null) {
+  try {
+    if (uid) window.localStorage.setItem(PENDING_SIGN_UP_KEY, uid);
+    else window.localStorage.removeItem(PENDING_SIGN_UP_KEY);
+  } catch { /* storage blocked: the sign-up is then only counted when the first attempt succeeds */ }
+}
+
+/**
+ * Call right after Firebase signs the visitor in, before the site's own session is set up. Firebase reports
+ * `isNewUser` only on the one sign-in that created the account, so when session setup then fails, a retry would see an
+ * existing account and report a login. The account's uid is remembered until the sign-up has been reported, and this
+ * returns whether the sign-in should count as a sign-up (new now, or created by an earlier attempt that never finished).
+ */
+export function beginGoogleSignIn(uid: string, isNewUser: boolean): boolean {
+  if (typeof window === 'undefined') return isNewUser;
+  if (isNewUser) setPendingSignUpUid(uid);
+  return isNewUser || pendingSignUpUid() === uid;
+}
+
 /**
  * GA4's recommended sign_up / login events for a completed Google sign-in (the session cookie is already set).
- * `isNewUser` is Firebase's flag on the sign-in result: true only on the sign-in that created the account, so
- * sign_up counts new accounts and can be imported into Google Ads as a conversion.
+ * `isNewUser` is the value `beginGoogleSignIn` returned: true for the sign-in that created the account, including a
+ * retry after a failed session setup, so sign_up counts new accounts once and can be imported into Google Ads as a
+ * conversion. The pending marker is cleared here, so a later sign-in on the same account is a login.
  */
-export function trackGoogleSignIn(isNewUser: boolean): Promise<void> {
+export function trackGoogleSignIn(isNewUser: boolean, uid?: string): Promise<void> {
+  if (typeof window !== 'undefined' && uid && pendingSignUpUid() === uid) setPendingSignUpUid(null);
   return trackEventBeforeNavigation(isNewUser ? 'sign_up' : 'login', { method: 'Google' });
 }

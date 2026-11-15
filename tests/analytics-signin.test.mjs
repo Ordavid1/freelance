@@ -9,7 +9,9 @@ const source = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'u
 
 function withWindow(run) {
   const timers = [];
-  const win = { dataLayer: [], setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; } };
+  const store = new Map();
+  const localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => { store.set(k, String(v)); }, removeItem: (k) => { store.delete(k); } };
+  const win = { dataLayer: [], localStorage, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; } };
   globalThis.window = win;
   try { return run(win, timers); } finally { delete globalThis.window; }
 }
@@ -51,12 +53,41 @@ test('the pre-navigation event still resolves when Google tag is blocked or neve
   });
 });
 
+test('a sign-up whose session setup failed is still reported as sign_up when the retry succeeds, exactly once', () => withWindow((win) => {
+  // First attempt: Firebase creates the account (isNewUser true), then the site's session setup fails: nothing is tracked.
+  assert.equal(analytics.beginGoogleSignIn('uid-1', true), true);
+  // Retry: Firebase now reports an existing account, but the earlier attempt never reported the sign-up.
+  const isNew = analytics.beginGoogleSignIn('uid-1', false);
+  assert.equal(isNew, true);
+  void analytics.trackGoogleSignIn(isNew, 'uid-1');
+  assert.equal(lastEvent(win)[1], 'sign_up');
+  // A later sign-in on the same account is a plain login: the sign-up is never counted twice.
+  const later = analytics.beginGoogleSignIn('uid-1', false);
+  assert.equal(later, false);
+  void analytics.trackGoogleSignIn(later, 'uid-1');
+  assert.equal(lastEvent(win)[1], 'login');
+}));
+
+test('a pending sign-up never turns another account into a sign-up', () => withWindow(() => {
+  analytics.beginGoogleSignIn('uid-a', true);
+  assert.equal(analytics.beginGoogleSignIn('uid-b', false), false);
+}));
+
+test('sign-in still works when browser storage is blocked', () => withWindow((win) => {
+  win.localStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
+  assert.equal(analytics.beginGoogleSignIn('uid-1', true), true);
+  assert.equal(analytics.beginGoogleSignIn('uid-1', false), false);
+  void analytics.trackGoogleSignIn(true, 'uid-1');
+  assert.equal(lastEvent(win)[1], 'sign_up');
+}));
+
 test('both Google sign-in paths report the result before leaving the page', () => {
   const header = source('src/components/auth-control.tsx');
-  assert.match(header, /await trackGoogleSignIn\(additional\?\.isNewUser === true\);\s*window\.location\.reload\(\);/);
+  assert.match(header, /beginGoogleSignIn\(credential\.user\.uid, additional\?\.isNewUser === true\)/);
+  assert.match(header, /await trackGoogleSignIn\(isNewUser, credential\.user\.uid\);\s*window\.location\.reload\(\);/);
   const form = source('src/components/sign-in-form.tsx');
-  assert.match(form, /await trackGoogleSignIn\(isNewUser\);[\s\S]*window\.location\.assign\(safeNextPath\(next\)\)/);
-  assert.match(form, /getAdditionalUserInfo\(credential\)\?\.isNewUser === true/);
+  assert.match(form, /await trackGoogleSignIn\(isNewUser, authUser\.uid\);[\s\S]*window\.location\.assign\(safeNextPath\(next\)\)/);
+  assert.match(form, /beginGoogleSignIn\(credential\.user\.uid, getAdditionalUserInfo\(credential\)\?\.isNewUser === true\)/);
 });
 
 test('extension install prompts are limited to devices that can install extensions', () => {

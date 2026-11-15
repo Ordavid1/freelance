@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useViewer } from './viewer-context';
 import { SupportHeaderActions } from './support-chat';
-import { trackGoogleSignIn } from '@/lib/analytics';
+import { beginGoogleSignIn, trackGoogleSignIn } from '@/lib/analytics';
 
 // Firebase Auth (SDK, gapi and the auth iframe) is only needed when someone signs in, so it
 // loads on sign-in intent (pointer, focus or touch on the button), on the visitor's first sign of
@@ -82,6 +82,7 @@ function AuthControlContent() {
       try {
         const credential = await popup;
         const additional = sdk.getAdditionalUserInfo(credential);
+        const isNewUser = beginGoogleSignIn(credential.user.uid, additional?.isNewUser === true);
         const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
         if (!csrfResponse.ok) throw new Error('לא ניתן להתחיל התחברות מאובטחת.');
         const { csrfToken } = await csrfResponse.json();
@@ -96,7 +97,7 @@ function AuthControlContent() {
           throw new Error(data.error || 'ההתחברות נכשלה.');
         }
         await sdk.signOut(auth);
-        await trackGoogleSignIn(additional?.isNewUser === true);
+        await trackGoogleSignIn(isNewUser, credential.user.uid);
         window.location.reload();
       } catch (cause) {
         await sdk.signOut(auth).catch(() => {});
