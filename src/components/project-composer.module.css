@@ -1,0 +1,29 @@
+.options:global(.form-panel.project-composer) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.options > section,
+.options > :global(.draft-fields) {
+  padding: clamp(18px, 3vw, 32px);
+  border: 1px solid #e6e6f1;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 32px #20243804;
+}
+
+.options > section {
+  margin-bottom: 24px;
+}
+
+.options section h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.aiOption > :global(.notice) {
+  margin-top: 16px;
+}
