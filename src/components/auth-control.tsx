@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useViewer } from './viewer-context';
 import { SupportHeaderActions } from './support-chat';
+import { trackGoogleSignIn } from '@/lib/analytics';
 
 // Firebase Auth (SDK, gapi and the auth iframe) is only needed when someone signs in, so it
 // loads on sign-in intent (pointer, focus or touch on the button), on the visitor's first sign of
@@ -80,6 +81,7 @@ function AuthControlContent() {
     void (async () => {
       try {
         const credential = await popup;
+        const additional = sdk.getAdditionalUserInfo(credential);
         const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
         if (!csrfResponse.ok) throw new Error('לא ניתן להתחיל התחברות מאובטחת.');
         const { csrfToken } = await csrfResponse.json();
@@ -87,13 +89,14 @@ function AuthControlContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           // Google's separate first and last name exist only in this sign-in result; Firebase does not keep them.
-          body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken, profile: googleNameParts(sdk.getAdditionalUserInfo(credential)?.profile) }),
+          body: JSON.stringify({ idToken: await credential.user.getIdToken(true), csrfToken, profile: googleNameParts(additional?.profile) }),
         });
         if (!sessionResponse.ok) {
           const data = await sessionResponse.json().catch(() => ({}));
           throw new Error(data.error || 'ההתחברות נכשלה.');
         }
         await sdk.signOut(auth);
+        await trackGoogleSignIn(additional?.isNewUser === true);
         window.location.reload();
       } catch (cause) {
         await sdk.signOut(auth).catch(() => {});

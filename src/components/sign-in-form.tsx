@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { GoogleAuthProvider, setPersistence, signInWithPopup, signOut, type Auth } from '@firebase/auth';
+import { getAdditionalUserInfo, GoogleAuthProvider, setPersistence, signInWithPopup, signOut, type Auth } from '@firebase/auth';
+import { trackGoogleSignIn } from '@/lib/analytics';
 import { getClientAuth } from '@/lib/auth/firebase-client';
 import { hasPendingHandoff, safeNextPath } from '@/lib/auth/safe-next';
 import { PendingImportNotice } from './xplace-pending-notice';
@@ -17,7 +18,7 @@ export function SignInForm() {
   useEffect(() => { setImportPending(hasPendingHandoff(new URLSearchParams(window.location.search).get('next'))); }, []);
   useEffect(() => { getClientAuth().then(({ googleSignInEnabled: enabled }) => setGoogleSignInEnabled(enabled)).catch(() => {}); }, []);
 
-  async function establishSession(auth: Auth, authUser: Awaited<ReturnType<typeof signInWithPopup>>['user']) {
+  async function establishSession(auth: Auth, authUser: Awaited<ReturnType<typeof signInWithPopup>>['user'], isNewUser: boolean) {
     const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
     if (!csrfResponse.ok) throw new Error('לא ניתן להתחיל התחברות מאובטחת.');
     const { csrfToken } = await csrfResponse.json();
@@ -32,6 +33,7 @@ export function SignInForm() {
       throw new Error(data.error || 'ההתחברות נכשלה.');
     }
     await signOut(auth);
+    await trackGoogleSignIn(isNewUser);
     const next = new URLSearchParams(window.location.search).get('next');
     window.location.assign(safeNextPath(next));
   }
@@ -42,7 +44,7 @@ export function SignInForm() {
       const { auth, persistence } = await getClientAuth();
       await setPersistence(auth, persistence);
       const credential = await signInWithPopup(auth, new GoogleAuthProvider());
-      await establishSession(auth, credential.user);
+      await establishSession(auth, credential.user, getAdditionalUserInfo(credential)?.isNewUser === true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ההתחברות עם Google נכשלה.');
     } finally { setBusy(false); }
