@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { trackEvent } from '@/lib/analytics';
 import { useExtensionInstalled, useXPlaceFlags } from './xplace-handoff';
+import { canInstallExtension } from '@/lib/imports/xplace/handoff-client';
 import styles from './extension-announcement.module.css';
 
 const DISMISSED_KEY = 'fp-extension-announcement-v1';
@@ -11,17 +12,19 @@ function readDismissed(): boolean {
 }
 
 /**
- * Top-of-page announcement of the Chrome extension, shown to every visitor until they close it or already have the
- * extension. It renders nothing unless the server reports the importer enabled with a Web Store URL, so a dark
- * deployment never advertises a link that does not exist. The dismissal lives in this browser only.
+ * Top-of-page announcement of the Chrome extension, shown to every desktop visitor until they close it or already have
+ * the extension. Phones and tablets never see it: they cannot install extensions, and on a small screen the bar pushes
+ * the page itself below the fold. It renders nothing unless the server reports the importer enabled with a Web Store
+ * URL, so a dark deployment never advertises a link that does not exist. The dismissal lives in this browser only.
  */
 export function ExtensionAnnouncement() {
   const flags = useXPlaceFlags();
   const installed = useExtensionInstalled();
   const [dismissed, setDismissed] = useState<boolean | null>(null);
-  useEffect(() => { setDismissed(readDismissed()); }, []);
+  const [installable, setInstallable] = useState(false);
+  useEffect(() => { setDismissed(readDismissed()); setInstallable(canInstallExtension()); }, []);
 
-  const visible = dismissed === false && installed === false && flags.enabled && Boolean(flags.extensionUrl);
+  const visible = installable && dismissed === false && installed === false && flags.enabled && Boolean(flags.extensionUrl);
   useEffect(() => { if (visible) trackEvent('extension_announcement_shown'); }, [visible]);
   // Viewport-sized layouts (the workspace, an open conversation) subtract this so the bar never pushes them off screen.
   const barRef = useRef<HTMLElement | null>(null);

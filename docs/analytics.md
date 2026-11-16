@@ -7,6 +7,8 @@ The root layout loads the Google tag directly. The old GTM loader is replaced to
 | Event | Meaning |
 | --- | --- |
 | page_view | Initial page and pathname navigation |
+| sign_up | A Google sign-in that created the account (Firebase isNewUser); method=Google |
+| login | A Google sign-in to an existing account; method=Google |
 | ui_click | Button/link interaction; element_id, element_type, page_path |
 | profile_generation_started | User invoked AI generation |
 | profile_generation_completed | AI response succeeded (excludes demo fallback) |
@@ -17,10 +19,11 @@ The root layout loads the Google tag directly. The old GTM loader is replaced to
 | project_application_started | User submitted an application |
 | project_application_submitted | Application succeeded (excludes demo) |
 | project_application_demo | Demo application response |
+| extension_announcement_shown / _dismissed / _install_clicked | Site-wide Chrome extension bar (desktop only; phones and tablets never see it) |
 
 ## GA4 administration still required
 
-Mark profile_generation_completed, profile_saved, project_published and project_application_submitted as key events in Admin > Events. Register event-scoped custom dimensions for element_id, element_type and page_path to use them in exploration reports. Confirm events in Realtime and DebugView after deployment. Review Enhanced Measurement settings: disable history-based page views because this app sends them explicitly. Automatic form tracking is unnecessary for these custom action events.
+Mark sign_up, profile_generation_completed, profile_saved, project_published and project_application_submitted as key events in Admin > Events. sign_up is the earliest conversion a paid visitor can reach, so import it into Google Ads as a primary conversion; sign_up and login are sent before the page reloads after sign-in and wait up to one second for the Google tag to confirm delivery. Register event-scoped custom dimensions for element_id, element_type and page_path to use them in exploration reports. Confirm events in Realtime and DebugView after deployment. Review Enhanced Measurement settings: disable history-based page views because this app sends them explicitly. Automatic form tracking is unnecessary for these custom action events.
 
 Use Reports > Acquisition > Traffic acquisition for sessions, source/medium, campaigns, engagement and key-event rates. Use User acquisition for first-user origin. Build explorations for profile generation started → completed → saved, and publishing/application started → success. Event counts measure actions; Total users measures distinct users performing an action. Use consistent utm_source, utm_medium and utm_campaign on campaign links. Standard reports can take 24–48 hours to populate.
 

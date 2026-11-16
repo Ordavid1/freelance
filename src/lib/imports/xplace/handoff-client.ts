@@ -149,3 +149,18 @@ export function isExtensionInstalled(options: { timeoutMs?: number; win?: Handof
     timer = setTimeout(() => { off(); resolve(w.document.documentElement.hasAttribute(EXTENSION_MARKER_ATTRIBUTE)); }, options.timeoutMs ?? DETECT_TIMEOUT_MS);
   });
 }
+
+export type ExtensionNavigator = { userAgent: string; maxTouchPoints?: number; userAgentData?: { mobile?: boolean } };
+
+/**
+ * False on devices that cannot add a Chrome extension at all: phones and tablets (Chrome on Android and every iOS
+ * browser have no extension support). Pages use it to keep install prompts away from visitors who cannot act on them.
+ */
+export function canInstallExtension(nav?: ExtensionNavigator): boolean {
+  const n = nav ?? (typeof navigator === 'undefined' ? undefined : navigator as unknown as ExtensionNavigator);
+  if (!n) return false;
+  if (n.userAgentData?.mobile === true) return false;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(n.userAgent)) return false;
+  // iPadOS asks for desktop sites with a Mac user agent; a Mac with a touch screen is an iPad.
+  return !(/Macintosh/.test(n.userAgent) && (n.maxTouchPoints ?? 0) > 1);
+}
