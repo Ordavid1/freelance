@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { buildCreateFields, findForbiddenTerm, parseArgs, planRetire, planSeed, seedDocId, validateCatalog } from '../scripts/seed-projects/catalog.ts';
+import { buildCreateFields, findForbiddenTerm, parseArgs, planClose, planRetire, planSeed, seedDocId, validateCatalog } from '../scripts/seed-projects/catalog.ts';
 
 const fixture = () => JSON.parse(readFileSync(new URL('./fixtures/seed-catalog.fixture.json', import.meta.url), 'utf8'));
 const valid = fixture();
@@ -72,11 +72,19 @@ test('content lint rejects whole-word labels but allows ordinary Hebrew words', 
 });
 
 test('arguments: dry run by default, commit needs an explicit project', () => {
-  assert.deepEqual(parseArgs(['--catalog', 'c.json']).options, { catalog: 'c.json', commit: false, retire: false });
+  assert.deepEqual(parseArgs(['--catalog', 'c.json']).options, { catalog: 'c.json', commit: false, retire: false, close: false });
   assert.equal(parseArgs(['--catalog', 'c.json', '--commit']).ok, false);
   assert.equal(parseArgs(['--catalog', 'c.json', '--commit', '--project', 'p']).options.commit, true);
   assert.equal(parseArgs([]).ok, false);
   assert.equal(parseArgs(['--catalog', 'c.json', '--nope']).ok, false);
+});
+
+test('arguments: --close is its own mode and cannot be combined with --retire', () => {
+  assert.equal(parseArgs(['--catalog', 'c.json', '--close']).options.close, true);
+  assert.equal(parseArgs(['--catalog', 'c.json', '--close']).options.commit, false);
+  assert.equal(parseArgs(['--catalog', 'c.json', '--close', '--commit', '--project', 'p']).options.commit, true);
+  assert.equal(parseArgs(['--catalog', 'c.json', '--close', '--commit']).ok, false, 'commit still needs an explicit project');
+  assert.equal(parseArgs(['--catalog', 'c.json', '--close', '--retire']).ok, false);
 });
 
 test('plan computation: create, update, unchanged and skip-foreign', () => {
@@ -98,7 +106,7 @@ test('created records are honest samples with no owner', () => {
   const { batch, entries } = validateCatalog(valid);
   const record = buildCreateFields(entries[0], batch);
   assert.equal(record.sample, true);
-  assert.equal(record.status, 'open');
+  assert.equal(record.status, 'closed', 'a showcase record is created closed: no client is hiring');
   assert.equal(record.visibility, 'public');
   assert.equal(record.proposals, 0);
   assert.equal(record.unreal, true);
@@ -115,4 +123,33 @@ test('retire plan archives only seed records of the batch', () => {
     { id: 'real-one', data: { status: 'open', seed: { batch: 'b' } } },
   ];
   assert.deepEqual(planRetire(docs, 'b').map((item) => item.action), ['update', 'unchanged', 'skip']);
+});
+
+test('close plan closes only open seed records of the batch and leaves every other state alone', () => {
+  const seed = (extra = {}, batch = 'b') => ({ sample: true, seed: { batch, catalogSlug: 'x' }, ...extra });
+  const docs = [
+    { id: 'seed-a-project', data: seed({ status: 'open' }) },
+    { id: 'seed-b-project', data: seed({ status: 'closed' }) },
+    { id: 'seed-c-project', data: seed({ status: 'archived' }) },
+    { id: 'seed-d-project', data: seed() },
+    { id: 'real-one', data: { status: 'open', sample: true, seed: { batch: 'b', catalogSlug: 'x' } } },
+    { id: 'seed-e-project', data: seed({ status: 'open' }, 'other') },
+    { id: 'seed-f-project', data: { status: 'open', seed: { batch: 'b', catalogSlug: 'f' } } },
+  ];
+  const plan = planClose(docs, 'b');
+  assert.deepEqual(plan.map((item) => item.action), ['update', 'unchanged', 'skip', 'skip', 'skip', 'skip', 'skip']);
+  assert.deepEqual(plan[0].changed, ['status']);
+  assert.match(plan[2].reason, /archived/, 'a retired record is never reopened as closed');
+  assert.match(plan[3].reason, /null/, 'a record without a status is reported, not guessed');
+  for (const index of [4, 5, 6]) assert.equal(plan[index].reason, 'not a seed record of this batch');
+  assert.deepEqual(planClose(docs, 'b').filter((item) => item.action === 'update').map((item) => item.id), ['seed-a-project']);
+});
+
+test('re-seeding never changes a record status, so a closed seed stays closed', () => {
+  const { batch, entries } = validateCatalog(valid);
+  const [first] = entries;
+  for (const status of ['open', 'closed', 'archived']) {
+    const stored = { ...buildCreateFields(first, batch), createdAt: 1, status };
+    assert.deepEqual(planSeed([first], batch, new Map([[seedDocId(first.slug), stored]])).map((item) => item.action), ['unchanged'], status);
+  }
 });

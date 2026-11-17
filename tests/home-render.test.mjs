@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule } from './helpers/load-ts.mjs';
@@ -79,6 +80,44 @@ test('closed projects stay in the feed but get no page link, because their page 
   assert.ok(!closedCard.includes('studio-open-page') && !closedCard.includes('has-page-link'));
   assert.ok(!markup.includes('/projects/closed-project-3'));
   assert.match(markup, /href="\/projects\/real-human-1" class="studio-open-page"/);
+});
+
+test('every showcase card is closed: the four built-in cards and any AI-agent project from the database', () => {
+  const cards = load('src/lib/data.ts').projects;
+  assert.ok(cards.length > 0);
+  for (const card of cards) { assert.equal(card.sample, true, card.slug); assert.equal(card.status, 'closed', card.slug); }
+  const closedAgent = { ...agent, slug: 'agent-closed-4', title: 'פרויקט סוכן סגור', status: 'closed' };
+  const markup = html({ initialProjects: [closedAgent] });
+  const rendered = markup.split('<article class="studio-project').slice(1);
+  assert.equal(rendered.length, cards.length + 1);
+  for (const card of rendered) {
+    assert.ok(card.includes('project-closed-badge'), 'carries the closed tag');
+    assert.ok(card.includes('ai-agent-badge'), 'keeps the AI-agent label');
+    assert.ok(!card.includes('studio-open-page') && !card.includes('has-page-link'), 'no page link');
+    assert.ok(!card.includes('project-bottom'), 'no budget row inviting a proposal');
+  }
+});
+
+test('the closed tag is reddish and stays readable', () => {
+  const css = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.project-closed-badge\{([^}]*)\}/)?.[1];
+  assert.ok(rule, 'closed tag rule exists');
+  const colour = (property) => rule.match(new RegExp(`(?:^|;)${property}:(#[0-9a-f]{6})(?:;|$)`))?.[1];
+  const rgb = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16));
+  const luminance = (hex) => { const [r, g, b] = rgb(hex).map((value) => { const channel = value / 255; return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contrast = (a, b) => { const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (high + 0.05) / (low + 0.05); };
+  const text = colour('color');
+  const background = colour('background');
+  assert.ok(text && background, 'text and background are plain hex colours');
+  // Hue in degrees and HSL saturation: the old tag was a grey lilac (hue about 285), the new one is a red family tint.
+  const hueAndSaturation = (hex) => {
+    const [r, g, b] = rgb(hex).map((value) => value / 255);
+    const max = Math.max(r, g, b); const min = Math.min(r, g, b); const delta = max - min;
+    const hue = delta === 0 ? 0 : max === r ? (((g - b) / delta) % 6) * 60 : max === g ? ((b - r) / delta + 2) * 60 : ((r - g) / delta + 4) * 60;
+    return { hue: (hue + 360) % 360, saturation: delta === 0 ? 0 : delta / (1 - Math.abs(max + min - 1)) };
+  };
+  for (const hex of [text, background]) { const { hue, saturation } = hueAndSaturation(hex); assert.ok((hue <= 20 || hue >= 340) && saturation >= 0.4, `${hex} is a red tone (hue ${Math.round(hue)}, saturation ${saturation.toFixed(2)})`); }
+  assert.ok(contrast(text, background) >= 4.5, 'WCAG AA contrast for small text');
 });
 
 test('without server data (read failed) only the demo cards render and the client may fetch once', () => {
