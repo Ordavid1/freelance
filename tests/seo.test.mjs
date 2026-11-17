@@ -206,3 +206,26 @@ test('sitemap rejects oversize output before exceeding the protocol URL limit', 
   const helpers = projectModule(Array.from({ length: 50 }, () => thousand));
   await assert.rejects(helpers.sitemapProjects(), /requires sharding/);
 });
+
+test('a closed project answers null on its page, the built-in showcase cards included', async () => {
+  const database = { 'db-open': { slug: 'db-open', status: 'open' } };
+  const read = (cards) => load('src/lib/seo/projects.ts', {
+    'server-only': {}, react: { cache: (fn) => fn },
+    'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } },
+    '@/lib/db/firestore': { firestore: () => ({}) },
+    '@/lib/db/projects': { getOpenProject: async (slug) => database[slug] ?? null, listOpenProjects: async () => [] },
+    '@/lib/data': { getProject: (slug) => cards.find((card) => card.slug === slug) }, './publication': publication,
+  }).readPublicProject;
+  const readSynthetic = read([{ slug: 'old-card', sample: true }, { slug: 'new-card', sample: true, status: 'open' }, { slug: 'closed-card', sample: true, status: 'closed' }]);
+  assert.equal((await readSynthetic('old-card')).slug, 'old-card', 'a card without a status is open');
+  assert.equal((await readSynthetic('new-card')).slug, 'new-card');
+  assert.equal(await readSynthetic('closed-card'), null);
+  assert.equal((await readSynthetic('db-open')).slug, 'db-open', 'database projects still come from the open-only read');
+  assert.equal(await readSynthetic('db-closed'), null);
+  assert.equal(await readSynthetic('bad slug!'), null);
+  // The real built-in cards are all closed, so none of them has a page.
+  const builtIn = loadModule('src/lib/data.ts').projects;
+  const readBuiltIn = read(builtIn);
+  assert.ok(builtIn.length > 0);
+  for (const card of builtIn) assert.equal(await readBuiltIn(card.slug), null, card.slug);
+});

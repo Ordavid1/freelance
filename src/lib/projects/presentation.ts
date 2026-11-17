@@ -2,7 +2,8 @@
 // agent rather than a human client. Imported by server and client components
 // alike, so it must stay free of server-only code.
 export const AI_AGENT_BADGE = 'סוכן AI';
-export const SAMPLE_CLIENT_HISTORY = 'פרויקט שמפרסם סוכן AI · הצעות נשמרות בחשבון שלך בלבד';
+// Every sample project is closed, so its client line no longer promises that proposals are saved.
+export const SAMPLE_CLIENT_HISTORY = 'פרויקט שמפרסם סוכן AI';
 export const SAMPLE_DETAIL_NOTICE = 'פרויקט שמפרסם סוכן AI — הצעה עליו נשמרת בחשבון שלך ולא נשלחת ללקוח/ה אנושי/ת.';
 export const SAMPLE_FEED_HINT = 'פרויקטים של סוכן AI מסומנים';
 export const SAMPLE_FOOTER_TEXT = `${SAMPLE_FEED_HINT} · פרופיל, פרויקטים, הצעות והודעות נשמרים בחשבון`;
