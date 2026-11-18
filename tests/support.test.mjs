@@ -149,6 +149,16 @@ test('unknown senders, wrong routes, auto replies and ambiguous recipients never
   }
   assert.equal((await service.readSupportConversation(cookieToken, null)).messages.length, 1);
 });
+test('hostile deeply nested HTML replies neither crash nor stall extraction', () => {
+  const html = `${'<div>'.repeat(100_000)}Hello there${'</div>'.repeat(100_000)}`;
+  const start = performance.now();
+  assert.equal(service.extractSupportReply(null, html), 'Hello there');
+  assert.ok(performance.now() - start < 10_000);
+});
+test('full HTML email documents keep <head> title and styles out of the reply text', () => {
+  const html = '<!doctype html><html><head><title>HEAD LEAK</title><style>.a{color:red}</style></head><body><p>Hi there</p><div>Line 2</div></body></html>';
+  assert.equal(service.extractSupportReply(null, html), 'Hi there\n\nLine 2');
+});
 test('HTML-only replies become plain text, and English/Hebrew quotations and signatures are removed', () => {
   assert.equal(service.extractSupportReply(null, '<p>Hello &amp; welcome</p><script>alert(1)</script>'), 'Hello & welcome');
   assert.equal(service.extractSupportReply('תודה!\n\nבתאריך יום ג׳ כתב Owner:\n> הודעה קודמת', null), 'תודה!');

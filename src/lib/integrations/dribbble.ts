@@ -1,6 +1,6 @@
 import 'server-only';
 import { randomBytes } from 'node:crypto';
-import { convert } from 'html-to-text';
+import { untrustedHtmlToText } from '@/lib/security/html-text';
 import { parseFragment, serialize } from 'parse5';
 
 export const DRIBBBLE_STATE_COOKIE = 'dribbble_oauth_state';
@@ -64,8 +64,7 @@ export function cleanDribbbleText(value: unknown, max = 1000): string {
   // attributes and slash closers). Serialization re-escapes text entities, so
   // the converter below still performs only one effective entity decode.
   const html = serialize(parseFragment(value.slice(0, 30_000)));
-  return convert(html, {
-    wordwrap: false,
+  return untrustedHtmlToText(html, {
     selectors: [
       { selector: 'script', format: 'skip' }, { selector: 'style', format: 'skip' },
       { selector: 'a', options: { ignoreHref: true } }, { selector: 'img', format: 'skip' },
