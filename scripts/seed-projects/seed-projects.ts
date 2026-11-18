@@ -1,14 +1,16 @@
 // Seed import tool for sample ("inspiration") projects.
 //
 //   node --experimental-transform-types scripts/seed-projects/seed-projects.ts \
-//     --catalog scripts/seed-projects/catalog.he.json [--project <gcp-project-id>] [--commit] [--retire]
+//     --catalog scripts/seed-projects/catalog.he.json [--project <gcp-project-id>] [--commit] [--retire | --close]
 //
 // Dry run by default. Writes only with --commit, which requires an explicit --project.
+// --close sets the batch's open records to closed (still listed and labelled, no proposals);
+// --retire sets them to archived (gone from the feed).
 // Uses Application Default Credentials; see docs/seed-projects.md.
 import { readFileSync } from 'node:fs';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
-import { buildCreateFields, diffSeedRecord, parseArgs, planRetire, planSeed, summarize, validateCatalog, type ExistingDoc, type PlanItem } from './catalog.ts';
+import { buildCreateFields, diffSeedRecord, parseArgs, planClose, planRetire, planSeed, summarize, validateCatalog, type ExistingDoc, type PlanItem } from './catalog.ts';
 
 const WRITE_CHUNK = 400;
 
@@ -22,7 +24,7 @@ function printPlan(title: string, items: PlanItem[]) {
 async function main() {
   const parsed = parseArgs(process.argv.slice(2));
   if (!parsed.ok) { console.error(parsed.error); process.exit(2); }
-  const { catalog: catalogPath, commit, retire } = parsed.options;
+  const { catalog: catalogPath, commit, retire, close } = parsed.options;
   const projectId = parsed.options.project || process.env.GOOGLE_CLOUD_PROJECT;
 
   let json: unknown;
@@ -36,10 +38,10 @@ async function main() {
   }
   const { batch, entries } = catalog;
   console.log(`Catalog OK: batch "${batch}", ${entries.length} project(s).`);
-  console.log(`Mode: ${commit ? 'COMMIT' : 'DRY RUN'}${retire ? ' (retire)' : ''}; project: ${projectId || '(none, offline plan)'}`);
+  console.log(`Mode: ${commit ? 'COMMIT' : 'DRY RUN'}${retire ? ' (retire)' : ''}${close ? ' (close)' : ''}; project: ${projectId || '(none, offline plan)'}`);
 
   if (!projectId) {
-    if (retire) { console.error('--retire needs a project (--project or GOOGLE_CLOUD_PROJECT) to find the batch.'); process.exit(2); }
+    if (retire || close) { console.error(`--${retire ? 'retire' : 'close'} needs a project (--project or GOOGLE_CLOUD_PROJECT) to find the batch.`); process.exit(2); }
     printPlan('Offline plan (Firestore was not read; assumes nothing exists yet):', planSeed(entries, batch, new Map()));
     return;
   }
@@ -47,19 +49,21 @@ async function main() {
   const db = getFirestore(initializeApp({ credential: applicationDefault(), projectId }));
   const projects = db.collection('projects');
 
-  if (retire) {
+  // Retire and close touch only the status of the batch's records; the plan decides which ones change.
+  const statusChange = retire ? { plan: planRetire, status: 'archived', verb: 'Retire', done: 'Archived' } : close ? { plan: planClose, status: 'closed', verb: 'Close', done: 'Closed' } : null;
+  if (statusChange) {
     const snapshot = await projects.where('seed.batch', '==', batch).get();
     const docs = snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() as DocumentData }));
-    const plan = planRetire(docs, batch);
-    printPlan(`Retire plan for batch "${batch}" (status -> archived):`, plan);
+    const plan = statusChange.plan(docs, batch);
+    printPlan(`${statusChange.verb} plan for batch "${batch}" (status -> ${statusChange.status}):`, plan);
     if (!commit) { console.log('\nDry run: nothing was written. Re-run with --commit to apply.'); return; }
     const targets = plan.filter((item) => item.action === 'update');
     for (let start = 0; start < targets.length; start += WRITE_CHUNK) {
       const writes = db.batch();
-      for (const item of targets.slice(start, start + WRITE_CHUNK)) writes.update(projects.doc(item.id), { status: 'archived', updatedAt: FieldValue.serverTimestamp() });
+      for (const item of targets.slice(start, start + WRITE_CHUNK)) writes.update(projects.doc(item.id), { status: statusChange.status, updatedAt: FieldValue.serverTimestamp() });
       await writes.commit();
     }
-    console.log(`\nArchived ${targets.length} project(s).`);
+    console.log(`\n${statusChange.done} ${targets.length} project(s).`);
     return;
   }
 

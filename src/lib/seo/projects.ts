@@ -8,7 +8,11 @@ import { isDiscoverableProject } from './publication';
 
 export const readPublicProject = cache(async (slug: string) => {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(slug)) return null;
-  return getProject(slug) || getOpenProject(slug);
+  // A closed project answers 404 like any other: the database read only returns open projects, and the
+  // static showcase cards (lib/data.ts, always closed) are held to the same rule.
+  const staticProject = getProject(slug);
+  if (staticProject) return (staticProject.status ?? 'open') === 'open' ? staticProject : null;
+  return getOpenProject(slug);
 });
 // The one list every public discovery page reads. The data layer already returns discoverable
 // projects only; the filter here keeps that true if the source ever widens, so a showcase

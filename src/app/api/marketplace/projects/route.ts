@@ -23,7 +23,8 @@ export async function GET(request: Request) {
       const user = await getCurrentUser();
       if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בפרויקטים שלך.' }, { status: 401 });
       const snapshot = await firestore().collection('projects').where('ownerUid', '==', user.uid).limit(100).get();
-      const items = snapshot.docs.map((doc) => toPublicProject(doc.id, doc.data())).sort((a, b) => a.title.localeCompare(b.title));
+      // An archived project is withdrawn from the product (no feed card, no page), so it also leaves its owner's list.
+      const items = snapshot.docs.filter((doc) => doc.data().status !== 'archived').map((doc) => toPublicProject(doc.id, doc.data())).sort((a, b) => a.title.localeCompare(b.title));
       return NextResponse.json({ items }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const items = await listFeedProjects();

@@ -16,7 +16,7 @@ export type CatalogEntry = {
 export type ContentFields = Omit<CatalogEntry, 'slug' | 'persona'> & { owner: { kind: 'ai-agent'; name: string; persona: string } };
 export type CatalogResult = { ok: true; batch: string; entries: CatalogEntry[] } | { ok: false; errors: string[] };
 
-export type CliOptions = { catalog: string; project?: string; commit: boolean; retire: boolean };
+export type CliOptions = { catalog: string; project?: string; commit: boolean; retire: boolean; close: boolean };
 export type ArgsResult = { ok: true; options: CliOptions } | { ok: false; error: string };
 
 export type PlanAction = 'create' | 'update' | 'unchanged' | 'skip';
@@ -26,11 +26,12 @@ export type ExistingDoc = Record<string, unknown> | null | undefined;
 export function seedDocId(slug: string) { return `seed-${slug}`; }
 
 export function parseArgs(argv: string[]): ArgsResult {
-  const options: CliOptions = { catalog: '', commit: false, retire: false };
+  const options: CliOptions = { catalog: '', commit: false, retire: false, close: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--commit') options.commit = true;
     else if (arg === '--retire') options.retire = true;
+    else if (arg === '--close') options.close = true;
     else if (arg === '--catalog' || arg === '--project') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) return { ok: false, error: `${arg} requires a value.` };
@@ -39,6 +40,7 @@ export function parseArgs(argv: string[]): ArgsResult {
     } else return { ok: false, error: `Unknown argument: ${arg}` };
   }
   if (!options.catalog) return { ok: false, error: '--catalog <file> is required.' };
+  if (options.retire && options.close) return { ok: false, error: '--retire and --close cannot be combined.' };
   if (options.commit && !options.project) return { ok: false, error: '--commit requires an explicit --project <gcp-project-id>.' };
   return { ok: true, options };
 }
@@ -105,7 +107,8 @@ export function buildCreateFields(entry: CatalogEntry, batch: string) {
   // `unreal: true` and `seed.purgeAfter` make seeded records easy to find and remove later
   // (query `unreal == true`, or `seed.purgeAfter` before today); they are never shown in the UI.
   const purgeAfter = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  return { ...contentFields(entry), status: 'open', visibility: 'public', sample: true, unreal: true, proposals: 0, seed: { batch, catalogSlug: entry.slug, purgeAfter } };
+  // Showcase records are created closed: no client is hiring, so none of them takes proposals.
+  return { ...contentFields(entry), status: 'closed', visibility: 'public', sample: true, unreal: true, proposals: 0, seed: { batch, catalogSlug: entry.slug, purgeAfter } };
 }
 
 // Deep comparison independent of object key order (Firestore does not preserve it).
@@ -143,13 +146,32 @@ export function planSeed(entries: CatalogEntry[], batch: string, existing: Map<s
   });
 }
 
+// A document from a `seed.batch == batch` query: its catalog slug, and whether it really is a seed record of that batch.
+function seedIdentity(id: string, data: Record<string, unknown>, batch: string) {
+  const seed = data.seed && typeof data.seed === 'object' ? data.seed as Record<string, unknown> : null;
+  const slug = typeof seed?.catalogSlug === 'string' ? seed.catalogSlug : id;
+  return { slug, own: seed?.batch === batch && data.sample === true && id.startsWith('seed-') };
+}
+const NOT_SEED = 'not a seed record of this batch';
+
 // Retire plan for the documents returned by a `seed.batch == batch` query.
 export function planRetire(docs: { id: string; data: Record<string, unknown> }[], batch: string): PlanItem[] {
   return docs.map(({ id, data }) => {
-    const seed = data.seed && typeof data.seed === 'object' ? data.seed as Record<string, unknown> : null;
-    const slug = typeof seed?.catalogSlug === 'string' ? seed.catalogSlug : id;
-    if (seed?.batch !== batch || data.sample !== true || !id.startsWith('seed-')) return { action: 'skip', id, slug, changed: [], reason: 'not a seed record of this batch' };
+    const { slug, own } = seedIdentity(id, data, batch);
+    if (!own) return { action: 'skip', id, slug, changed: [], reason: NOT_SEED };
     return data.status === 'archived' ? { action: 'unchanged', id, slug, changed: [] } : { action: 'update', id, slug, changed: ['status'] };
+  });
+}
+
+// Close plan for the same query: open seed records become closed. They stay in the feed with their
+// label but take no proposals. A retired (archived) record, or one in any other state, is left as it is.
+export function planClose(docs: { id: string; data: Record<string, unknown> }[], batch: string): PlanItem[] {
+  return docs.map(({ id, data }) => {
+    const { slug, own } = seedIdentity(id, data, batch);
+    if (!own) return { action: 'skip', id, slug, changed: [], reason: NOT_SEED };
+    if (data.status === 'closed') return { action: 'unchanged', id, slug, changed: [] };
+    if (data.status !== 'open') return { action: 'skip', id, slug, changed: [], reason: `status is ${JSON.stringify(data.status ?? null)}; left as it is` };
+    return { action: 'update', id, slug, changed: ['status'] };
   });
 }
 
