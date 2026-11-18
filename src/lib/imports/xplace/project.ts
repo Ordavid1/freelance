@@ -1,7 +1,7 @@
 import { ImportError } from '../errors';
 import type { XPlaceProjectDraft, XPlaceProjectImport, XPlaceTarget } from '../types';
 import { cleanText, isUsableText } from './clean';
-import { attribute, contents, isElement, metaValues, parseProjectHtml, type ProjectHtml } from './project-html';
+import { attribute, contents, isElement, metaValues, parseProjectHtml, textPreview, type HtmlElement, type ProjectHtml } from './project-html';
 
 type ProjectTarget = Extract<XPlaceTarget, { kind: 'project' }>;
 type Draft = { title: string; description: string; budget: string; deadline: string; skills: string[]; publisherName: string };
@@ -27,6 +27,11 @@ const SKILL_MAX = 60;
 const SKILLS_MAX = 20;
 const PUBLISHER_MAX = 200;
 export const PROJECT_LIMITS = { title: TITLE_MAX, description: DESCRIPTION_MAX, publisher: PUBLISHER_MAX, category: 200 } as const;
+/**
+ * Raw text read from a <b>/<h3> to compare against a short label. Enough to yield the first 120
+ * cleaned chars of any realistic label; bounded so nested markup cannot make label lookup quadratic.
+ */
+const LABEL_PREVIEW_CHARS = 300;
 const FLEXIBLE_DEADLINE = 'גמיש';
 const DEFAULT_CATEGORY = 'כללי';
 const PARTIAL_WARNING = 'חלק מפרטי הפרויקט לא היו זמינים. בדקו את התיאור לפני הפרסום.';
@@ -178,15 +183,22 @@ function pageIdMatches(page: ProjectHtml, target: ProjectTarget): boolean {
 }
 
 function fromHtml(page: ProjectHtml): Draft | null {
+  // Each <b> is compared against several labels; compute its bounded preview only once.
+  const previews = new Map<HtmlElement, string>();
+  const label = (node: HtmlElement) => {
+    let text = previews.get(node);
+    if (text === undefined) previews.set(node, text = cleanText(textPreview(node, LABEL_PREVIEW_CHARS), 120));
+    return text;
+  };
   const title = contents(page.elements.find((node) => node.tagName === 'h1'));
-  const heading = page.elements.find((node) => node.tagName === 'h3' && cleanText(contents(node), 120) === 'פרטי הפרויקט');
+  const heading = page.elements.find((node) => node.tagName === 'h3' && label(node) === 'פרטי הפרויקט');
   const siblings = heading?.parentNode?.childNodes ?? [];
   const following = siblings.slice(heading ? siblings.indexOf(heading) + 1 : siblings.length).find(isElement);
   const description = contents(following?.tagName === 'p' ? following : undefined);
   const list = page.elements.find((node) => node.tagName === 'ul' && attribute(node, 'class')?.split(/\s+/).some((name) => name.startsWith('expertise-viewer_categoriesListWrap')));
   const names = (list?.childNodes ?? []).filter(isElement).filter((node) => node.tagName === 'li').map((node) => cleanText(contents(node), 200));
-  const labelled = (label: string) => {
-    const node = page.elements.find((node) => node.tagName === 'b' && cleanText(contents(node), 120) === label);
+  const labelled = (text: string) => {
+    const node = page.elements.find((node) => node.tagName === 'b' && label(node) === text);
     const parent = node?.parentNode;
     return parent && isElement(parent) && parent.tagName === 'span' ? cleanText(contents(parent), 120) : '';
   };

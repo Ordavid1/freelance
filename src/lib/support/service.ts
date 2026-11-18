@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { Resend, type GetReceivingEmailResponseSuccess } from 'resend';
 import EmailReplyParser from 'email-reply-parser';
-import { convert } from 'html-to-text';
+import { untrustedHtmlToText } from '@/lib/security/html-text';
 import { firestore } from '@/lib/db/firestore';
 import { mailbox, validEmail, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
@@ -114,7 +114,7 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
 }
 
 export function extractSupportReply(text: string | null, html: string | null) {
-  const plain = (text || (html ? convert(html, { wordwrap: false, selectors: [{ selector: 'img', format: 'skip' }, { selector: 'a', options: { ignoreHref: true } }] }) : '')).slice(0, 100_000);
+  const plain = (text || (html ? untrustedHtmlToText(html, { selectors: [{ selector: 'img', format: 'skip' }, { selector: 'a', options: { ignoreHref: true } }] }) : '')).slice(0, 100_000);
   // Also recognize Hebrew Gmail/Outlook quote headers.
   const beforeQuote = plain.split(/\n\s*(?:בתאריך\s[^\n]{0,500}(?:כתב|כתבה)|מאת:\s|From:\s|_{5,}|-{2,}\s*Original Message)/i)[0];
   return new EmailReplyParser().parseReply(beforeQuote).replace(/\x00/g, '').trim().slice(0, SUPPORT_MAX_TEXT);
