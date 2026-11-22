@@ -3,7 +3,9 @@ import { isHandleFormat } from './handle.ts';
 
 export function minisitePath(handle: string): string {
   if (!isHandleFormat(handle)) throw new Error('A valid headhunter handle is required.');
-  return `/${handle}`;
+  // The format check already limits a handle to [a-z0-9-]; encoding is a no-op for valid handles and keeps any URL built
+  // from client-held data (the feed state) provably free of markup or scheme characters.
+  return `/${encodeURIComponent(handle)}`;
 }
 
 export function minisiteUrl(handle: string): string {
