@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { HeadhunterHero } from '@/components/headhunter-minisite';
-import { HeadhunterTag } from '@/components/headhunter-tag';
+import { HeadhunterTagPill } from '@/components/headhunter-tag';
 import { trackEvent } from '@/lib/analytics';
 import { HEADHUNTER_LIMITS } from '@/lib/headhunters/constants';
 import {
@@ -260,7 +260,7 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
       <div className="hh-ed-preview-box" inert><HeadhunterHero view={preview} openCount={0} publishedCount={0} preview /></div>
       <section className="hh-ed-panel hh-ed-tag" aria-labelledby="hh-tag-title">
         <h2 id="hh-tag-title">{T.tagHeading}</h2>
-        <p className="row" inert>{tagHandle ? <HeadhunterTag preview headhunter={{ name: preview.displayName, handle: tagHandle }} /> : <span className="hh-ed-hint">{T.tagNeedsHandle}</span>}</p>
+        <p className="row" inert>{tagHandle ? <HeadhunterTagPill headhunter={{ name: preview.displayName, handle: tagHandle }} /> : <span className="hh-ed-hint">{T.tagNeedsHandle}</span>}</p>
         <p className="hh-ed-note">{view?.live ? T.tagLive : T.tagNotLive}</p>
       </section>
     </aside>
