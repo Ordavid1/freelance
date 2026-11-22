@@ -26,12 +26,16 @@ export type PageMetadataOptions = {
   modified?: string;
   // The title is already complete (it carries the brand), so the layout's title template is skipped.
   absoluteTitle?: boolean;
+  // Social-card override (og and twitter only): title and description are used as given, the image is an absolute URL.
+  // Canonical, hreflang and robots never change with it.
+  share?: { title?: string; description?: string; image?: string };
 };
 export function pageMetadata(title: string, description: string, path: string, indexable = true, options: PageMetadataOptions = {}): Metadata {
-  const { type = 'website', published, modified, absoluteTitle = false } = options;
+  const { type = 'website', published, modified, absoluteTitle = false, share } = options;
   const canonical = absoluteUrl(path);
-  const socialTitle = absoluteTitle ? title : `${title} | ${SITE_NAME}`;
-  const image = absoluteUrl('/opengraph-image');
+  const socialTitle = share?.title || (absoluteTitle ? title : `${title} | ${SITE_NAME}`);
+  const socialDescription = share?.description || description;
+  const image = share?.image || absoluteUrl('/opengraph-image');
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,
@@ -41,13 +45,13 @@ export function pageMetadata(title: string, description: string, path: string, i
       ? { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } }
       : noIndex,
     openGraph: {
-      title: socialTitle, description, url: canonical, siteName: SITE_NAME, locale: 'he_IL',
+      title: socialTitle, description: socialDescription, url: canonical, siteName: SITE_NAME, locale: 'he_IL',
       images: [{ url: image, width: 1200, height: 630, alt: title }],
       ...(type === 'article'
         ? { type: 'article' as const, ...(published ? { publishedTime: published } : {}), ...(modified ? { modifiedTime: modified } : {}) }
         : { type: 'website' as const }),
     },
-    twitter: { card: 'summary_large_image', title: socialTitle, description, images: [{ url: image, alt: title }] },
+    twitter: { card: 'summary_large_image', title: socialTitle, description: socialDescription, images: [{ url: image, alt: title }] },
   };
 }
 

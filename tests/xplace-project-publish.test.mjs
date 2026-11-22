@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { NextResponse } from 'next/server.js';
 import { loadModule } from './helpers/load-ts.mjs';
 import { createFakeFirestore } from './helpers/fake-firestore.mjs';
+import { headhunterTagsOff, noHeadhunters } from './helpers/headhunter-stubs.mjs';
 
 const errorsModule = loadModule('src/lib/imports/errors.ts');
 const validation = loadModule('src/lib/projects/validation.ts');
@@ -30,6 +31,7 @@ function setup({ seed = {}, enabled = true, limit = null } = {}) {
       '@/lib/security/marketplace-policy': { accountWriteDenied: async (...args) => { calls.push(['denied', ...args]); return null; }, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
       '@/lib/imports/errors': errorsModule,
       '@/lib/projects/events': { onProjectPublished: (slug, record) => published.push([slug, record]), onProjectClosed: () => {} },
+      '@/lib/db/headhunters': noHeadhunters,
       '@/lib/db/projects': { listFeedProjects: async () => [], toPublicProject: (slug, record) => ({ slug, title: record.title, client: record.clientName }) },
     },
   });
@@ -38,9 +40,8 @@ function setup({ seed = {}, enabled = true, limit = null } = {}) {
 const publish = (route, body) => route.POST(new Request('https://example.test/api/marketplace/projects', { method: 'POST', body: JSON.stringify(body) }));
 const imported = (db) => Object.entries(db.docs('projects'));
 
-test('without `import` the existing path is unchanged (no transaction, no importSource, same clientName rule)', async () => {
+test('without `import` the existing path is unchanged (no importSource, same clientName rule; one transaction for the project and the headhunter counter)', async () => {
   const { route, db, published, calls } = setup();
-  db.runTransaction = async () => { throw new Error('the plain path must not use a transaction'); };
   const response = await publish(route, base);
   assert.equal(response.status, 201);
   const [[id, record]] = imported(db);
@@ -184,7 +185,7 @@ test('importSource is stored, the public projection hides it, and the publish ho
 });
 
 test('toPublicProject (real implementation) does not expose importSource', async () => {
-  const projects = loadModule('src/lib/db/projects.ts', { stubs: { 'next/cache': { unstable_cache: (fn) => fn }, 'firebase-admin/firestore': { FieldPath: {} }, './firestore': { firestore() { throw new Error('no db'); } }, '@/lib/seo/publication': {} } });
+  const projects = loadModule('src/lib/db/projects.ts', { stubs: { '@/lib/db/headhunters': headhunterTagsOff, 'next/cache': { unstable_cache: (fn) => fn }, 'firebase-admin/firestore': { FieldPath: {} }, './firestore': { firestore() { throw new Error('no db'); } }, '@/lib/seo/publication': {} } });
   const publicProject = projects.toPublicProject('s', { ...base, clientName: 'Acme', importSource: { key: KEY, url: PROJECT_URL, publisherNameOnSource: 'Acme' } });
   assert.equal(JSON.stringify(publicProject).includes('importSource'), false);
   assert.equal(JSON.stringify(publicProject).includes('xplace'), false);

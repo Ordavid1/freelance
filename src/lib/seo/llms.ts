@@ -15,6 +15,7 @@ import { indexablePages, pageByPath } from './registry';
 import { absoluteUrl, summarize } from './site';
 import { skills } from './skills';
 import type { GuideSection, Question, SeoPage } from './types';
+import { minisiteUrl } from '@/lib/headhunters/urls';
 
 export const LLMS_HEADERS = {
   'Content-Type': 'text/plain; charset=utf-8',
@@ -132,7 +133,14 @@ function infoBlocks(facts: MembershipFacts): string[] {
   });
 }
 
-export function llmsFullTxt(facts: MembershipFacts = membershipFacts()): string {
+// Agency minisites (indexable ones only, from `indexableHeadhunterPages()`): name, URL and open-project count. No contact data.
+export type AgencyPage = { handle: string; name: string; openProjects: number };
+function agencyLines(agencies: readonly AgencyPage[]): string[] {
+  if (agencies.length === 0) return [];
+  return [agencies.map((agency) => `- [${linkLabel(agency.name)}](${minisiteUrl(agency.handle)}): ${agency.openProjects} open ${agency.openProjects === 1 ? 'project' : 'projects'}`).join('\n')];
+}
+
+export function llmsFullTxt(facts: MembershipFacts = membershipFacts(), agencies: readonly AgencyPage[] = []): string {
   const blocks = [
     `# ${BRAND.name}`,
     `> ${SUMMARY}`,
@@ -147,5 +155,6 @@ export function llmsFullTxt(facts: MembershipFacts = membershipFacts()): string 
   section('Skills', skillBlocks());
   section('Guides', guideBlocks());
   section('Information pages', infoBlocks(facts));
+  section('Agency pages', agencyLines(agencies));
   return `${blocks.join('\n\n')}\n`;
 }

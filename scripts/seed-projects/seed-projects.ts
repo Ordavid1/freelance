@@ -4,13 +4,15 @@
 //     --catalog scripts/seed-projects/catalog.he.json [--project <gcp-project-id>] [--commit] [--retire | --close]
 //
 // Dry run by default. Writes only with --commit, which requires an explicit --project.
+// New showcase projects are never created: a plan that contains a create fails on --commit and writes nothing.
+// Existing records can still have their text updated, be closed, or be retired.
 // --close sets the batch's open records to closed (still listed and labelled, no proposals);
 // --retire sets them to archived (gone from the feed).
 // Uses Application Default Credentials; see docs/seed-projects.md.
 import { readFileSync } from 'node:fs';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
-import { buildCreateFields, diffSeedRecord, parseArgs, planClose, planRetire, planSeed, summarize, validateCatalog, type ExistingDoc, type PlanItem } from './catalog.ts';
+import { CREATES_DISABLED_MESSAGE, creationsIn, diffSeedRecord, parseArgs, planClose, planRetire, planSeed, summarize, validateCatalog, type ExistingDoc, type PlanItem } from './catalog.ts';
 
 const WRITE_CHUNK = 400;
 
@@ -19,6 +21,7 @@ function printPlan(title: string, items: PlanItem[]) {
   for (const item of items) console.log(`  ${item.action.padEnd(9)} ${item.id}${item.changed.length ? `  [${item.changed.join(', ')}]` : ''}${item.reason ? `  (${item.reason})` : ''}`);
   const counts = summarize(items);
   console.log(`  -> create ${counts.create}, update ${counts.update}, unchanged ${counts.unchanged}, skip ${counts.skip}`);
+  if (counts.create) console.log(`  ${CREATES_DISABLED_MESSAGE} The ${counts.create} create item(s) above would be refused on --commit.`);
 }
 
 async function main() {
@@ -72,25 +75,28 @@ async function main() {
   const existing = new Map<string, ExistingDoc>(snapshots.map((snapshot) => [snapshot.id, snapshot.exists ? snapshot.data() : null]));
   const plan = planSeed(entries, batch, existing);
   printPlan(`Seed plan for batch "${batch}":`, plan);
+  const creations = creationsIn(plan);
+  if (commit && creations.length) {
+    console.error(`\nRefusing to commit: the plan would create ${creations.length} new showcase project(s); nothing was written.`);
+    console.error(CREATES_DISABLED_MESSAGE);
+    process.exit(1);
+  }
   if (!commit) { console.log('\nDry run: nothing was written. Re-run with --commit --project <id> to apply.'); return; }
 
   const bySlug = new Map(entries.map((entry) => [entry.slug, entry]));
-  type Write = { ref: DocumentReference; kind: 'create' | 'update'; data: DocumentData };
+  type Write = { ref: DocumentReference; data: DocumentData };
   const writes = plan.flatMap((item): Write[] => {
     const entry = bySlug.get(item.slug)!;
-    if (item.action === 'create') return [{ ref: projects.doc(item.id), kind: 'create', data: { ...buildCreateFields(entry, batch), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() } }];
-    if (item.action === 'update') return [{ ref: projects.doc(item.id), kind: 'update', data: { ...diffSeedRecord(entry, existing.get(item.id) as DocumentData), updatedAt: FieldValue.serverTimestamp() } }];
+    if (item.action === 'update') return [{ ref: projects.doc(item.id), data: { ...diffSeedRecord(entry, existing.get(item.id) as DocumentData), updatedAt: FieldValue.serverTimestamp() } }];
     return [];
   });
   for (let start = 0; start < writes.length; start += WRITE_CHUNK) {
     const batchWrite = db.batch();
-    for (const write of writes.slice(start, start + WRITE_CHUNK)) {
-      if (write.kind === 'create') batchWrite.create(write.ref, write.data); else batchWrite.update(write.ref, write.data);
-    }
+    for (const write of writes.slice(start, start + WRITE_CHUNK)) batchWrite.update(write.ref, write.data);
     await batchWrite.commit();
   }
   const counts = summarize(plan);
-  console.log(`\nWrote ${counts.create} create(s) and ${counts.update} update(s); ${counts.skip} skipped, ${counts.unchanged} unchanged.`);
+  console.log(`\nWrote ${counts.update} update(s); ${counts.skip} skipped, ${counts.unchanged} unchanged.`);
 }
 
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exit(1); });

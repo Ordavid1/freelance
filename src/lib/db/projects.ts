@@ -4,12 +4,14 @@ import { unstable_cache } from 'next/cache';
 import { FieldPath, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { Project } from '@/lib/data';
 import { firestore } from './firestore';
-import { isDiscoverableProject, isListableProject } from '@/lib/seo/publication';
+import { isDiscoverableProject, isListableProject, isSyntheticProject } from '@/lib/seo/publication';
+import { HEADHUNTERS_TAG, HEADHUNTER_CLOSED_LIMIT, HEADHUNTER_PAGE_SIZE, HEADHUNTER_PROJECT_READ_LIMIT, headhunterTag } from '@/lib/headhunters/constants';
+import { getHeadhunterConfig, getPublicHeadhunters } from '@/lib/db/headhunters';
 import { SAMPLE_CLIENT_HISTORY } from '@/lib/projects/presentation';
 
 export type ProjectDocument = {
   title?: string; category?: string; description?: string; budget?: string; deadline?: string;
-  clientName?: string; owner?: { kind?: string; name?: string; persona?: string }; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
+  clientName?: string; ownerUid?: string; unreal?: boolean; owner?: { kind?: string; name?: string; persona?: string }; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
 };
 
 export function toPublicProject(slug: string, record: ProjectDocument): Project {
@@ -42,6 +44,36 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
 const PUBLIC_PROJECT_REVALIDATE_SECONDS = 60;
 const newestFirst = (a: Project, b: Project) => (b.createdAt || 0) - (a.createdAt || 0);
 
+type Entry = { project: Project; record: ProjectDocument };
+const toEntry = (doc: { id: string; data(): unknown }): Entry => {
+  const record = doc.data() as ProjectDocument;
+  return { project: toPublicProject(doc.id, record), record };
+};
+
+// The headhunter tag is derived from the project owner, never stored on the project: one batched read of the
+// distinct owners of the page (getPublicHeadhunters), none for showcase projects, none while the feature switch is
+// off, and none for a headhunter that is not live. Only { name, handle } is attached; the owner uid never leaves
+// this function. The readers below list the `headhunters` cache tag, so a suspension or rename drops their cache.
+// A failed headhunter read only costs the tags, never the projects.
+async function withHeadhunterTags(entries: Entry[]): Promise<Project[]> {
+  const plain = entries.map((entry) => entry.project);
+  const ownerOf = (entry: Entry) => (!isSyntheticProject(entry.record) && typeof entry.record.ownerUid === 'string' && entry.record.ownerUid ? entry.record.ownerUid : null);
+  const owners = entries.map(ownerOf).filter((uid): uid is string => uid !== null);
+  if (owners.length === 0) return plain;
+  try {
+    if (!(await getHeadhunterConfig()).enabled) return plain;
+    const found = await getPublicHeadhunters(owners);
+    return entries.map((entry) => {
+      const uid = ownerOf(entry);
+      const tag = uid ? found.get(uid) : undefined;
+      return tag ? { ...entry.project, headhunter: { name: tag.name, handle: tag.handle } } : entry.project;
+    });
+  } catch (error) {
+    console.warn('Headhunter tags unavailable', error instanceof Error ? error.name : 'Error');
+    return plain;
+  }
+}
+
 // Discovery lists are capped at 100 projects, and the cap counts discoverable projects only. Showcase
 // and incomplete documents are skipped while paging (document-ID order, the order the plain query
 // returned), so they can never use up the cap and push real projects out of a public list.
@@ -65,25 +97,61 @@ async function discoverableDocuments() {
 }
 
 export const listOpenProjects = unstable_cache(async (): Promise<Project[]> => {
-  return (await discoverableDocuments())
-    .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument))
-    .sort(newestFirst);
-}, ['public-projects-open'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects'] });
+  const entries = (await discoverableDocuments()).map(toEntry);
+  return (await withHeadhunterTags(entries)).sort(newestFirst);
+}, ['public-projects-open'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', HEADHUNTERS_TAG] });
 
 // The feed shown on the home page and returned by the public GET /api/marketplace/projects:
 // open and closed listable projects, newest first.
 export const listFeedProjects = unstable_cache(async (): Promise<Project[]> => {
   const snapshot = await firestore().collection('projects').where('status', 'in', ['open', 'closed']).limit(100).get();
-  return snapshot.docs
-    .filter((doc) => isListableProject(doc.data()))
-    .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument))
-    .sort(newestFirst);
-}, ['public-projects-feed'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects'] });
+  const entries = snapshot.docs.filter((doc) => isListableProject(doc.data())).map(toEntry);
+  return (await withHeadhunterTags(entries)).sort(newestFirst);
+}, ['public-projects-feed'], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', HEADHUNTERS_TAG] });
 
 export function getOpenProject(slug: string): Promise<Project | null> {
   return unstable_cache(async (): Promise<Project | null> => {
     const snapshot = await firestore().collection('projects').doc(slug).get();
     if (!snapshot.exists || !(snapshot.get('status') === 'open' && isListableProject(snapshot.data() || {}))) return null;
-    return toPublicProject(snapshot.id, snapshot.data() as ProjectDocument);
-  }, ['public-project', slug], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', `project:${slug}`] })();
+    return (await withHeadhunterTags([toEntry(snapshot)]))[0];
+  }, ['public-project', slug], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', `project:${slug}`, HEADHUNTERS_TAG] })();
+}
+
+export type HeadhunterProjects = {
+  /** Open projects of this owner (all pages). */
+  openCount: number;
+  /** Open and closed projects shown on the site (the "published" figure). */
+  publishedCount: number;
+  /** The requested page of open projects, newest first. Empty when the page is out of range. */
+  items: Project[];
+  /** The most recently closed projects (titles only on the page; closed projects have no public page). */
+  closed: Project[];
+};
+
+/**
+ * Pure selection for one headhunter's minisite, with the same public predicates as the feed: listable, not a
+ * showcase project. Open projects newest first (paged), closed ones by closing time (updatedAt), capped.
+ */
+export function selectHeadhunterProjects(documents: readonly { id: string; data(): unknown }[], page: number, size: number = HEADHUNTER_PAGE_SIZE): HeadhunterProjects {
+  const shown = documents
+    .filter((doc) => { const record = doc.data() as ProjectDocument; return isListableProject(record) && !isSyntheticProject(record); })
+    .map((doc) => toPublicProject(doc.id, doc.data() as ProjectDocument));
+  const open = shown.filter((project) => project.status === 'open').sort(newestFirst);
+  const closed = shown.filter((project) => project.status === 'closed')
+    .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+    .slice(0, HEADHUNTER_CLOSED_LIMIT);
+  const start = (page - 1) * size;
+  return { openCount: open.length, publishedCount: shown.length, items: open.slice(start, start + size), closed };
+}
+
+/**
+ * The minisite data of one headhunter, cached per handle and page for 60 seconds (tags `projects`, `headhunters`,
+ * `headhunter:<handle>`). A single-field `ownerUid ==` query (indexed automatically); only the requested page and the
+ * counts are cached, so the cached value stays small whatever the size of the account.
+ */
+export function getHeadhunterProjects(ownerUid: string, handle: string, page: number): Promise<HeadhunterProjects> {
+  return unstable_cache(async (): Promise<HeadhunterProjects> => {
+    const snapshot = await firestore().collection('projects').where('ownerUid', '==', ownerUid).limit(HEADHUNTER_PROJECT_READ_LIMIT).get();
+    return selectHeadhunterProjects(snapshot.docs, page);
+  }, ['headhunter-projects', handle, String(page)], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', HEADHUNTERS_TAG, headhunterTag(handle)] })();
 }

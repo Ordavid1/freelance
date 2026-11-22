@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { NextRequest, NextResponse } from 'next/server.js';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { headhunterTagsOff } from './helpers/headhunter-stubs.mjs';
 
 // Programmatic landing pages: the skill catalogue and its matching rule, the /skills and
 // /projects hubs, pagination, listing and linking rules, the category and project page upgrades
@@ -53,7 +54,7 @@ const project = (n, extra = {}) => ({
   budget: '₪1,000–2,000', deadline: 'גמיש', posted: 'פרויקט חדש', client: 'לקוח לדוגמה', clientHistory: 'לקוח חדש', skills: [], fit: 80, activity: '', proposals: 0,
   createdAt: NOW - n * 3_600_000, ...extra,
 });
-const projectsData = (list, detail = {}) => ({ '@/lib/seo/projects': { discoveryProjects: async () => list, readPublicProject: async (slug) => detail[slug] ?? list.find((item) => item.slug === slug) ?? null } });
+const projectsData = (list, detail = {}) => ({ '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { discoveryProjects: async () => list, readPublicProject: async (slug) => detail[slug] ?? list.find((item) => item.slug === slug) ?? null } });
 
 // A catalogue built from synthetic skills: the real skills module and registry loaded over stubbed data modules.
 const wordpress = skillsModule.skillBySlug('wordpress');
@@ -189,7 +190,7 @@ test('the /skills and /projects hubs are registered with their routes and meet t
     assert.equal(page.llms.section, section, path);
     assert.ok(existsSync(`${projectRoot}/src/app${path}/page.tsx`), `${path} has its route`);
   }
-  const route = load('src/app/sitemap.ts', { '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project' }] } });
+  const route = load('src/app/sitemap.ts', { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project' }] } });
   const urls = (await route.default()).map((entry) => entry.url);
   for (const path of ['/skills', '/projects', '/projects/real-project']) assert.equal(urls.filter((url) => url === `https://freelance-place.com${path}`).length, 1, path);
   assert.equal(urls.some((url) => url.includes('?')), false, 'pagination URLs are discovered through links, not listed in the sitemap');
@@ -567,6 +568,8 @@ const shell = {
   '@/components/marketplace': { AppShell: ({ children }) => createElement('div', null, children), OpportunitySignal: () => null, PageHeading: ({ title }) => createElement('h1', null, title) },
   '@/components/actions': { ProposalAction: () => null },
   '@/components/project-description': { ProjectDescription: ({ text }) => createElement('p', null, text) },
+  '@/lib/db/headhunters': headhunterTagsOff,
+  '@/lib/db/projects': { getHeadhunterProjects: async () => ({ openCount: 0, publishedCount: 0, items: [], closed: [] }) },
 };
 const renderDetail = async (list, slug) => renderToStaticMarkup(await load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData(list) }).default(params(slug)));
 

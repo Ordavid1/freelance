@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule } from './helpers/load-ts.mjs';
+import { headhunterTagsOff } from './helpers/headhunter-stubs.mjs';
 
 // Heavy views are loaded with next/dynamic only when opened; in tests they render nothing.
 // Default imports of these packages need __esModule so the transpiled `import x from` resolves to the component.
@@ -171,7 +172,7 @@ function loadProjects(documents) {
     where: (...args) => query(args),
     doc: (id) => ({ get: async () => { const found = documents.find(([key]) => key === id); return found ? snapshot(...found) : { exists: false, get: () => undefined, data: () => undefined }; } }),
   }) });
-  const module = loadModule('src/lib/db/projects.ts', { stubs: { './firestore': { firestore }, 'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } }, 'next/cache': { unstable_cache: (fn, keys, options) => { cached.push({ keys, options }); return fn; } } } });
+  const module = loadModule('src/lib/db/projects.ts', { stubs: { '@/lib/db/headhunters': headhunterTagsOff, './firestore': { firestore }, 'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } }, 'next/cache': { unstable_cache: (fn, keys, options) => { cached.push({ keys, options }); return fn; } } } });
   return { module, cached, queries };
 }
 const stamp = (ms) => ({ toMillis: () => ms });

@@ -24,6 +24,9 @@ export const actionLimits = {
   'import.xplace': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 60 }],
   // Payloads captured by the browser extension (no network access; cheaper than a fetch).
   'import.xplace.ingest': [{ windowMs: 10 * MINUTE, max: 20 }, { windowMs: DAY, max: 120 }],
+  // Headhunter application and edits; handle availability checks (typing in the editor) and renames.
+  'headhunter.edit': [{ windowMs: 10 * MINUTE, max: 10 }, { windowMs: DAY, max: 60 }],
+  'headhunter.handle': [{ windowMs: 10 * MINUTE, max: 60 }, { windowMs: DAY, max: 500 }],
 } as const;
 type Action = keyof typeof actionLimits;
 

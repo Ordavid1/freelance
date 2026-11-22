@@ -2,7 +2,7 @@
 // Pure data: imported by the legal pages, public facts, structured data and the footer.
 export const legalOperator = 'Aether AI Assimilation';
 export const legalEmail = 'or@ailead.work';
-export const legalUpdated = '2026-11-17';
+export const legalUpdated = '2026-11-22';
 
 const hebrewMonths = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 // '2026-11-17' -> '17 בנובמבר 2026'. The date printed on the legal pages comes from legalUpdated, so the two never disagree.

@@ -1,0 +1,6 @@
+/* A link card in the workspace profile panel: an anchor, so the `.personal button` reset does not touch it. */
+.hh-entry{margin-top:22px;padding:16px 18px;background:#fff;border:1px solid #e2e2db;border-inline-start:5px solid #ceef00;border-radius:12px;display:grid;gap:8px}
+.hh-entry h2{margin:0;font-size:16px;line-height:1.4;color:#151719}
+.hh-entry p{margin:0;font-size:14px;line-height:1.7;color:#4b5258}
+.hh-entry-link{justify-self:start;display:inline-flex;gap:6px;align-items:center;padding:9px 16px;border-radius:10px;background:#151719;color:#ceef00;font-weight:700;font-size:14px;text-decoration:none}
+.hh-entry-link:hover{background:#25272a}

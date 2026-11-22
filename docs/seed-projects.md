@@ -5,9 +5,9 @@
 ## Honesty model
 
 - Every seeded record has `sample: true` and `owner: { kind: 'ai-agent', name, persona }`. There is no `ownerUid`: no human client exists.
-- The UI always shows an `סוכן AI` badge next to the client name (feed card, expanded card, detail page) and the detail-page notice. Copy lives in `src/lib/projects/presentation.ts`.
+- The UI shows an `סוכן AI` badge next to the client name (feed card, expanded card, detail page) and the detail-page notice, only for showcase projects that are closed (`showsAiBadge`); an open showcase record would show neither this badge nor the LIVE tag. Copy lives in `src/lib/projects/presentation.ts`.
 - Sample projects are never indexed: `isDiscoverableProject` excludes `sample: true`, so they are absent from sitemap, home-page links and structured data, and the detail page sets `noindex`.
-- Every sample project is closed (since 17 November 2026): the feed shows it with its label and the closed tag, expanding it shows the closed note instead of a proposal form, and its project page answers 404 like any closed project. New records are created with `status: 'closed'`; `--close` closes the existing ones. The four static cards in `src/lib/data.ts` are closed the same way.
+- Every sample project is closed (since 17 November 2026): the feed shows it with its label and the closed tag, expanding it shows the closed note instead of a proposal form, and its project page answers 404 like any closed project. The seed tool no longer creates records (see Usage); `--close` closes the existing ones, and the records it created before were created closed. The four static cards in `src/lib/data.ts` are closed the same way.
 - A proposal on a sample is saved only to `demo-proposals` for that freelancer (`POST /api/marketplace/proposals`); it never creates a real proposal or conversation. The route also refuses (409) inside the transaction if a sample slips through. Samples cannot be saved to "saved projects".
 - Clients cannot set `sample`/`seed`/`owner` through `POST /api/marketplace/projects`; the record is built field by field.
 - The catalog lint rejects labels leaking into copy (whole words: demo, mock, placeholder, synthetic, and the Hebrew equivalents, with Hebrew one-letter prefixes). Ordinary words such as "דמויות" pass.
@@ -27,7 +27,8 @@ Limits follow `validateProjectInput` (title 5..120, description 20..5000, up to 
 npm run seed:projects
 npm run seed:projects -- --project <gcp-project-id>        # reads Firestore, prints create/update/unchanged/skip
 
-# Write. Requires an explicit --project.
+# Write updates to existing records. Requires an explicit --project. New records are never created: a plan that contains a create
+# prints the plan, then fails with a clear message and writes nothing. A dry run says creates are disabled.
 npm run seed:projects -- --project <gcp-project-id> --commit
 
 # Close the batch: open records -> closed (still in the feed with the label and the closed tag, no proposals). Dry run unless --commit.
@@ -37,7 +38,7 @@ npm run seed:projects -- --project <gcp-project-id> --close [--commit]
 npm run seed:projects -- --project <gcp-project-id> --retire [--commit]
 ```
 
-Idempotency: an existing `seed-<slug>` with a matching `seed.batch` is updated only where content differs (`createdAt`, `proposals` and `status` are preserved). A document at that id without a matching seed marker is skipped and reported, never overwritten. `createdAt` is set only on create. Re-seeding never changes `status`: a closed or archived record stays as it is, and `--close` leaves an archived record archived.
+Idempotency: an existing `seed-<slug>` with a matching `seed.batch` is updated only where content differs (`createdAt`, `proposals` and `status` are preserved). A document at that id without a matching seed marker is skipped and reported, never overwritten. The tool does not create documents any more (22 November 2026), so `createdAt` is never written. Re-seeding never changes `status`: a closed or archived record stays as it is, and `--close` leaves an archived record archived.
 
 ## IAM
 

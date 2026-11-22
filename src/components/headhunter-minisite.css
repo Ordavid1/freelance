@@ -1,0 +1,44 @@
+/* Headhunter minisite, inside the public discovery layout (main.discovery-content). Same surfaces, borders and fonts as the
+   discovery cards; the lime/ink pair is the logo's. --logo-lime is only defined in the workspace, hence the fallbacks. */
+.hh-site{--hh-lime:var(--logo-lime,#ceef00);--hh-ink:#151719;--hh-line:#e2e2db;--hh-muted:#4b5258}
+.hh-hero{display:grid;gap:22px;margin:12px 0 30px;padding:28px;background:#fff;border:1px solid var(--hh-line);border-inline-start:6px solid var(--hh-lime);border-radius:16px}
+.hh-hero-top{display:flex;flex-wrap:wrap;align-items:center;gap:22px}
+.hh-logo{flex:none;width:88px;height:88px;border-radius:22px;background:var(--hh-ink);color:var(--hh-lime);font:700 34px/88px var(--font-space),sans-serif;text-align:center;overflow:hidden}
+.hh-id{flex:1;min-width:240px}
+.hh-site .hh-kind{margin:0;font-size:13px;color:var(--hh-muted)}
+.hh-site .hh-hero h1{margin:4px 0 6px;font-size:clamp(30px,4vw,42px);max-width:none}
+.hh-site .hh-tagline{margin:0;font-size:18px;line-height:1.6;color:#25272a}
+.hh-stats{display:flex;gap:26px;margin:0}
+.hh-stat{display:grid;line-height:1.2}
+.hh-stat dd{order:-1;margin:0;font:700 30px var(--font-space),sans-serif;color:var(--hh-ink)}
+.hh-stat dt{margin:0;font-size:13px;font-weight:400;color:var(--hh-muted)}
+.hh-site .hh-about{margin:0;max-width:78ch;font-size:16px;line-height:1.85;color:#33383d}
+.hh-contact{list-style:none;margin:0;padding:20px 0 0;border-top:1px solid var(--hh-line);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hh-site .hh-contact li{max-width:none;min-width:0}
+.hh-site .hh-contact a{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;border:1px solid #d3d5cb;border-radius:10px;background:#f6f5ef;font-size:14px;color:#25272a;text-decoration:none;overflow-wrap:anywhere}
+.hh-site .hh-contact a:hover{border-color:var(--hh-ink)}
+.hh-contact svg{width:16px;height:16px;flex:none}
+.hh-contact bdi{direction:ltr}
+.hh-section-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px}
+.hh-section-head h2{margin-block:6px}
+.hh-section-head p{margin:0;font-size:14px;color:var(--hh-muted)}
+.hh-empty{padding:18px;background:#fff;border:1px solid var(--hh-line);border-radius:12px;max-width:none}
+.hh-closed{margin-top:14px}
+.hh-closed ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.hh-site .hh-closed li{max-width:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 16px;background:#fff;border:1px solid var(--hh-line);border-radius:10px;font-size:15px}
+.hh-closed .project-closed-badge{margin:0;flex:none}
+.hh-site .hh-note{margin-top:34px;padding:14px 18px;background:#faf6e3;border:1px solid #d9d2b0;border-radius:10px;font-size:14px;line-height:1.8;color:#4a4320}
+@media(max-width:620px){
+  .hh-hero{padding:20px;gap:16px;border-inline-start-width:5px}
+  .hh-hero-top{gap:14px}
+  .hh-logo{width:58px;height:58px;border-radius:16px;font-size:23px;line-height:58px}
+  .hh-id{flex:1 1 calc(100% - 76px);min-width:0}
+  .hh-site .hh-hero h1{margin:2px 0 4px;font-size:28px}
+  .hh-site .hh-tagline{font-size:15px}
+  .hh-stats{width:100%;gap:30px}
+  .hh-stat dd{font-size:26px}
+  .hh-site .hh-about{font-size:15px;line-height:1.75}
+  .hh-contact{grid-template-columns:1fr 1fr}
+  .hh-contact li{grid-column:span 2}
+  .hh-contact li.hh-half{grid-column:span 1}
+}

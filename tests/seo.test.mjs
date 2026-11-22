@@ -178,7 +178,7 @@ test('sitemap failures propagate and preview never touches the database', async 
   const preview = load('src/lib/seo/site.ts', {}, {});
   const route = load('src/app/sitemap.ts', {
     '@/lib/seo/site': preview, '@/lib/seo/registry': registry,
-    '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
+    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
   });
   assert.equal((await route.default()).length, 0);
 });
@@ -187,7 +187,7 @@ test('sitemap uses source modification times and only real public/editorial page
   const updatedAt = new Date('2026-11-08T12:00:00Z');
   const route = load('src/app/sitemap.ts', {
     '@/lib/seo/site': site, '@/lib/seo/registry': registry,
-    '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
+    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
   });
   const entries = await route.default();
   assert.equal(entries.length, content.editorialPaths.length + 1);

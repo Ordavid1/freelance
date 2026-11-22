@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { headhunterTagsOff } from './helpers/headhunter-stubs.mjs';
 
 const ORIGIN = 'https://freelance-place.com';
 const env = { SITE_INDEXABLE: 'true', NEXT_PUBLIC_SITE_URL: ORIGIN };
@@ -187,6 +188,7 @@ test('toPublicProject exposes createdAt and updatedAt as milliseconds', () => {
     env,
     stubs: {
       './firestore': { firestore: () => { throw new Error('not used'); } },
+      '@/lib/db/headhunters': headhunterTagsOff,
       'firebase-admin/firestore': { FieldPath: { documentId: () => '__name__' } },
       'next/cache': { unstable_cache: (fn) => fn },
     },

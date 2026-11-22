@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { NextResponse } from 'next/server.js';
 import { loadModule } from './helpers/load-ts.mjs';
 import { createFakeFirestore } from './helpers/fake-firestore.mjs';
+import { noHeadhunters } from './helpers/headhunter-stubs.mjs';
 
 // `GET /api/marketplace/projects?mine=1` is the signed-in owner's own list ("הפרויקטים שלי"). An archived project is
 // withdrawn from the product: no feed card and no page. It must therefore leave the owner's list too, instead of
@@ -32,6 +33,7 @@ function setup(user = owner) {
       '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
       '@/lib/imports/errors': loadModule('src/lib/imports/errors.ts'),
       '@/lib/projects/events': { onProjectPublished: () => {}, onProjectClosed: () => {} },
+      '@/lib/db/headhunters': noHeadhunters,
       '@/lib/db/projects': { listFeedProjects: async () => [], toPublicProject: (slug, record) => ({ slug, title: record.title, status: record.status || 'open' }) },
     },
   });

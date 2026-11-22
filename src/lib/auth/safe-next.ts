@@ -2,12 +2,15 @@
 // allowlist of same-origin paths is honoured; anything else falls back to `/`.
 // The XPlace hand-off needs `?xplace=<token>` to survive the sign-in detour, so the two hand-off pages are
 // allowed with exactly that one query parameter (a UUID token), and nothing else.
+import { HEADHUNTER_EDITOR_PATH } from '../headhunters/constants.ts';
 import { HANDOFF_PATHS, HANDOFF_QUERY_PARAM, isHandoffToken } from '../imports/xplace/handoff.ts';
 
 /** The redirect target for a raw `next` value; `/` unless it is on the allowlist. */
 export function safeNextPath(next: string | null | undefined): string {
   if (typeof next !== 'string') return '/';
   if (next === HANDOFF_PATHS.profile) return HANDOFF_PATHS.profile;
+  // The headhunter page is private and sends signed-out visitors to sign in; they come back to it, with no query.
+  if (next === HEADHUNTER_EDITOR_PATH) return HEADHUNTER_EDITOR_PATH;
   // Compare the raw path/query rather than normalizing an attacker-controlled URL.
   // Always build the result from constants; never send the supplied URL to navigation.
   const [path, query, extra] = next.split('?');

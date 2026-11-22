@@ -235,8 +235,8 @@ test('the routes serve the generated text as plain text, noindex and cacheable',
   const llms = llmsFor(billingOn);
   for (const env of [billingOn, billingOff, {}]) {
     for (const [entry, generate] of [['src/app/llms.txt/route.ts', 'llmsTxt'], ['src/app/llms-full.txt/route.ts', 'llmsFullTxt']]) {
-      const route = loadModule(entry, { env });
-      const response = route.GET();
+      const route = loadModule(entry, { env, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] } } });
+      const response = await route.GET();
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
       assert.equal(response.headers.get('x-robots-tag'), 'noindex');
