@@ -148,7 +148,7 @@ Review tooling in the MVP: moderator-only route `POST /api/moderation/headhunter
 
 ## 8. The minisite page
 
-Route `src/app/[handle]/page.tsx`, server-rendered, `dynamic = 'force-dynamic'` like the rest, wrapped in the existing `AppShell`. Nothing about the site chrome changes: same fonts, logo, nav, footer, cards.
+Route `src/app/[handle]/page.tsx`, server-rendered, `dynamic = 'force-dynamic'` like the rest. It uses the **public discovery layout** (`PublicHeader`, the cream `discovery-content` card, `disc-*` card styles, `SiteFooter`), the same frame as `/projects` and `/categories/*`, not `AppShell`: `AppShell` carries the signed-in user's personal sidebar, which does not belong on a page a headhunter shares with candidates. Nothing about the site chrome changes: same fonts, logo, footer and cards. Rendered mockups of this layout (feed tag, minisite desktop and mobile, share previews, apply/editor screen) were built on the real CSS on 22-11-26 and are in the project files folder `headhunter-mockups/`; they are not part of the repo.
 
 **Header component (`HeadhunterHeader`):** logo (headhunter's if set, otherwise an initial avatar like `client-avatar`), display name, kind chip, optional verified mark, tagline, about text, project count ("N פרויקטים פתוחים"), and the contact block. Headhunters configure it in an editor (`/profile/headhunter`, tab "עמוד הסוכנות") with a **live preview that renders the very same component**. Limits: tagline 90, about 600, no links inside text, plain text only (line breaks allowed), image uploads through the existing upload path (type allow-list png/jpg/webp, 1 MB logo, 2 MB share image, compressed with the existing `compress-image.ts`, scanned/cleaned by the upload-cleanup job).
 
@@ -262,4 +262,5 @@ Packages 1 to 2 gate the rest; 3, 4 and 5 can run in parallel after 2; 6 last. R
 
 ## 17. Progress log
 
+- 22-11-26: mockups rendered with the app's real CSS (local dev server, DOM-injected, nothing committed) to review the design before any code: tag in the feed card (Hebrew and Latin names, next to the existing "סוכן AI" badge), minisite desktop and mobile, share previews (default vs custom), apply/editor screen. Finding: the minisite should use the public discovery layout, not `AppShell` (section 8 corrected).
 - 22-11-26: plan written. No code, no deploy, no infra change. Next step on Or's go: package 1 (foundations) in a Sonnet 5.5 sub-thread, coordinated by this thread.
