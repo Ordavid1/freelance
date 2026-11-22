@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
+import { applyProjectCreated, invalidateAfterCounter, readHeadhunterForCounter, type CounterOutcome } from '@/lib/db/headhunters';
 import { listFeedProjects, toPublicProject } from '@/lib/db/projects';
 import { onProjectClosed, onProjectPublished, type ProjectEventRecord } from '@/lib/projects/events';
 import { validateImportProvenance, validateProjectInput } from '@/lib/projects/validation';
@@ -56,7 +57,16 @@ export async function POST(request: Request) {
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   };
   try {
-    await firestore().collection('projects').doc(slug).create(record);
+    // One transaction: the project and, when the owner is a headhunter, the published-project counter.
+    const db = firestore();
+    let counter: CounterOutcome | null = null;
+    await db.runTransaction(async (transaction) => {
+      counter = null;
+      const headhunter = await readHeadhunterForCounter(transaction, user.uid);
+      transaction.create(db.collection('projects').doc(slug), record);
+      counter = applyProjectCreated(transaction, headhunter, record);
+    });
+    invalidateAfterCounter(counter);
     onProjectPublished(slug, record);
     return NextResponse.json({ project: toPublicProject(slug, record), ok: true }, { status: 201 });
   } catch {
@@ -82,10 +92,14 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
     const db = firestore();
     const projectRef = db.collection('projects').doc(slug);
     const profileRef = db.collection('profiles').doc(user.uid);
+    let counter: CounterOutcome | null = null;
     const outcome = await db.runTransaction(async (transaction): Promise<ImportOutcome> => {
+      counter = null;
       const existing = await transaction.get(db.collection('projects').where('ownerUid', '==', user.uid).where('importSource.key', '==', key).limit(1));
       if (!existing.empty) return { rejected: { status: 409, body: { code: 'ALREADY_IMPORTED', error: 'הפרויקט הזה כבר יובא לחשבון שלך.', slug: existing.docs[0].id } } };
       const profile = await transaction.get(profileRef);
+      // Read with the other reads: Firestore transactions read before they write.
+      const headhunter = await readHeadhunterForCounter(transaction, user.uid);
       const storedName = profile.exists ? profile.get('name') : '';
       const profileName = typeof storedName === 'string' ? storedName.trim() : '';
       const sourceName = provenance.publisherNameOnSource || '';
@@ -110,9 +124,11 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
       // Only the publisher name is ever created, and only while the profile has none; no other field is written.
       if (match === 'no-profile') transaction.set(profileRef, { name: createName, ownerUid: user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       transaction.create(projectRef, record);
+      counter = applyProjectCreated(transaction, headhunter, record);
       return { record };
     });
     if ('rejected' in outcome) return NextResponse.json(outcome.rejected.body, { status: outcome.rejected.status });
+    invalidateAfterCounter(counter);
     onProjectPublished(slug, outcome.record);
     return NextResponse.json({ project: toPublicProject(slug, outcome.record), ok: true }, { status: 201 });
   } catch {

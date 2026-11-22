@@ -30,7 +30,11 @@ export type HeadhunterRecord = {
   /** Storage object path. */
   logo?: string;
   share?: { title?: string; description?: string; /** Storage object path. */ image?: string };
-  counters: { published: number };
+  counters: { published: number; lastProjectAt?: unknown };
+  /** Moderator review flags, e.g. `lookalike:google` (set from the handle check; never a rejection). */
+  flags?: string[];
+  /** Why the record is waiting for a (new) review or needs changes: shown to the owner. */
+  reviewReason?: string;
   eligibleAt?: unknown;
   approvedAt?: unknown;
   approvedBy?: string;
@@ -48,6 +52,8 @@ export type HandleRecord = {
   handle: string;
   ownerUid: string;
   state: 'active' | 'retired';
+  /** `handleSkeleton(handle)`: lets one single-field query find look-alike claims. */
+  skeleton: string;
   pointsTo?: string;
   createdAt?: unknown;
   retiredAt?: unknown;

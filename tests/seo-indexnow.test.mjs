@@ -380,6 +380,7 @@ function routeSetup({ user = owner, sameOrigin = true, docs = {}, createFails = 
     runTransaction: runTransaction ?? (async (work) => work({
       get: async (ref) => { const data = store.get(ref.id); return { exists: data !== undefined, get: (field) => data?.[field], data: () => data }; },
       update: (ref, patch) => { store.set(ref.id, { ...store.get(ref.id), ...patch }); },
+      create: (ref, record) => { if (createFails) throw new Error('unavailable'); created.push([ref.id, record]); store.set(ref.id, record); },
     })),
   };
   const stubs = {
@@ -392,6 +393,7 @@ function routeSetup({ user = owner, sameOrigin = true, docs = {}, createFails = 
     '@/lib/auth/session': { getCurrentUser: async () => user, isSameOrigin: () => sameOrigin },
     '@/lib/db/firestore': { firestore: () => firestore },
     '@/lib/db/projects': { toPublicProject: (slug, record) => ({ slug, title: record.title }) },
+    '@/lib/db/headhunters': { readHeadhunterForCounter: async () => null, applyProjectCreated: () => null, invalidateAfterCounter: () => {} },
   };
   return { ...harness, store, created, route: loadModule('src/app/api/marketplace/projects/route.ts', { env: live, stubs }) };
 }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server.js';
 import { loadModule } from './helpers/load-ts.mjs';
+import { noHeadhunters } from './helpers/headhunter-stubs.mjs';
 
 const user = { uid: 'viewer' };
 const baseStubs = {
@@ -14,6 +15,7 @@ const baseStubs = {
   '@/lib/db/firestore': { firestore() { throw new Error('Unexpected database access'); } },
   '@/lib/db/storage': {},
   '@/lib/db/projects': {},
+  '@/lib/db/headhunters': noHeadhunters,
   '@/lib/projects/events': {},
   '@/lib/ai': {},
   '@/lib/data': {},
