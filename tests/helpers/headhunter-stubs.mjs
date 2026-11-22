@@ -5,3 +5,12 @@ export const noHeadhunters = {
   applyProjectCreated: () => null,
   invalidateAfterCounter: () => {},
 };
+
+// Stub of '@/lib/db/headhunters' for tests that load the real src/lib/db/projects.ts or the project page: the feature
+// switch is off, so no project gets a tag and nothing is read.
+export const headhunterTagsOff = {
+  getHeadhunterConfig: async () => ({ enabled: false, applicationsOpen: false }),
+  getPublicHeadhunters: async () => new Map(),
+  getHeadhunterByHandle: async () => null,
+  isAccountActive: async () => true,
+};

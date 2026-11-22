@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { NextResponse } from 'next/server.js';
 import { loadModule } from './helpers/load-ts.mjs';
 import { createFakeFirestore } from './helpers/fake-firestore.mjs';
-import { noHeadhunters } from './helpers/headhunter-stubs.mjs';
+import { headhunterTagsOff, noHeadhunters } from './helpers/headhunter-stubs.mjs';
 
 const errorsModule = loadModule('src/lib/imports/errors.ts');
 const validation = loadModule('src/lib/projects/validation.ts');
@@ -185,7 +185,7 @@ test('importSource is stored, the public projection hides it, and the publish ho
 });
 
 test('toPublicProject (real implementation) does not expose importSource', async () => {
-  const projects = loadModule('src/lib/db/projects.ts', { stubs: { 'next/cache': { unstable_cache: (fn) => fn }, 'firebase-admin/firestore': { FieldPath: {} }, './firestore': { firestore() { throw new Error('no db'); } }, '@/lib/seo/publication': {} } });
+  const projects = loadModule('src/lib/db/projects.ts', { stubs: { '@/lib/db/headhunters': headhunterTagsOff, 'next/cache': { unstable_cache: (fn) => fn }, 'firebase-admin/firestore': { FieldPath: {} }, './firestore': { firestore() { throw new Error('no db'); } }, '@/lib/seo/publication': {} } });
   const publicProject = projects.toPublicProject('s', { ...base, clientName: 'Acme', importSource: { key: KEY, url: PROJECT_URL, publisherNameOnSource: 'Acme' } });
   assert.equal(JSON.stringify(publicProject).includes('importSource'), false);
   assert.equal(JSON.stringify(publicProject).includes('xplace'), false);

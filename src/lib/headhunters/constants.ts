@@ -20,6 +20,12 @@ export const HEADHUNTER_LIMITS = {
   url: 200,
 } as const;
 
+/** Minisite list sizes: open projects per page (`?page=`) and closed projects listed under them. */
+export const HEADHUNTER_PAGE_SIZE = 24;
+export const HEADHUNTER_CLOSED_LIMIT = 6;
+/** Upper bound on the owner's project documents read for one minisite (a single-field query, no index needed). */
+export const HEADHUNTER_PROJECT_READ_LIMIT = 1000;
+
 export const HEADHUNTER_STATUSES = ['draft', 'pending', 'approved', 'suspended', 'rejected'] as const;
 export const HEADHUNTER_KINDS = ['agency', 'independent'] as const;
 

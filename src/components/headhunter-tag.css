@@ -1,0 +1,27 @@
+/* Headhunter tag: split pill, lime name part + ink address part (the logo's lime/ink pair). The host part is hidden on
+   narrow screens, where the handle alone identifies the page. Discovery pages do not define --logo-lime, so it has a fallback. */
+.hh-tag{--hh-lime:var(--logo-lime,#ceef00);--hh-ink:#151719;display:inline-flex;align-items:stretch;max-width:100%;margin-inline-start:8px;border-radius:999px;overflow:hidden;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;background:var(--hh-ink);color:#fff;box-shadow:0 0 0 1px var(--hh-ink);text-decoration:none}
+.discovery-content a.hh-tag{text-decoration:none}
+.hh-tag-name{display:inline-flex;align-items:center;gap:5px;min-width:0;padding:5px 9px 5px 10px;background:var(--hh-lime);color:var(--hh-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hh-tag-name svg{width:12px;height:12px;flex:none}
+.hh-tag-name bdi{overflow:hidden;text-overflow:ellipsis}
+.hh-tag-url{display:inline-flex;align-items:center;flex:none;padding:5px 10px 5px 9px;font:500 10.5px var(--font-space),sans-serif;letter-spacing:.1px;color:#e6ebc6;white-space:nowrap}
+.hh-tag-url .hh-host{opacity:.72}
+.hh-tag:hover,.discovery-content a.hh-tag:hover{color:#fff}
+.hh-tag:hover .hh-tag-url{color:#fff}
+.hh-tag:focus-visible{outline:3px solid #657500;outline-offset:3px}
+@media(max-width:560px){.hh-tag-url .hh-host{display:none}}
+
+/* Feed card: the tag lives in a row beside the expand button (a link cannot sit inside a button). The row takes the
+   padding the button's own category row has, and the button gives up its top padding to keep the card unchanged. */
+/* studio.css gives the row 30px (78px beside the open-page link) of left room inside the button's padding; outside the
+   button that padding is added here, so the posted time keeps clear of the save and open-page icons. */
+.project-summary.has-hh-tag>.project-category{flex-wrap:wrap;row-gap:6px;padding-top:30px;padding-right:30px;padding-left:60px;cursor:pointer}
+.project-summary.has-page-link.has-hh-tag>.project-category{padding-left:108px}
+.project-summary.has-hh-tag>.expand-project{padding-top:0}
+@media(max-width:760px){.project-summary.has-hh-tag>.project-category{padding-top:22px;padding-right:22px;padding-left:52px}.project-summary.has-page-link.has-hh-tag>.project-category{padding-left:100px}}
+
+/* Public discovery cards and the marketplace card: the tag is the first line of the card / sits beside the category chip. */
+.disc-card-tags{margin:0}
+.disc-card-tags .hh-tag{margin-inline-start:0}
+.card-topline-tags{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px 0;min-width:0}

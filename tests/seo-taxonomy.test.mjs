@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { NextRequest, NextResponse } from 'next/server.js';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { headhunterTagsOff } from './helpers/headhunter-stubs.mjs';
 
 // Programmatic landing pages: the skill catalogue and its matching rule, the /skills and
 // /projects hubs, pagination, listing and linking rules, the category and project page upgrades
@@ -567,6 +568,8 @@ const shell = {
   '@/components/marketplace': { AppShell: ({ children }) => createElement('div', null, children), OpportunitySignal: () => null, PageHeading: ({ title }) => createElement('h1', null, title) },
   '@/components/actions': { ProposalAction: () => null },
   '@/components/project-description': { ProjectDescription: ({ text }) => createElement('p', null, text) },
+  '@/lib/db/headhunters': headhunterTagsOff,
+  '@/lib/db/projects': { getHeadhunterProjects: async () => ({ openCount: 0, publishedCount: 0, items: [], closed: [] }) },
 };
 const renderDetail = async (list, slug) => renderToStaticMarkup(await load('src/app/projects/[slug]/page.tsx', { ...ui, ...shell, ...projectsData(list) }).default(params(slug)));
 

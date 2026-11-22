@@ -37,3 +37,25 @@ export const HEADHUNTER_EMPTY_OPEN = 'אין כרגע פרויקטים פתוח�
 export const HEADHUNTER_CLOSED_HEADING = 'נסגרו לאחרונה';
 export const HEADHUNTER_OPEN_HEADING = 'פרויקטים פתוחים';
 export const HEADHUNTER_MESSAGE_CTA = 'שליחת הודעה בפלטפורמה';
+export const HEADHUNTER_ALL_PROJECTS = 'כל הפרויקטים';
+
+export function headhunterMoreHeading(name: string) {
+  return `עוד פרויקטים מ${name}`;
+}
+export const HEADHUNTER_STAT_OPEN = 'פרויקטים פתוחים';
+export const HEADHUNTER_STAT_PUBLISHED = 'פורסמו באתר';
+export const HEADHUNTER_SORT_NOTE = 'מהחדש לישן';
+export const HEADHUNTER_CONTACT_LABEL = 'דרכי יצירת קשר';
+export const HEADHUNTER_CLOSED_BADGE = 'נסגר';
+
+/** Up to two initials for the logo block (the record has no uploaded logo yet): first letters of the first two words. */
+export function headhunterInitials(name: string) {
+  const letters = name.trim().split(/\s+/u).filter(Boolean).slice(0, 2).map((word) => Array.from(word.replace(/^[^\p{L}\p{N}]+/u, ''))[0] ?? '');
+  const text = letters.join('');
+  return (text || Array.from(name.trim())[0] || '?').toUpperCase();
+}
+
+/** The count line under the open-projects heading. */
+export function openProjectsCountLine(count: number) {
+  return count > 0 ? `${openProjectsLabel(count)} · ${HEADHUNTER_SORT_NOTE}` : '';
+}

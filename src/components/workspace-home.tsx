@@ -2,6 +2,7 @@
 import { projectSkillMatch, projectSkills } from '@/lib/projects/skills';
 import { countAvailable, countTagMatches, feedUniverse, filterFeed, projectDate, projectStatus as statusOf, type FeedPeriod, type FeedStatus } from '@/lib/projects/feed';
 import { ProjectDescription } from '@/components/project-description';
+import { HeadhunterTag } from '@/components/headhunter-tag';
 import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY, SAMPLE_FEED_HINT, SAMPLE_FOOTER_TEXT } from '@/lib/projects/presentation';
 import { useViewMode } from './view-mode';
 import { useState, useEffect } from 'react';
@@ -80,6 +81,8 @@ function WorkspaceHomeContent({children, initialView = 'הבית שלי', initia
    const skillMatch = matched && !viewingOwn ? projectSkillMatch(project, tags, includeAdjacent) : null;
    const projectStatusValue = statusOf(project);
    const isOpen = open === project.slug;
+   // A tagged card renders this row beside the expand button (the tag is a link and cannot sit inside the button).
+   const categoryLabel = <><span className={`category-dot tone-${index}`}/>{project.category}{project.sample && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</>;
    const closeProject = () => {
      const close = (items: Project[]) => items.map((item) => item.slug === project.slug ? { ...item, status: 'closed' } : item);
      setOwnProjects(close);
@@ -87,9 +90,10 @@ function WorkspaceHomeContent({children, initialView = 'הבית שלי', initia
      setOpen((current) => current === project.slug ? null : current);
    };
    return <article className={`studio-project ${isOpen ? 'expanded' : ''} ${projectStatusValue === 'closed' ? 'closed' : ''}`} key={project.slug}>
-     <div className={`project-summary${hasProjectPage(project) ? ' has-page-link' : ''}`}>
+     <div className={`project-summary${hasProjectPage(project) ? ' has-page-link' : ''}${project.headhunter ? ' has-hh-tag' : ''}`}>
+       {project.headhunter && <div className="project-category" onClick={(event) => { if (!(event.target as HTMLElement).closest('a')) setOpen(isOpen ? null : project.slug); }}>{categoryLabel}<HeadhunterTag headhunter={project.headhunter}/><small>{project.posted}</small></div>}
        <button className="expand-project" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : project.slug)}>
-         <div className="project-category"><span className={`category-dot tone-${index}`}/>{project.category}{project.sample && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}<small>{project.posted}</small></div>
+         {!project.headhunter && <div className="project-category">{categoryLabel}<small>{project.posted}</small></div>}
          <h2>{project.title}</h2>
          {skillMatch && skillMatch.kind !== 'none' && <span className={`skill-match-badge ${skillMatch.kind}`}>{skillMatch.kind === 'direct' ? 'מתאים לכישורים שלך' : `כישורים קרובים · ${skillMatch.reason}`}</span>}
          {projectStatusValue === 'closed' && <span className="project-closed-badge">נסגר</span>}
