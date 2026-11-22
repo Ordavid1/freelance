@@ -8,12 +8,21 @@
 // decided); it is recorded as `script:<name>` in the same `securityAuditEvents` entry the moderation API writes,
 // because both run the same store code (src/lib/headhunters/store.ts). The public caches expire within 60 seconds.
 import { MAILED_ACTIONS } from '../../src/lib/headhunters/mail.ts';
+import { trialEndsAtFrom } from '../../src/lib/headhunters/trial.ts';
 import { isEligible } from '../../src/lib/headhunters/counting.ts';
-import { HEADHUNTERS_COLLECTION, HEADHUNTER_STATUSES } from '../../src/lib/headhunters/constants.ts';
+import { HEADHUNTERS_COLLECTION, HEADHUNTER_FAST_TRACK_HOURS, HEADHUNTER_MIN_PROJECTS, HEADHUNTER_STATUSES } from '../../src/lib/headhunters/constants.ts';
 import { MODERATION_ACTIONS, nextStatus, parseDecision } from '../../src/lib/headhunters/moderation.ts';
 import { decideHeadhunter, listHeadhuntersForReview, reconcileHeadhunter } from '../../src/lib/headhunters/store.ts';
 import type { HeadhunterStatus } from '../../src/lib/headhunters/types.ts';
 import { fail, openFirestore, parseCli } from './cli.ts';
+
+/** "  FAST-TRACK (live now)" for a fast-track record, with its trial end once approved and "ENDED" when that time has passed. */
+function trackLabel(item: { fastTrack: boolean; trialEndsAt: number | null; eligibleAt: number | null }): string {
+  if (!item.fastTrack) return '';
+  if (item.eligibleAt !== null) return '  FAST-TRACK (threshold met)';
+  if (item.trialEndsAt === null) return `  FAST-TRACK (live now: goes live on approval, ${HEADHUNTER_FAST_TRACK_HOURS}h to reach ${HEADHUNTER_MIN_PROJECTS})`;
+  return `  FAST-TRACK trial ${item.trialEndsAt > Date.now() ? 'ends' : 'ENDED'} ${new Date(item.trialEndsAt).toISOString()}`;
+}
 
 async function main() {
   const parsed = parseCli(process.argv.slice(2), ['project', 'status', 'uid', 'action', 'reason', 'actor'], ['commit']);
@@ -30,7 +39,7 @@ async function main() {
     const items = await listHeadhuntersForReview(db, { status: status as HeadhunterStatus });
     console.log(`${items.length} headhunter(s) with status "${status}":`);
     for (const item of items) {
-      console.log(`  ${item.uid}  ${item.displayName}  /${item.handle}  ${item.kind}  published ${item.published}${item.flags.length ? `  flags: ${item.flags.join(', ')}` : ''}${item.reason ? `  reason: ${item.reason}` : ''}`);
+      console.log(`  ${item.uid}  ${item.displayName}  /${item.handle}  ${item.kind}  published ${item.published}${trackLabel(item)}${item.flags.length ? `  flags: ${item.flags.join(', ')}` : ''}${item.reason ? `  reason: ${item.reason}` : ''}`);
       console.log(`      contact: ${JSON.stringify(item.contact)}`);
     }
     return;
@@ -47,7 +56,13 @@ async function main() {
   console.log(`Mode: ${options.commit ? 'COMMIT' : 'DRY RUN'}; ${record.get('displayName')} (/${record.get('handle')}): ${decision.value.action}: ${from} -> ${to ?? 'NOT ALLOWED from this status'}`);
   if (decision.value.action === 'approve') {
     const drift = await reconcileHeadhunter(db, decision.value.uid);
-    if (drift) console.log(`  recount: stored ${drift.stored}, actual ${drift.actual} (${drift.duplicates} duplicate(s)); eligible: ${record.get('eligibleAt') != null || isEligible(drift.actual) ? 'yes' : 'NO'}`);
+    const fastTrack = record.get('fastTrack') === true;
+    if (drift) console.log(`  recount: stored ${drift.stored}, actual ${drift.actual} (${drift.duplicates} duplicate(s)); eligible: ${record.get('eligibleAt') != null || isEligible(drift.actual) ? 'yes' : fastTrack ? 'no (not required: fast-track)' : 'NO'}`);
+    if (fastTrack) {
+      const first = record.get('trialEndsAt') == null;
+      console.log(`  FAST-TRACK (live now): the page goes public on approval, noindex, and is taken down ${HEADHUNTER_FAST_TRACK_HOURS}h later unless ${HEADHUNTER_MIN_PROJECTS} projects are published.`);
+      console.log(first ? `  Approving now would set trialEndsAt = ${new Date(trialEndsAtFrom(Date.now())).toISOString()}.` : '  trialEndsAt is already set (the window is never extended by a re-approval).');
+    }
   }
   if (!options.commit) { console.log('Dry run: nothing was written. Re-run with --commit --actor <name> to apply.'); return; }
 

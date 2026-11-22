@@ -7,7 +7,7 @@ export const REVIEW_REASON_BELOW_FLOOR = 'below-review-floor';
 export const REVIEW_REASON_DISPLAY_NAME = 'display-name-changed';
 export const REVIEW_REASON_FLAGGED_HANDLE = 'flagged-handle';
 
-export type CounterInput = { status: unknown; published: number; hasEligibleAt: boolean };
+export type CounterInput = { status: unknown; published: number; hasEligibleAt: boolean; fastTrack?: boolean };
 export type CounterPlan = {
   published: number;
   /** `eligibleAt` must be set now (first time the threshold is reached). */
@@ -31,6 +31,7 @@ export function planCounter(current: CounterInput, nextPublished: number): Count
   let status: HeadhunterStatus | undefined;
   let reviewReason: string | undefined;
   if (current.status === 'draft' && eligible) status = 'pending';
-  else if (current.status === 'approved' && needsReReview(published)) { status = 'pending'; reviewReason = REVIEW_REASON_BELOW_FLOOR; }
+  // A live-now record approved before reaching 10 is governed by its 40-hour window, not the review floor.
+  else if (current.status === 'approved' && needsReReview(published) && !(current.fastTrack && !eligible)) { status = 'pending'; reviewReason = REVIEW_REASON_BELOW_FLOOR; }
   return { published, setEligibleAt, ...(status ? { status } : {}), ...(reviewReason ? { reviewReason } : {}), statusChanged: Boolean(status), becameEligible: setEligibleAt };
 }

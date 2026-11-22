@@ -60,7 +60,8 @@ export async function POST(request: Request) {
     // Both URLs change: the new one starts resolving, the old one redirects.
     invalidateHeadhunterCache(result.handle);
     invalidateHeadhunterCache(result.previous);
-    announceMinisites([result.handle, result.previous]);
+    // A fast-track trial page (not eligible yet) is noindex and was never announced, so there is nothing to tell crawlers.
+    if (result.eligible) announceMinisites([result.handle, result.previous]);
     return NextResponse.json({ ok: true, handle: result.handle, status: result.status }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });

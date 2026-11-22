@@ -46,11 +46,13 @@ export type FormValues = {
   shareTitle: string;
   shareDescription: string;
   attested: boolean;
+  /** Apply only: the "live now" track. */
+  fastTrack: boolean;
 };
 
 export const EMPTY_FORM: FormValues = {
   displayName: '', kind: 'agency', handle: '', city: '', tagline: '', about: '',
-  email: '', phone: '', whatsapp: '', website: '', linkedin: '', shareTitle: '', shareDescription: '', attested: false,
+  email: '', phone: '', whatsapp: '', website: '', linkedin: '', shareTitle: '', shareDescription: '', attested: false, fastTrack: false,
 };
 
 export function formFromView(view: OwnerView | null): FormValues {
@@ -61,7 +63,7 @@ export function formFromView(view: OwnerView | null): FormValues {
     email: view.contact.email ?? '', phone: view.contact.phone ?? '', whatsapp: view.contact.whatsapp ?? '',
     website: view.contact.website ?? '', linkedin: view.contact.linkedin ?? '',
     shareTitle: view.share?.title ?? '', shareDescription: view.share?.description ?? '',
-    attested: false,
+    attested: false, fastTrack: view.trial.fastTrack,
   };
 }
 
@@ -81,14 +83,14 @@ export function requestBody(values: FormValues, options: { apply: boolean }) {
     contact,
     // PATCH merges over the stored record, so an emptied share block must be sent explicitly to clear it.
     share: options.apply && Object.keys(share).length === 0 ? undefined : share,
-    ...(options.apply ? { handle: values.handle.trim().toLowerCase(), attested: values.attested } : {}),
+    ...(options.apply ? { handle: values.handle.trim().toLowerCase(), attested: values.attested, ...(values.fastTrack ? { fastTrack: true } : {}) } : {}),
   };
 }
 
 /** Maps the API's `field` (e.g. `contact.email`, `share.title`) to the form key it belongs to. */
 export function formKeyForField(field: string | undefined): keyof FormValues | 'contact' | null {
   switch (field) {
-    case 'displayName': case 'kind': case 'handle': case 'city': case 'tagline': case 'about': case 'attested': return field;
+    case 'displayName': case 'kind': case 'handle': case 'city': case 'tagline': case 'about': case 'attested': case 'fastTrack': return field;
     case 'share.title': return 'shareTitle';
     case 'share.description': return 'shareDescription';
     case 'contact': return 'contact';

@@ -16,10 +16,13 @@ export const HEADHUNTER_ERRORS = {
   LINKS_NOT_ALLOWED: 'אי אפשר להוסיף קישורים בטקסט. את הקישורים מוסיפים בשדות אמצעי הקשר.',
   CONTACT_REQUIRED: 'יש למלא לפחות אמצעי קשר אחד.',
   CONTACT_INVALID: 'אחד מאמצעי הקשר אינו תקין.',
+  FAST_TRACK_INVALID: 'בחירת המסלול אינה תקינה.',
   ATTESTATION_REQUIRED: 'יש לאשר שהפרטים נכונים ושאתם מורשים לפעול בשם הסוכנות.',
 } as const;
 
 const TOP_KEYS = new Set(['displayName', 'kind', 'city', 'tagline', 'about', 'contact', 'share', 'attested']);
+/** Accepted on apply only: the track cannot be changed (or started late) by an edit. */
+const APPLY_ONLY_KEYS = new Set(['fastTrack']);
 const CONTACT_KEYS = ['email', 'phone', 'whatsapp', 'website', 'linkedin'] as const;
 const SHARE_KEYS = ['title', 'description'] as const;
 const LINK_PATTERN = /(?:https?:\/\/|www\.)/i;
@@ -85,9 +88,10 @@ function contactValue(key: (typeof CONTACT_KEYS)[number], raw: string): string |
   }
 }
 
-export function validateHeadhunterInput(body: unknown, options: { requireAttestation?: boolean } = {}): HeadhunterInputResult {
+export function validateHeadhunterInput(body: unknown, options: { requireAttestation?: boolean; allowFastTrack?: boolean } = {}): HeadhunterInputResult {
   if (!isPlainObject(body)) return fail('INVALID_BODY');
-  if (Object.keys(body).some((key) => !TOP_KEYS.has(key))) return fail('UNKNOWN_FIELD');
+  if (Object.keys(body).some((key) => !TOP_KEYS.has(key) && !(options.allowFastTrack && APPLY_ONLY_KEYS.has(key)))) return fail('UNKNOWN_FIELD');
+  if (body.fastTrack !== undefined && typeof body.fastTrack !== 'boolean') return fail('FAST_TRACK_INVALID', 'fastTrack');
 
   const displayName = text(body.displayName, 'displayName', { max: HEADHUNTER_LIMITS.displayName.max, min: HEADHUNTER_LIMITS.displayName.min });
   if (typeof displayName !== 'string') return displayName.code === 'FIELD_INVALID' ? fail('DISPLAY_NAME_INVALID', 'displayName') : displayName;
@@ -136,6 +140,7 @@ export function validateHeadhunterInput(body: unknown, options: { requireAttesta
       ...(about ? { about } : {}),
       contact,
       ...(share ? { share } : {}),
+      ...(body.fastTrack === true ? { fastTrack: true } : {}),
     },
   };
 }

@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { applyProjectCreated, invalidateAfterCounter, readHeadhunterForCounter, type CounterOutcome } from '@/lib/db/headhunters';
-import { liveMinisiteHandle } from '@/lib/headhunters/pings';
+import { liveMinisiteHandle, minisiteAfterCounter } from '@/lib/headhunters/pings';
 import { listFeedProjects, toPublicProject } from '@/lib/db/projects';
 import { onProjectClosed, onProjectPublished, type ProjectEventRecord } from '@/lib/projects/events';
 import { validateImportProvenance, validateProjectInput } from '@/lib/projects/validation';
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       counter = applyProjectCreated(transaction, headhunter, record);
     });
     invalidateAfterCounter(counter);
-    onProjectPublished(slug, record, { minisiteHandle: minisite });
+    onProjectPublished(slug, record, { minisiteHandle: minisiteAfterCounter(minisite, counter) });
     return NextResponse.json({ project: toPublicProject(slug, record), ok: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });
@@ -135,7 +135,7 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
     });
     if ('rejected' in outcome) return NextResponse.json(outcome.rejected.body, { status: outcome.rejected.status });
     invalidateAfterCounter(counter);
-    onProjectPublished(slug, outcome.record, { minisiteHandle: minisite });
+    onProjectPublished(slug, outcome.record, { minisiteHandle: minisiteAfterCounter(minisite, counter) });
     return NextResponse.json({ project: toPublicProject(slug, outcome.record), ok: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });

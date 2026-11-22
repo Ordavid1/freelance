@@ -14,6 +14,8 @@ export type HeadhunterInput = {
   about?: string;
   contact: HeadhunterContact;
   share?: { title?: string; description?: string };
+  /** Chosen at apply time only: the page goes live on approval and has HEADHUNTER_FAST_TRACK_HOURS to reach the threshold. */
+  fastTrack?: boolean;
 };
 
 /** The Firestore document `headhunters/{ownerUid}`. Timestamps are `unknown` here (a Firestore Timestamp on the server). */
@@ -36,6 +38,10 @@ export type HeadhunterRecord = {
   /** Why the record is waiting for a (new) review or needs changes: shown to the owner. */
   reviewReason?: string;
   eligibleAt?: unknown;
+  /** Fast-track only (see HeadhunterInput.fastTrack). */
+  fastTrack?: boolean;
+  /** Set once, at the first approval of a fast-track record: approvedAt + HEADHUNTER_FAST_TRACK_HOURS. */
+  trialEndsAt?: unknown;
   approvedAt?: unknown;
   approvedBy?: string;
   rejectedReason?: string;

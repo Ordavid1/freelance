@@ -1,6 +1,6 @@
 // Hebrew copy of the apply/edit screen and its entry card (client-safe; no inline strings in components).
 // The project threshold always comes from HEADHUNTER_MIN_PROJECTS, never a literal.
-import { HEADHUNTER_EDITOR_PATH, HEADHUNTER_MIN_PROJECTS, HEADHUNTER_RENAME_COOLDOWN_DAYS } from './constants.ts';
+import { HEADHUNTER_EDITOR_PATH, HEADHUNTER_FAST_TRACK_HOURS, HEADHUNTER_MIN_PROJECTS, HEADHUNTER_RENAME_COOLDOWN_DAYS } from './constants.ts';
 import { SITE_NAME } from '../seo/site.ts';
 import type { HeadhunterStatus } from './types.ts';
 
@@ -71,6 +71,7 @@ export const EDITOR_TEXT = {
   tagHeading: 'כך התג יופיע על הפרויקטים',
   tagNeedsHandle: 'הזינו כתובת תקינה כדי לראות את התג.',
   tagNotLive: 'התג והעמוד יופיעו רק אחרי אישור. עד אז הם לא גלויים לאף אחד.',
+  tagExpired: 'התג והעמוד לא מוצגים כרגע. הם יחזרו כשיפורסמו מספיק פרויקטים.',
   tagLive: 'התג והעמוד פעילים.',
   renameHeading: 'החלפת כתובת',
   renameNote: `אפשר להחליף כתובת פעם אחת ב־${HEADHUNTER_RENAME_COOLDOWN_DAYS} ימים. הכתובת הישנה ממשיכה להפנות לחדשה.`,
@@ -91,6 +92,40 @@ export const EDITOR_TEXT = {
   rejectedTitle: 'הבקשה לא אושרה',
   suspendedTitle: 'העמוד הושהה',
   readonlyText: 'אי אפשר לערוך את הפרטים במצב הזה. אם לדעתכם מדובר בטעות, פנו אלינו דרך צ׳אט התמיכה ונבדוק שוב.',
+} as const;
+
+/** The track choice on the apply form. The numbers always come from HEADHUNTER_MIN_PROJECTS and HEADHUNTER_FAST_TRACK_HOURS. */
+export const TRACK_COPY = {
+  heading: 'מתי העמוד עולה לאוויר',
+  help: 'אפשר לבחור פעם אחת, בעת הגשת הבקשה. בשני המסלולים הבקשה עוברת אישור של הצוות.',
+  standard: { title: 'מסלול רגיל', text: `העמוד עולה לאוויר כשפורסמו ${HEADHUNTER_MIN_PROJECTS} פרויקטים באתר.` },
+  fast: { title: 'עמוד פעיל מיד', text: `העמוד עולה לאוויר ברגע האישור, בלי לחכות. צריך לפרסם ${HEADHUNTER_MIN_PROJECTS} פרויקטים תוך ${HEADHUNTER_FAST_TRACK_HOURS} שעות, אחרת העמוד יורד.` },
+} as const;
+
+/** The sentence at the bottom of the sign-up page. */
+export const TRIAL_NOTICE = {
+  label: 'חשוב לדעת',
+  text: `אם לא יפורסמו ${HEADHUNTER_MIN_PROJECTS} פרויקטים תוך ${HEADHUNTER_FAST_TRACK_HOURS} שעות מרגע שהעמוד עלה לאוויר, העמוד יוסר. הפרויקטים עצמם נשארים באתר, והעמוד יחזור מעצמו כשיגיעו ל־${HEADHUNTER_MIN_PROJECTS} פרויקטים. במסלול הרגיל העמוד עולה רק אחרי ${HEADHUNTER_MIN_PROJECTS} פרויקטים, ולכן ההגבלה הזו לא חלה עליו.`,
+} as const;
+
+function hoursText(hours: number) {
+  if (hours <= 1) return 'פחות משעה';
+  if (hours === 2) return 'שעתיים';
+  return `${hours} שעות`;
+}
+
+/** The owner's trial banner (editor, approved or waiting fast-track records). `hoursLeft` is whole hours, rounded up. */
+export const TRIAL_STATUS = {
+  runningPill: 'פעיל · תקופת ניסיון',
+  expiredPill: 'לא מוצג כרגע',
+  waitingTitle: 'מסלול עמוד פעיל מיד',
+  waitingText: `אחרי האישור העמוד עולה לאוויר מיד, ומתחילה ספירה של ${HEADHUNTER_FAST_TRACK_HOURS} שעות לפרסום ${HEADHUNTER_MIN_PROJECTS} פרויקטים.`,
+  runningTitle: 'עמוד פעיל, בתקופת ניסיון',
+  runningLeft: (hoursLeft: number) => `נותרו ${hoursText(hoursLeft)}`,
+  runningNote: `העמוד גלוי, אבל לא מופיע במנועי חיפוש עד ${HEADHUNTER_MIN_PROJECTS} פרויקטים. אם עד סוף התקופה לא יפורסמו ${HEADHUNTER_MIN_PROJECTS}, העמוד יוסר.`,
+  expiredTitle: 'תקופת הניסיון הסתיימה, העמוד הוסר',
+  expiredText: `לא פורסמו ${HEADHUNTER_MIN_PROJECTS} פרויקטים תוך ${HEADHUNTER_FAST_TRACK_HOURS} שעות. הפרויקטים והכתובת שמורים, והעמוד יחזור לאוויר מעצמו כשיפורסמו ${HEADHUNTER_MIN_PROJECTS}.`,
+  mailLine: `העמוד פעיל לתקופת ניסיון של ${HEADHUNTER_FAST_TRACK_HOURS} שעות. אם עד אז לא יפורסמו ${HEADHUNTER_MIN_PROJECTS} פרויקטים, העמוד יוסר (הפרויקטים נשארים באתר, והעמוד יחזור כשיגיעו ל־${HEADHUNTER_MIN_PROJECTS}).`,
 } as const;
 
 export const STATUS_PILL: Record<HeadhunterStatus, string> = {

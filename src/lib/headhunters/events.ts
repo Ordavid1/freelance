@@ -6,13 +6,14 @@
 import { announceMinisites } from './indexnow.ts';
 import type { ModerationAction } from './moderation.ts';
 
-export type HeadhunterDecisionEvent = { uid: string; action: ModerationAction; handle: string; displayName: string; reason?: string };
+export type HeadhunterDecisionEvent = { uid: string; action: ModerationAction; handle: string; displayName: string; reason?: string; /** The page is a fast-track trial page (not yet eligible): noindex, so it is never announced. */ trial?: boolean };
 
 export function onHeadhunterDecision(event: HeadhunterDecisionEvent): void {
   try {
     void event;
     // approve, reject, suspend, reinstate and request-changes all change what the minisite URL serves.
-    announceMinisites([event.handle]);
+    // A trial page is noindex: nothing to tell search engines until the threshold is reached.
+    if (!event.trial) announceMinisites([event.handle]);
     // The owner's email for approve, reject and request-changes. Fire-and-forget: a mail failure never reaches the caller.
     void import('../notifications/headhunter-mail.ts')
       .then((mail) => mail.sendHeadhunterDecisionMail(event.uid, event))
