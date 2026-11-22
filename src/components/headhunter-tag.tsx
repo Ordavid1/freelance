@@ -9,14 +9,17 @@ import './headhunter-tag.css';
 // <button> (invalid HTML that swallows clicks); the feed card renders it in a row beside the expand button instead.
 // Analytics: no `headhunter_tag_click` event. trackEvent is a client-side helper and no card tracks clicks today, so an
 // event here would turn this server component into a client one on every page just for a counter.
-export function HeadhunterTag({ headhunter }: { headhunter: PublicHeadhunterTag }) {
+// `preview` (the editor) renders the same pill as plain text: typed input never becomes a link target.
+export function HeadhunterTag({ headhunter, preview = false }: { headhunter: PublicHeadhunterTag; preview?: boolean }) {
   const display = minisiteDisplay(headhunter.handle);
   const host = display.slice(0, display.indexOf('/'));
-  return <Link className="hh-tag" href={minisitePath(headhunter.handle)} prefetch={false} aria-label={headhunterTagLabel(headhunter.name)}>
+  const body = <>
     <span className="hh-tag-name">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18" /></svg>
       <bdi>{headhunter.name}</bdi>
     </span>
     <span className="hh-tag-url" dir="ltr"><span className="hh-host">{host}</span>/{headhunter.handle}</span>
-  </Link>;
+  </>;
+  if (preview) return <span className="hh-tag" aria-hidden="true">{body}</span>;
+  return <Link className="hh-tag" href={minisitePath(headhunter.handle)} prefetch={false} aria-label={headhunterTagLabel(headhunter.name)}>{body}</Link>;
 }
