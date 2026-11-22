@@ -208,13 +208,13 @@ test('profile page: passes the entry flag only while the switch is on', async ()
   const props = [];
   const load = (config) => loadModule('src/app/profile/import/page.tsx', { env, stubs: {
     '@/components/workspace-home': { __esModule: true, default: (p) => { props.push(p); return null; } },
-    '@/lib/db/headhunters': { getHeadhunterConfig: config },
+    '@/lib/db/headhunters': { headhunterEntryEnabled: config },
   } });
-  for (const config of [async () => ({ enabled: true }), async () => ({ enabled: false }), async () => { throw new Error('down'); }]) {
+  for (const config of [async () => true, async () => false]) {
     const element = await load(config).default();
     props.push(element.props);
   }
-  assert.deepEqual(props.map((p) => p.headhunterEntry), [true, false, false]);
+  assert.deepEqual(props.map((p) => p.headhunterEntry), [true, false]);
 });
 
 // ---------------------------------------------------------------------------------------------

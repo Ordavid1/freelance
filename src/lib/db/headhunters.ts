@@ -26,6 +26,11 @@ export const getHeadhunterConfig = unstable_cache(async (): Promise<HeadhunterCo
   return { enabled: snapshot.get('enabled') === true, applicationsOpen: snapshot.get('applicationsOpen') === true };
 }, ['headhunter-config'], { revalidate: REVALIDATE_SECONDS, tags: [HEADHUNTERS_TAG] });
 
+/** Whether to show the entry card that links to the headhunter editor; an unreadable switch means off. */
+export async function headhunterEntryEnabled(): Promise<boolean> {
+  try { return (await getHeadhunterConfig()).enabled; } catch { return false; }
+}
+
 /**
  * Gate for every headhunter route: 404 while the feature is off (the routes do not exist for the public), 403 for an
  * application while applications are closed, 503 when the switch cannot be read (fails closed).
