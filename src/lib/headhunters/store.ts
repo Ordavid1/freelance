@@ -204,7 +204,7 @@ function writeCounter(tx: Transaction, snapshot: DocumentSnapshot, plan: Counter
   return { handle: snapshot.get('handle') as string, statusChanged: plan.statusChanged, becameEligible: plan.becameEligible, status: (plan.status ?? snapshot.get('status')) as HeadhunterStatus };
 }
 
-const counterInput = (snapshot: DocumentSnapshot) => ({ status: snapshot.get('status'), published: publishedOf(snapshot), hasEligibleAt: present(snapshot.get('eligibleAt')) });
+const counterInput = (snapshot: DocumentSnapshot) => ({ status: snapshot.get('status'), published: publishedOf(snapshot), hasEligibleAt: present(snapshot.get('eligibleAt')), fastTrack: snapshot.get('fastTrack') === true });
 
 /**
  * Step 1 of the counter, inside a project transaction and BEFORE its writes: the owner's headhunter record, or

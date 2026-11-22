@@ -478,3 +478,14 @@ test('decision mail: the approval of a trial page carries the 40-hour line, noth
   assert.match(trialMail.text, /יוסר/);
   assert.ok(trialMail.text.includes(`${SITE}/acme-hr`));
 });
+
+test('counter: a live-now trial below 10 keeps its approval when projects are added', () => {
+  for (let n = 0; n < 9; n += 1) {
+    const plan = counter.planCounter({ status: 'approved', published: n, hasEligibleAt: false, fastTrack: true }, n + 1);
+    assert.equal(plan.statusChanged, false);
+  }
+  const ten = counter.planCounter({ status: 'approved', published: 9, hasEligibleAt: false, fastTrack: true }, 10);
+  assert.equal(ten.setEligibleAt, true);
+  assert.equal(ten.statusChanged, false);
+  assert.equal(counter.planCounter({ status: 'approved', published: 1, hasEligibleAt: false }, 2).status, 'pending');
+});
