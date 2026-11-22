@@ -45,8 +45,8 @@ export async function POST(request: Request) {
     }
     // The tag and the page are derived from this record: drop the cached reads at once.
     invalidateHeadhunterCache(result.handle);
-    onHeadhunterDecision({ uid: parsed.value.uid, action: result.action, handle: result.handle, displayName: result.displayName, ...(parsed.value.reason ? { reason: parsed.value.reason } : {}) });
-    return Response.json({ ok: true, status: result.to }, { headers: NO_STORE });
+    onHeadhunterDecision({ uid: parsed.value.uid, action: result.action, handle: result.handle, displayName: result.displayName, ...(result.fastTrack && !result.eligible ? { trial: true } : {}), ...(parsed.value.reason ? { reason: parsed.value.reason } : {}) });
+    return Response.json({ ok: true, status: result.to, ...(result.fastTrack ? { fastTrack: true, ...(result.trialEndsAt !== undefined ? { trialEndsAt: result.trialEndsAt } : {}) } : {}) }, { headers: NO_STORE });
   } catch {
     return Response.json({ error: 'DECISION_UNAVAILABLE' }, { status: 503 });
   }

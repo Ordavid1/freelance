@@ -9,6 +9,7 @@ import { HANDLES_COLLECTION, HEADHUNTERS_COLLECTION, HEADHUNTER_RENAME_COOLDOWN_
 import { REVIEW_REASON_DISPLAY_NAME, REVIEW_REASON_FLAGGED_HANDLE, planCounter, type CounterPlan } from './counter.ts';
 import { countPublishedProjects, countsTowardHeadhunter, isEligible, type CountableProject } from './counting.ts';
 import { handleSkeleton } from './handle.ts';
+import { trialEndsAtFrom } from './trial.ts';
 import { nextStatus, type DecisionInput, type ModerationAction } from './moderation.ts';
 import type { HeadhunterInput, HeadhunterStatus } from './types.ts';
 
@@ -82,7 +83,7 @@ export type ApplyResult =
 /**
  * Create the record and claim the handle in one transaction. The counter starts at the real count of the
  * owner's existing projects (read in the same transaction, so a project created concurrently is not missed):
- * `draft` below the threshold, `pending` (a review request) at or above it.
+ * `draft` below the threshold, `pending` (a review request) at or above it, or at once for a fast-track application.
  */
 export async function applyAsHeadhunter(db: Firestore, uid: string, input: HeadhunterInput, handle: string, handleFlags: string[]): Promise<ApplyResult> {
   return db.runTransaction(async (tx): Promise<ApplyResult> => {
@@ -92,10 +93,11 @@ export async function applyAsHeadhunter(db: Firestore, uid: string, input: Headh
     if (!read.claim.ok) return { ok: false, code: 'TAKEN' };
     const published = countPublishedProjects(projects.docs.map((doc) => ({ id: doc.id, ...(doc.data() as CountableProject) }))).count;
     const plan = planCounter({ status: 'draft', published: 0, hasEligibleAt: false }, published);
-    const status: HeadhunterStatus = plan.status ?? 'draft';
+    // Fast-track skips the project threshold for the review request: it goes straight to a moderator.
+    const status: HeadhunterStatus = plan.status ?? (input.fastTrack ? 'pending' : 'draft');
     tx.set(handleRef(db, handle), { handle, ownerUid: uid, state: 'active', skeleton: handleSkeleton(handle), createdAt: now() });
     tx.create(ref, {
-      ownerUid: uid, status, handle, ...input,
+      ownerUid: uid, status, handle, ...input, // `input.fastTrack` is only ever `true` (see validateHeadhunterInput)
       counters: { published: plan.published },
       ...(plan.setEligibleAt ? { eligibleAt: now() } : {}),
       flags: handleFlags,
@@ -106,7 +108,7 @@ export async function applyAsHeadhunter(db: Firestore, uid: string, input: Headh
 }
 
 export type UpdateResult =
-  | { ok: true; status: HeadhunterStatus; handle: string; statusChanged: boolean }
+  | { ok: true; status: HeadhunterStatus; handle: string; statusChanged: boolean; /** The page can be indexed (threshold reached); false for a fast-track trial page. */ eligible: boolean }
   | { ok: false; code: 'NOT_FOUND' | 'BLOCKED' };
 
 const OPTIONAL_FIELDS = ['city', 'tagline', 'about', 'share'] as const;
@@ -127,7 +129,7 @@ export async function updateHeadhunter(db: Firestore, uid: string, input: Headhu
     let reviewReason: string | undefined;
     const nameChanged = snapshot.get('displayName') !== input.displayName;
     if (current === 'approved' && nameChanged) { status = 'pending'; reviewReason = REVIEW_REASON_DISPLAY_NAME; }
-    else if (current === 'draft' && present(snapshot.get('eligibleAt'))) status = 'pending';
+    else if (current === 'draft' && (present(snapshot.get('eligibleAt')) || snapshot.get('fastTrack') === true)) status = 'pending';
     const patch: Record<string, unknown> = {
       displayName: input.displayName, kind: input.kind, contact: input.contact,
       version: (Number(snapshot.get('version')) || 0) + 1, updatedAt: now(),
@@ -138,12 +140,12 @@ export async function updateHeadhunter(db: Firestore, uid: string, input: Headhu
       patch.reviewReason = reviewReason ?? FieldValue.delete();
     }
     tx.update(ref, patch);
-    return { ok: true, status, handle: snapshot.get('handle') as string, statusChanged: status !== current };
+    return { ok: true, status, handle: snapshot.get('handle') as string, statusChanged: status !== current, eligible: present(snapshot.get('eligibleAt')) };
   });
 }
 
 export type RenameResult =
-  | { ok: true; handle: string; previous: string; status: HeadhunterStatus }
+  | { ok: true; handle: string; previous: string; status: HeadhunterStatus; eligible: boolean }
   | { ok: false; code: 'NOT_FOUND' | 'BLOCKED' | 'SAME' | 'TAKEN' }
   | { ok: false; code: 'COOLDOWN'; retryAfterDays: number };
 
@@ -179,7 +181,7 @@ export async function renameHandle(db: Firestore, uid: string, handle: string, h
       flags: withHandleFlags(snapshot.get('flags'), handleFlags),
       ...(flagged ? { status: 'pending', reviewReason: REVIEW_REASON_FLAGGED_HANDLE } : {}),
     });
-    return { ok: true, handle, previous, status: flagged ? 'pending' : status };
+    return { ok: true, handle, previous, status: flagged ? 'pending' : status, eligible: present(snapshot.get('eligibleAt')) };
   });
 }
 
@@ -277,7 +279,7 @@ export async function reconcileHeadhunter(db: Firestore, uid: string, options: {
 // ---------------------------------------------------------------------------------------------
 
 export type DecisionResult =
-  | { ok: true; action: ModerationAction; from: HeadhunterStatus; to: HeadhunterStatus; handle: string; displayName: string }
+  | { ok: true; action: ModerationAction; from: HeadhunterStatus; to: HeadhunterStatus; handle: string; displayName: string; fastTrack: boolean; /** Threshold reached: the page is (or can become) indexable. */ eligible: boolean; trialEndsAt?: number }
   | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE' | 'NOT_ELIGIBLE' };
 
 const CLEARED = ['rejectedReason', 'suspendedReason', 'reviewReason'] as const;
@@ -287,7 +289,7 @@ const CLEARED = ['rejectedReason', 'suspendedReason', 'reviewReason'] as const;
  * moderator uid (API) or `script:<label>` (admin script). Approval recounts the projects first (plan 15: the counter is
  * an optimisation, the recount is the truth), and requires the record to be eligible. Revoking never retires the handle.
  */
-export async function decideHeadhunter(db: Firestore, decision: DecisionInput & { actor: string; via: 'api' | 'script' }): Promise<DecisionResult> {
+export async function decideHeadhunter(db: Firestore, decision: DecisionInput & { actor: string; via: 'api' | 'script' }, at: number = Date.now()): Promise<DecisionResult> {
   const { uid, action, reason, actor, via } = decision;
   return db.runTransaction(async (tx): Promise<DecisionResult> => {
     const ref = headhunterRef(db, uid);
@@ -298,13 +300,21 @@ export async function decideHeadhunter(db: Firestore, decision: DecisionInput & 
     if (!to) return { ok: false, code: 'INVALID_STATE' };
 
     const patch: Record<string, unknown> = { status: to, version: (Number(snapshot.get('version')) || 0) + 1, updatedAt: now() };
+    const fastTrack = snapshot.get('fastTrack') === true;
+    const approvedAtMs = at;
+    let trialEndsAt: number | undefined;
+    let eligible = present(snapshot.get('eligibleAt'));
     if (action === 'approve') {
       const scan = await scanProjects((query) => tx.get(query), db, uid);
-      if (!present(snapshot.get('eligibleAt')) && !isEligible(scan.actual)) return { ok: false, code: 'NOT_ELIGIBLE' };
+      // A fast-track record is approved before it reaches the threshold: that is the point of the option.
+      if (!fastTrack && !present(snapshot.get('eligibleAt')) && !isEligible(scan.actual)) return { ok: false, code: 'NOT_ELIGIBLE' };
       patch['counters.published'] = scan.actual;
-      if (!present(snapshot.get('eligibleAt'))) patch.eligibleAt = now();
+      if (!present(snapshot.get('eligibleAt')) && isEligible(scan.actual)) patch.eligibleAt = now();
+      // The 40-hour window starts at the FIRST approval only; re-approval after a re-review or reinstatement never extends it.
+      if (fastTrack && !present(snapshot.get('trialEndsAt'))) { trialEndsAt = trialEndsAtFrom(approvedAtMs); patch.trialEndsAt = new Date(trialEndsAt); }
       patch.approvedAt = now();
       patch.approvedBy = actor;
+      eligible = eligible || isEligible(scan.actual);
       for (const field of CLEARED) patch[field] = FieldValue.delete();
     } else if (action === 'reject') {
       patch.rejectedReason = reason;
@@ -320,13 +330,17 @@ export async function decideHeadhunter(db: Firestore, decision: DecisionInput & 
       actorUid: actor, targetUid: uid, action: `headhunter.${action}`, fromStatus: from, toStatus: to, via,
       ...(reason ? { reason } : {}), createdAt: now(),
     });
-    return { ok: true, action, from, to, handle: snapshot.get('handle') as string, displayName: snapshot.get('displayName') as string };
+    return {
+      ok: true, action, from, to, handle: snapshot.get('handle') as string, displayName: snapshot.get('displayName') as string, fastTrack, eligible,
+      ...(trialEndsAt !== undefined ? { trialEndsAt } : millis(snapshot.get('trialEndsAt')) !== null ? { trialEndsAt: millis(snapshot.get('trialEndsAt')) as number } : {}),
+    };
   });
 }
 
 export type ReviewItem = {
   uid: string; status: string; displayName: string; handle: string; kind: string; city?: string; contact: unknown; flags: string[];
   published: number; lastProjectAt: number | null; eligibleAt: number | null; createdAt: number | null; reason?: string;
+  fastTrack: boolean; trialEndsAt: number | null;
 };
 
 /** Review order: pending first. */
@@ -343,6 +357,7 @@ export async function listHeadhuntersForReview(db: Firestore, options: { status?
       ...(doc.get('city') ? { city: doc.get('city') as string } : {}), contact: doc.get('contact') ?? {},
       flags: Array.isArray(doc.get('flags')) ? doc.get('flags') : [], published: publishedOf(doc),
       lastProjectAt: millis(doc.get('counters.lastProjectAt')), eligibleAt: millis(doc.get('eligibleAt')), createdAt: millis(doc.get('createdAt')),
+      fastTrack: doc.get('fastTrack') === true, trialEndsAt: millis(doc.get('trialEndsAt')),
       ...(doc.get('rejectedReason') || doc.get('suspendedReason') || doc.get('reviewReason') ? { reason: (doc.get('rejectedReason') || doc.get('suspendedReason') || doc.get('reviewReason')) as string } : {}),
     }))
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)));

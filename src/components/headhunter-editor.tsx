@@ -10,7 +10,7 @@ import {
   editorMode, formFromView, formKeyForField, previewView, requestBody, shareFallbacks,
   type FormValues, type HandleCheck, type OwnerView,
 } from '@/lib/headhunters/editor';
-import { ANALYTICS, EDITOR_TEXT as T, STATUS_PILL } from '@/lib/headhunters/editor-copy';
+import { ANALYTICS, EDITOR_TEXT as T, STATUS_PILL, TRACK_COPY, TRIAL_NOTICE, TRIAL_STATUS } from '@/lib/headhunters/editor-copy';
 import { HANDLE_FORMAT_ERROR, isHandleFormat, suggestHandle, validateHandle } from '@/lib/headhunters/handle';
 import { HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
 import { HEADHUNTER_KIND_LABEL } from '@/lib/headhunters/presentation';
@@ -136,6 +136,11 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
   const preview = previewView(values, fallbackName);
   const share = shareFallbacks(values, fallbackName);
   const tagHandle = view?.handle ?? (isHandleFormat(values.handle.trim().toLowerCase()) ? values.handle.trim().toLowerCase() : '');
+  const phase = view?.trial.phase ?? 'none';
+  const fastTrack = view?.trial.fastTrack === true;
+  const statusTitle = !view ? '' : phase === 'running' ? TRIAL_STATUS.runningTitle : phase === 'expired' ? TRIAL_STATUS.expiredTitle
+    : mode === 'draft' ? (view.reason ? T.changesRequestedTitle : T.progressHeading) : mode === 'pending' ? T.pendingTitle : mode === 'approved' ? T.liveTitle : view.status === 'rejected' ? T.rejectedTitle : T.suspendedTitle;
+  const statusPill = !view ? '' : phase === 'running' ? TRIAL_STATUS.runningPill : phase === 'expired' ? TRIAL_STATUS.expiredPill : STATUS_PILL[view.status];
   const nameChanged = mode === 'approved' && values.displayName.trim() !== (view?.displayName ?? '');
   const errorProps = (key: keyof Errors, id: string) => errors[key] ? { 'aria-invalid': true as const, 'aria-describedby': `${id}-error` } : {};
   const handleBadge = check.state === 'available' ? <span className="hh-ed-ok">{T.handleAvailable}</span>
@@ -143,15 +148,19 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
     : check.state === 'unavailable' ? <span className="hh-ed-bad" aria-hidden="true">✕</span> : null;
   const handleMessage = errors.handle || (check.state === 'unavailable' ? check.error : '');
 
-  return <div className="hh-ed">
+  return <>
+  <div className="hh-ed">
     <div className="hh-ed-main">
       {view && <section className="hh-ed-panel" aria-labelledby="hh-status-title">
-        <div className="hh-ed-top"><h2 id="hh-status-title">{mode === 'draft' ? (view.reason ? T.changesRequestedTitle : T.progressHeading) : mode === 'pending' ? T.pendingTitle : mode === 'approved' ? T.liveTitle : view.status === 'rejected' ? T.rejectedTitle : T.suspendedTitle}</h2><span className="hh-ed-pill" data-status={view.status}>{STATUS_PILL[view.status]}</span></div>
-        {mode === 'draft' && <div className="hh-ed-meter">
-          <div className="hh-ed-meter-row"><b>{view.progress.label}</b><span>{view.progress.remaining}</span></div>
+        <div className="hh-ed-top"><h2 id="hh-status-title">{statusTitle}</h2><span className="hh-ed-pill" data-status={view.status} data-trial={phase === 'running' || phase === 'expired' ? phase : undefined}>{statusPill}</span></div>
+        {(mode === 'draft' && !fastTrack || phase === 'running' || phase === 'expired') && <div className="hh-ed-meter">
+          <div className="hh-ed-meter-row"><b>{view.progress.label}</b><span>{phase === 'running' ? TRIAL_STATUS.runningLeft(view.trial.hoursLeft) : view.progress.remaining}</span></div>
           <div className="hh-ed-bar" role="progressbar" aria-valuemin={0} aria-valuemax={view.progress.required} aria-valuenow={Math.min(view.progress.published, view.progress.required)} aria-label={view.progress.label}><i style={{ width: `${Math.min(100, Math.round((view.progress.published / view.progress.required) * 100))}%` }} /></div>
           <p className="hh-ed-hint">{T.progressHint} <Link href="/projects/new" className="hh-ed-link-button">{T.publishProject}</Link></p>
         </div>}
+        {phase === 'running' && <p className="hh-ed-note">{TRIAL_STATUS.runningNote}</p>}
+        {phase === 'expired' && <p className="hh-ed-reason">{TRIAL_STATUS.expiredText}</p>}
+        {fastTrack && phase === 'waiting' && <p className="hh-ed-note">{TRIAL_STATUS.waitingText}</p>}
         {mode === 'draft' && view.reason && <p className="hh-ed-reason"><strong>{T.reasonLabel}</strong>{view.reason}</p>}
         {mode === 'draft' && view.reason && <p className="hh-ed-note">{T.changesRequestedText}</p>}
         {mode === 'pending' && <p className="hh-ed-note">{T.pendingText}</p>}
@@ -161,7 +170,7 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
           <button type="button" className="hh-ed-btn" onClick={copyLink}>{copied ? T.liveCopied : T.liveCopy}</button>
           <Link className="hh-ed-btn pri" href={`/${view.handle}`}>{T.liveOpen}</Link>
         </div>}
-        {mode === 'approved' && <p className="hh-ed-note">{T.liveShare}</p>}
+        {mode === 'approved' && view.live && <p className="hh-ed-note">{T.liveShare}</p>}
         {mode === 'readonly' && <><p className="hh-ed-reason"><strong>{T.reasonLabel}</strong>{view.reason ?? ''}</p><p className="hh-ed-note">{T.readonlyText}</p></>}
       </section>}
 
@@ -231,6 +240,17 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
           </Field>
         </section>
 
+        {mode === 'apply' && <section className="hh-ed-panel" aria-labelledby="hh-track-title">
+          <h2 id="hh-track-title">{TRACK_COPY.heading}</h2><p className="hh-ed-help">{TRACK_COPY.help}</p>
+          <div className="hh-ed-tracks" role="radiogroup" aria-labelledby="hh-track-title">
+            {([['standard', false], ['fast', true]] as const).map(([key, value]) => <label key={key} className="hh-ed-track" data-checked={values.fastTrack === value || undefined}>
+              <input type="radio" name="hh-track" checked={values.fastTrack === value} onChange={() => set('fastTrack', value)} />
+              <span><strong>{TRACK_COPY[key].title}</strong><small>{TRACK_COPY[key].text}</small></span>
+            </label>)}
+          </div>
+          {errors.fastTrack && <p className="hh-ed-error" role="alert">{errors.fastTrack}</p>}
+        </section>}
+
         <section className="hh-ed-panel" aria-label={mode === 'apply' ? T.submitApply : T.submitSave}>
           {mode === 'apply' && <>
             <label className="hh-ed-check"><input type="checkbox" checked={values.attested} onChange={(event) => set('attested', event.target.checked)} aria-describedby={errors.attested ? 'hh-attested-error' : undefined} /><span>{T.attestation}</span></label>
@@ -261,8 +281,10 @@ export function HeadhunterEditor({ view, applicationsOpen }: { view: OwnerView |
       <section className="hh-ed-panel hh-ed-tag" aria-labelledby="hh-tag-title">
         <h2 id="hh-tag-title">{T.tagHeading}</h2>
         <p className="row" inert>{tagHandle ? <HeadhunterTagPill headhunter={{ name: preview.displayName, handle: tagHandle }} /> : <span className="hh-ed-hint">{T.tagNeedsHandle}</span>}</p>
-        <p className="hh-ed-note">{view?.live ? T.tagLive : T.tagNotLive}</p>
+        <p className="hh-ed-note">{view?.live ? T.tagLive : phase === 'expired' ? T.tagExpired : T.tagNotLive}</p>
       </section>
     </aside>
-  </div>;
+  </div>
+  {mode === 'apply' && <p className="hh-ed-trial-notice" role="note"><strong>{TRIAL_NOTICE.label}</strong> {TRIAL_NOTICE.text}</p>}
+  </>;
 }

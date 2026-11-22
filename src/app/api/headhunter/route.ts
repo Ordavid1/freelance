@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const parsedBody = await readJsonBody(request, BODY_LIMIT);
   if (!parsedBody.ok) return parsedBody.response;
   const { handle: rawHandle, ...fields } = parsedBody.value;
-  const input = validateHeadhunterInput(fields, { requireAttestation: true });
+  const input = validateHeadhunterInput(fields, { requireAttestation: true, allowFastTrack: true });
   if (!input.ok) return NextResponse.json({ code: input.code, ...(input.field ? { field: input.field } : {}), error: input.error }, { status: 400 });
   const handle = validateHandle(rawHandle);
   if (!handle.ok) return NextResponse.json({ code: handle.code, field: 'handle', error: handle.error }, { status: 400 });
@@ -94,7 +94,7 @@ export async function PATCH(request: Request) {
     // Contact, tagline and the rest are public on an approved page, so any edit expires the cached page.
     invalidateHeadhunterCache(result.handle);
     // A live page changed (or just left review): tell search engines. Drafts and pending records have no public page.
-    if (result.status === 'approved' || result.statusChanged) announceMinisites([result.handle]);
+    if (result.eligible && (result.status === 'approved' || result.statusChanged)) announceMinisites([result.handle]);
     return NextResponse.json({ ok: true, status: result.status }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });

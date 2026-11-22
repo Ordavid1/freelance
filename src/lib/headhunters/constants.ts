@@ -4,6 +4,11 @@
 export const HEADHUNTER_MIN_PROJECTS = 10;
 /** Below this many published projects (after moderation removals) the record goes back to review. */
 export const HEADHUNTER_REVIEW_FLOOR = 5;
+/**
+ * "Live now" option: an approved fast-track page is public from approval, and must reach HEADHUNTER_MIN_PROJECTS published
+ * projects within this many hours of approval, or it is taken down (the record and the handle stay).
+ */
+export const HEADHUNTER_FAST_TRACK_HOURS = 40;
 export const HEADHUNTER_RENAME_COOLDOWN_DAYS = 30;
 export const HEADHUNTER_RETIRED_HOLD_DAYS = 365;
 /** Minimum trimmed description length of a project that counts toward the threshold. */

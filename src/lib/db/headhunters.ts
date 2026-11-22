@@ -10,6 +10,7 @@ import { isHandleFormat } from '@/lib/headhunters/handle';
 import { HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
 import * as store from '@/lib/headhunters/store';
 import { headhunterPublicState } from '@/lib/headhunters/state';
+import { isTrialRunning } from '@/lib/headhunters/trial';
 import type { HandleRecord, HeadhunterRecord, PublicHeadhunterTag } from '@/lib/headhunters/types';
 import { accountState } from '@/lib/security/marketplace-policy';
 
@@ -97,13 +98,16 @@ export async function getPublicHeadhunters(uids: string[]): Promise<Map<string, 
   const entries = await unstable_cache(async (): Promise<[string, PublicHeadhunterTag][]> => {
     const db = firestore();
     const records = await db.getAll(...distinct.map((uid) => db.collection(HEADHUNTERS_COLLECTION).doc(uid)));
-    const candidates = records.filter((snapshot) => snapshot.exists && snapshot.get('status') === 'approved' && snapshot.get('eligibleAt') != null);
+    const candidates = records.filter((snapshot) => snapshot.exists && snapshot.get('status') === 'approved' && (snapshot.get('eligibleAt') != null || snapshot.get('fastTrack') === true));
     if (candidates.length === 0) return [];
     const security = await db.getAll(...candidates.map((snapshot) => db.collection('accountSecurity').doc(snapshot.id)));
     const active = new Map(security.map((snapshot) => [snapshot.id, accountState(snapshot.get('state')) === 'active']));
     const found: [string, PublicHeadhunterTag][] = [];
     for (const snapshot of candidates) {
-      const state = headhunterPublicState({ status: snapshot.get('status'), eligible: snapshot.get('eligibleAt') != null, accountActive: active.get(snapshot.id) === true, openProjects: 0 });
+      const eligible = snapshot.get('eligibleAt') != null;
+      // The trial verdict is taken when this cache entry is built, so a tag can outlive the window by at most REVALIDATE_SECONDS.
+      const trialRunning = isTrialRunning({ status: snapshot.get('status'), fastTrack: snapshot.get('fastTrack'), eligible, trialEndsAt: store.millis(snapshot.get('trialEndsAt')) }, Date.now());
+      const state = headhunterPublicState({ status: snapshot.get('status'), eligible, accountActive: active.get(snapshot.id) === true, openProjects: 0, trialRunning });
       const name = snapshot.get('displayName');
       const handle = snapshot.get('handle');
       if (state.live && typeof name === 'string' && typeof handle === 'string' && isHandleFormat(handle)) found.push([snapshot.id, { name, handle }]);

@@ -323,7 +323,8 @@ test('a headhunter-owned synthetic project never reaches the sitemap, JSON-LD or
 
 test('minisitePingUrls: absolute minisite URLs only, deduplicated, malformed handles dropped', () => {
   assert.deepEqual(plain(pings.minisitePingUrls(['new-name', 'old-name', 'new-name', '../x', null, undefined, 'A'])), [`${SITE}/new-name`, `${SITE}/old-name`]);
-  assert.equal(pings.liveMinisiteHandle({ get: (field) => ({ status: 'approved', handle: 'acme-hr' })[field] }), 'acme-hr');
+  assert.equal(pings.liveMinisiteHandle({ get: (field) => ({ status: 'approved', eligibleAt: 1, handle: 'acme-hr' })[field] }), 'acme-hr');
+  assert.equal(pings.liveMinisiteHandle({ get: (field) => ({ status: 'approved', fastTrack: true, handle: 'acme-hr' })[field] }), null, 'a fast-track trial page is noindex: not announced');
   assert.equal(pings.liveMinisiteHandle({ get: (field) => ({ status: 'pending', handle: 'acme-hr' })[field] }), null);
   assert.equal(pings.liveMinisiteHandle(null), null);
 });
@@ -373,7 +374,7 @@ test('IndexNow: a rename announces both the new and the old URL; a header edit o
   });
   const gate = async () => ({ ok: true, config: { enabled: true, applicationsOpen: true } });
   const renameRoute = loadModule('src/app/api/headhunter/handle/route.ts', { env, stubs: stubs({
-    '@/lib/db/headhunters': { headhunterGate: gate, invalidateHeadhunterCache() {}, checkHandleAvailability: async () => ({ ok: true }), renameHandle: async () => ({ ok: true, handle: 'new-name', previous: 'old-name', status: 'approved' }) },
+    '@/lib/db/headhunters': { headhunterGate: gate, invalidateHeadhunterCache() {}, checkHandleAvailability: async () => ({ ok: true }), renameHandle: async () => ({ ok: true, handle: 'new-name', previous: 'old-name', status: 'approved', eligible: true }) },
   }) });
   const response = await renameRoute.POST(new Request(`${SITE}/api/headhunter/handle`, { method: 'POST', body: JSON.stringify({ handle: 'new-name' }) }));
   assert.equal(response.status, 200);
@@ -385,8 +386,11 @@ test('IndexNow: a rename announces both the new and the old URL; a header edit o
     '@/lib/db/headhunters': { headhunterGate: gate, invalidateHeadhunterCache() {}, applyAsHeadhunter: async () => ({}), isAccountActive: async () => true, getHeadhunter: async () => live, updateHeadhunter: async () => result },
   }) });
   const patch = (route) => route.PATCH(new Request(`${SITE}/api/headhunter`, { method: 'PATCH', body: JSON.stringify({ tagline: 'New tagline' }) }));
-  assert.equal((await patch(edit({ ok: true, status: 'approved', handle: 'acme-hr', statusChanged: false }))).status, 200);
+  assert.equal((await patch(edit({ ok: true, status: 'approved', handle: 'acme-hr', statusChanged: false, eligible: true }))).status, 200);
   assert.deepEqual(plain(submitted), [[`${SITE}/acme-hr`]]);
+  submitted.length = 0;
+  assert.equal((await patch(edit({ ok: true, status: 'approved', handle: 'acme-hr', statusChanged: false, eligible: false }))).status, 200);
+  assert.deepEqual(submitted, [], 'a trial page (not eligible) announces nothing');
   submitted.length = 0;
   assert.equal((await patch(edit({ ok: true, status: 'draft', handle: 'acme-hr', statusChanged: false }))).status, 200);
   assert.deepEqual(submitted, [], 'a record without a public page announces nothing');

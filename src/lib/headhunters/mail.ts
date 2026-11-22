@@ -3,11 +3,13 @@
 // minisiteUrl and absoluteUrl, so the origin is never hard-coded here.
 import { absoluteUrl, SITE_NAME } from '../seo/site.ts';
 import { HEADHUNTER_EDITOR_PATH } from './constants.ts';
+import { TRIAL_STATUS } from './editor-copy.ts';
 import type { ModerationAction } from './moderation.ts';
 import { minisiteUrl } from './urls.ts';
 
 export type DecisionMail = { subject: string; text: string; html: string };
-export type DecisionMailInput = { action: ModerationAction; handle: string; displayName: string; reason?: string };
+/** `trial`: an approved fast-track page that has not reached the threshold yet (the 40-hour window is running). */
+export type DecisionMailInput = { action: ModerationAction; handle: string; displayName: string; reason?: string; trial?: boolean };
 
 /** The decisions that email the owner. suspend and reinstate are deliberately silent here. */
 export const MAILED_ACTIONS: readonly ModerationAction[] = ['approve', 'reject', 'request-changes'];
@@ -31,6 +33,7 @@ export function buildDecisionMail(input: DecisionMailInput): DecisionMail | null
       `העמוד של ${name} אושר והוא פעיל.`,
       'התג עם שם הסוכנות מופיע עכשיו על הפרויקטים הפתוחים שלכם.',
       'אפשר לשתף את הקישור לעמוד עם מועמדים ולקוחות, למשל בפרופיל הלינקדאין, בחתימת המייל ובהודעות גיוס.',
+      ...(input.trial ? [TRIAL_STATUS.mailLine] : []),
     ];
     link = { url: page, label: 'לעמוד הסוכנות' };
   } else if (input.action === 'request-changes') {

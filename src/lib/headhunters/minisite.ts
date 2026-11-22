@@ -6,6 +6,7 @@ import { absoluteUrl, noIndex, pageMetadata, SITE_NAME } from '../seo/site.ts';
 import { parsePageParam } from '../seo/pagination.ts';
 import { HEADHUNTER_PAGE_SIZE } from './constants.ts';
 import { isHandleFormat } from './handle.ts';
+import { isTrialRunning } from './trial.ts';
 import { headhunterPublicState, type HeadhunterPublicState } from './state.ts';
 import { resolveHeadhunterShare } from './share.ts';
 import type { ContactLink, HeadhunterKind, HeadhunterRecord } from './types.ts';
@@ -21,6 +22,8 @@ export type MinisiteDeps = {
   lookup(handle: string): Promise<MinisiteLookup | null>;
   accountActive(ownerUid: string): Promise<boolean>;
   projects(ownerUid: string, handle: string, page: number): Promise<MinisiteProjects>;
+  /** The clock (epoch ms), injectable for tests; defaults to `Date.now`. */
+  now?(): number;
 };
 
 /** The only headhunter fields a public page may use. No owner uid, counters, flags, review reasons or timestamps. */
@@ -80,13 +83,15 @@ export async function resolveMinisite(rawHandle: string, rawPage: string | reado
 
   const { record } = lookup;
   const eligible = record.eligibleAt !== undefined && record.eligibleAt !== null;
-  if (!headhunterPublicState({ status: record.status, eligible, accountActive: true, openProjects: 0 }).live) return { kind: 'not-found' };
+  // Evaluated against the clock on every request (the cached record holds the end time, not the verdict).
+  const trialRunning = isTrialRunning({ status: record.status, fastTrack: record.fastTrack, eligible, trialEndsAt: typeof record.trialEndsAt === 'number' ? record.trialEndsAt : null }, (deps.now ?? Date.now)());
+  if (!headhunterPublicState({ status: record.status, eligible, accountActive: true, openProjects: 0, trialRunning }).live) return { kind: 'not-found' };
   if (!(await deps.accountActive(record.ownerUid))) return { kind: 'not-found' };
 
   const projects = await deps.projects(record.ownerUid, handle, page);
   const totalPages = Math.max(1, Math.ceil(projects.openCount / HEADHUNTER_PAGE_SIZE));
   if (page > totalPages) return { kind: 'not-found' };
-  const state = headhunterPublicState({ status: record.status, eligible, accountActive: true, openProjects: projects.openCount });
+  const state = headhunterPublicState({ status: record.status, eligible, accountActive: true, openProjects: projects.openCount, trialRunning });
   return { kind: 'page', view: toMinisiteView(record), state, projects, page, totalPages };
 }
 
