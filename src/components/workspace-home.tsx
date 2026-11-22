@@ -3,7 +3,8 @@ import { projectSkillMatch, projectSkills } from '@/lib/projects/skills';
 import { countAvailable, countTagMatches, feedUniverse, filterFeed, projectDate, projectStatus as statusOf, type FeedPeriod, type FeedStatus } from '@/lib/projects/feed';
 import { ProjectDescription } from '@/components/project-description';
 import { HeadhunterTag } from '@/components/headhunter-tag';
-import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY, SAMPLE_FEED_HINT, SAMPLE_FOOTER_TEXT } from '@/lib/projects/presentation';
+import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY, SAMPLE_FEED_HINT, SAMPLE_FOOTER_TEXT, showsAiBadge, showsLiveBadge } from '@/lib/projects/presentation';
+import { LiveBadge } from '@/components/live-badge';
 import { useViewMode } from './view-mode';
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
@@ -83,7 +84,7 @@ function WorkspaceHomeContent({children, initialView = 'הבית שלי', initia
    const projectStatusValue = statusOf(project);
    const isOpen = open === project.slug;
    // A tagged card renders this row beside the expand button (the tag is a link and cannot sit inside the button).
-   const categoryLabel = <><span className={`category-dot tone-${index}`}/>{project.category}{project.sample && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</>;
+   const categoryLabel = <><span className={`category-dot tone-${index}`}/>{project.category}{showsAiBadge(project) && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}{showsLiveBadge(project) && <LiveBadge/>}</>;
    const closeProject = () => {
      const close = (items: Project[]) => items.map((item) => item.slug === project.slug ? { ...item, status: 'closed' } : item);
      setOwnProjects(close);
@@ -106,7 +107,7 @@ function WorkspaceHomeContent({children, initialView = 'הבית שלי', initia
        {hasProjectPage(project) && <Link className="studio-open-page" href={`/projects/${encodeURIComponent(project.slug)}`} prefetch={false} aria-label="פתיחת עמוד הפרויקט" title="פתיחת עמוד הפרויקט"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></Link>}
      </div>
      {viewingOwn && (projectStatusValue !== 'closed' || isOpen) && <ProjectProposals projectSlug={project.slug} initialStatus={projectStatusValue}/>}
-     {isOpen && <div className="project-expanded"><div className="expanded-facts"><div><h3>על הלקוח/ה</h3><p>{project.client}{project.sample && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</p><small>{project.sample ? SAMPLE_CLIENT_HISTORY : project.clientHistory}</small>{project.sample && project.ownerPersona && <small>{project.ownerPersona}</small>}</div><div><h3>כישורים רלוונטיים</h3><div className="studio-tags">{projectSkills(project).map((skill) => <span key={skill}>{skill}</span>)}</div></div></div>{!viewingOwn && (projectStatusValue === 'closed' ? <p className="closed-project-note">הפרויקט נסגר ולא מקבל הצעות חדשות.</p> : <BidForm project={project.slug} sample={project.sample} onSent={() => setSent((old) => old.includes(project.slug) ? old : [...old, project.slug])}/>)}</div>}
+     {isOpen && <div className="project-expanded"><div className="expanded-facts"><div><h3>על הלקוח/ה</h3><p>{project.client}{showsAiBadge(project) && <span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</p><small>{project.sample ? SAMPLE_CLIENT_HISTORY : project.clientHistory}</small>{project.sample && project.ownerPersona && <small>{project.ownerPersona}</small>}</div><div><h3>כישורים רלוונטיים</h3><div className="studio-tags">{projectSkills(project).map((skill) => <span key={skill}>{skill}</span>)}</div></div></div>{!viewingOwn && (projectStatusValue === 'closed' ? <p className="closed-project-note">הפרויקט נסגר ולא מקבל הצעות חדשות.</p> : <BidForm project={project.slug} sample={project.sample} onSent={() => setSent((old) => old.includes(project.slug) ? old : [...old, project.slug])}/>)}</div>}
    </article>;
  })}<p className="feed-end">מצאת משהו מסקרן? כל הפרטים נפתחים כאן, בלי לאבד את המקום.</p></div><div className="workspace-public-content">{children}</div></main></div>
 }

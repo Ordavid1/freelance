@@ -3,7 +3,8 @@ import { ProjectDescription } from '@/components/project-description';
 import { HeadhunterTag } from '@/components/headhunter-tag';
 
 import Link from 'next/link';
-import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY } from '@/lib/projects/presentation';
+import { AI_AGENT_BADGE, SAMPLE_CLIENT_HISTORY, showsAiBadge, showsLiveBadge } from '@/lib/projects/presentation';
+import { LiveBadge } from '@/components/live-badge';
 import Image from 'next/image';
 import { useViewMode } from './view-mode';
 import type { Project } from '@/lib/data';
@@ -38,12 +39,12 @@ export function OpportunitySignal({ project }: { project: Project }) {
 
 export function ProjectCard({ project, compact = false, saved, onToggleSave }: { project: Project; compact?: boolean; saved?: boolean; onToggleSave?: () => void }) {
   return <article className={`project-card ${compact ? 'project-card-compact' : ''} ${project.featured ? 'featured' : ''}`}>
-    <div className="card-topline"><span className="card-topline-tags"><span className="category-chip">{project.category}</span>{project.headhunter&&<HeadhunterTag headhunter={project.headhunter}/>}</span><button className={`save-button ${saved ? 'saved' : ''}`} aria-label={saved ? 'הסרת פרויקט שמור' : 'שמירת הפרויקט'} aria-pressed={saved} onClick={onToggleSave}> {saved ? '♥' : '♡'}</button></div>
+    <div className="card-topline"><span className="card-topline-tags"><span className="category-chip">{project.category}</span>{showsLiveBadge(project)&&<LiveBadge/>}{project.headhunter&&<HeadhunterTag headhunter={project.headhunter}/>}</span><button className={`save-button ${saved ? 'saved' : ''}`} aria-label={saved ? 'הסרת פרויקט שמור' : 'שמירת הפרויקט'} aria-pressed={saved} onClick={onToggleSave}> {saved ? '♥' : '♡'}</button></div>
     <Link href={`/projects/${project.slug}`} className="project-title-link"><h3>{project.title}</h3></Link>
     {!compact && <ProjectDescription text={project.description}/>}
     <div className="project-facts"><span><small>תקציב</small><strong>{project.budget}</strong></span><span><small>מועד</small><strong>{project.deadline}</strong></span><span><small>פורסם</small><strong>{project.posted}</strong></span></div>
     <OpportunitySignal project={project}/>
-    <div className="card-footer"><span className="client-avatar">{project.client.slice(0,1)}</span><span><strong>{project.client}{project.sample&&<span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</strong><small>{project.sample?SAMPLE_CLIENT_HISTORY:project.clientHistory}</small></span><Link href={`/projects/${project.slug}`} className="text-action">לפרטי הפרויקט <span>←</span></Link></div>
+    <div className="card-footer"><span className="client-avatar">{project.client.slice(0,1)}</span><span><strong>{project.client}{showsAiBadge(project)&&<span className="ai-agent-badge">{AI_AGENT_BADGE}</span>}</strong><small>{project.sample?SAMPLE_CLIENT_HISTORY:project.clientHistory}</small></span><Link href={`/projects/${project.slug}`} className="text-action">לפרטי הפרויקט <span>←</span></Link></div>
   </article>;
 }
 

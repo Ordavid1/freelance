@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { HeadhunterTag } from '@/components/headhunter-tag';
+import { LiveBadge } from '@/components/live-badge';
+import { isOpenProject } from '@/lib/projects/feed';
 import type { Project } from '@/lib/data';
 import { categoryForProject } from '@/lib/seo/categories';
 import { projectPath } from '@/lib/seo/listing';
@@ -9,12 +11,12 @@ import { indexableSkills } from '@/lib/seo/skills';
 import type { Skill } from '@/lib/seo/types';
 import './taxonomy.css';
 
-type CardProject = Pick<Project, 'slug' | 'title' | 'category' | 'budget' | 'description' | 'skills' | 'headhunter'>;
+type CardProject = Pick<Project, 'slug' | 'title' | 'category' | 'budget' | 'description' | 'skills' | 'headhunter' | 'status'>;
 
 // Crawlable project cards for public lists. Every title is a real link to /projects/<slug>;
 // the category chip links to its category page and each skill tag links to a skill page when
 // an indexable one exists (plain text otherwise). Public lists only ever receive discoverable
-// projects (see publication.ts), so a card is always a real client's project.
+// projects (see publication.ts), so a card is always a real client's project and LIVE only needs the status.
 export function ProjectCardList({ projects, skills, headingLevel = 3 }: { projects: readonly CardProject[]; skills?: readonly Skill[]; headingLevel?: 2 | 3 | 4 }) {
   const catalogue = skills ?? indexableSkills();
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
@@ -22,7 +24,7 @@ export function ProjectCardList({ projects, skills, headingLevel = 3 }: { projec
     const category = categoryForProject(project);
     const tags = projectSkillTags(project, catalogue);
     return <li className="disc-card" key={project.slug}>
-      {project.headhunter && <p className="disc-card-tags"><HeadhunterTag headhunter={project.headhunter} /></p>}
+      {(isOpenProject(project) || project.headhunter) && <p className="disc-card-tags">{isOpenProject(project) && <LiveBadge />}{project.headhunter && <HeadhunterTag headhunter={project.headhunter} />}</p>}
       <Heading className="disc-card-title"><Link href={projectPath(project.slug)}>{project.title}</Link></Heading>
       <p className="disc-card-meta">{project.category} · {project.budget}</p>
       <p className="disc-card-excerpt">{summarize(project.description, 150)}</p>

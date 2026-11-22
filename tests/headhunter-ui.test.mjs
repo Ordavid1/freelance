@@ -413,7 +413,7 @@ test('discovery cards and the marketplace card show the tag only for tagged proj
   const base = { title: 'פרויקט', category: 'פיתוח אתרים', budget: '₪1', description: 'תיאור', skills: [] };
   const html = renderToStaticMarkup(createElement(ProjectCardList, { projects: [{ ...base, slug: 'a', headhunter: { name: 'Acme', handle: 'acme-hr' } }, { ...base, slug: 'b' }], skills: [] }));
   assert.equal((html.match(/class="hh-tag"/g) ?? []).length, 1);
-  assert.match(html, /<li class="disc-card"><p class="disc-card-tags"><a href="\/acme-hr" class="hh-tag"/);
+  assert.match(html, /<li class="disc-card"><p class="disc-card-tags"><span class="live-badge"[^>]*>.*?<\/span><a href="\/acme-hr" class="hh-tag"/);
 });
 
 test('the feed card renders the tag beside the expand button, never inside a button', () => {
@@ -469,7 +469,7 @@ const sibling = (index) => ({ slug: `other-${index}`, title: `פרויקט אח�
 test('project page: a tagged project shows the tag and up to three other open projects of that headhunter, with a link to all', async () => {
   const { page, requested } = loadDetail(detailProject({ headhunter: { name: 'Acme', handle: 'acme-hr' } }), { items: [sibling(0), { ...sibling(9), slug: 'current' }, sibling(1), sibling(2), sibling(3)] });
   const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ slug: 'current' }) }));
-  assert.match(html, /<p>פיתוח אתרים<a href="\/acme-hr" class="hh-tag"/, 'the tag sits in the eyebrow row beside the category');
+  assert.match(html, /<p>פיתוח אתרים<span class="live-badge"[^>]*>.*?<\/span><a href="\/acme-hr" class="hh-tag"/, 'the tag sits in the eyebrow row beside the category (after LIVE)');
   assert.match(html, /<h2 id="headhunter-more-heading">עוד פרויקטים מAcme<\/h2>/);
   assert.deepEqual([...html.matchAll(/href="\/projects\/(other-\d)"/g)].map((match) => match[1]), ['other-0', 'other-1', 'other-2'], 'three others, the current project left out');
   assert.match(html, /<a href="\/acme-hr">כל הפרויקטים<\/a>/);

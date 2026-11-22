@@ -45,12 +45,13 @@
 .proposal-form .proposal-row label{margin:10px 0 4px}
 .proposal-form .form-actions{align-items:center;gap:14px;margin-top:22px}
 .proposal-form .button-dark{background:#20594d;color:#fff;border-radius:10px;padding:12px 18px}
-.project-close-action{position:absolute;z-index:3;top:22px;left:110px;display:grid;justify-items:start;gap:4px;max-width:130px}
+/* The owner's close button sits at the bottom of the card summary, in flow, under the expand button, on the card's own padding. */
+.project-close-action{display:grid;justify-items:start;gap:6px;padding:0 30px 24px}
+.project-summary:has(.project-close-action) .expand-project{padding-bottom:16px}
 .project-close-action button{border:1px solid #d8e1d2;border-radius:9px;background:#f3f7e9;color:#3f5a31;padding:8px 11px;font-size:11px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s}
 .project-close-action button:hover:not(:disabled){background:#eaf2ca;border-color:#b7c967}
 .project-close-action button:disabled{opacity:.65;cursor:wait}
-.project-close-action [role="alert"]{max-width:130px;font-size:10px;line-height:1.4;color:#a13d2d;background:#fff;border-radius:6px;padding:4px 6px;box-shadow:0 2px 8px #20243810}
-.project-summary:has(.project-close-action) .project-category{padding-left:250px}
+.project-close-action [role="alert"]{max-width:100%;font-size:10px;line-height:1.4;color:#a13d2d;background:#fff;border-radius:6px;padding:4px 6px;box-shadow:0 2px 8px #20243810}
 .closed .project-category{padding-left:30px}
 .closed .expand-project h2{margin-bottom:12px}
 .bid-comparison{padding:24px 30px 28px;background:#fcfcfa}
@@ -80,4 +81,4 @@
 .application-actions{gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid #edf0ea}
 .application-actions .button-outline{padding:11px 15px;background:#fff;border:1px solid #d8e1d6;color:#31584d}
 .application-actions button{border-radius:9px;background:#fff5f2;padding:10px 13px}
-@media(max-width:760px){.proposal-form{padding:17px}.proposal-form .proposal-row{grid-template-columns:1fr;gap:0}.project-close-action{top:17px;left:92px}.project-summary:has(.project-close-action) .project-category{padding-left:235px}.bid-comparison{padding:19px}.proposal-card{padding:16px}.application-card{padding:20px}.application-card .application-message{padding:13px 14px}}
+@media(max-width:760px){.proposal-form{padding:17px}.proposal-form .proposal-row{grid-template-columns:1fr;gap:0}.project-close-action{padding:0 22px 20px}.project-summary:has(.project-close-action) .expand-project{padding-bottom:14px}.bid-comparison{padding:19px}.proposal-card{padding:16px}.application-card{padding:20px}.application-card .application-message{padding:13px 14px}}

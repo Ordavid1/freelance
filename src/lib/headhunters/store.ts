@@ -225,8 +225,9 @@ export function applyProjectCreated(tx: Transaction, snapshot: DocumentSnapshot 
 }
 
 /**
- * The project (as it was) is leaving the published set: archived or removed by moderation. Below the review floor an
- * approved record goes back to review.
+ * The project (as it was) is leaving the published set. Owners can only close a project, never archive or delete it, and a
+ * closed project keeps counting (see countsTowardHeadhunter), so this serves moderator takedowns only, not owners. Below the
+ * review floor an approved record goes back to review.
  */
 export function applyProjectRemoved(tx: Transaction, snapshot: DocumentSnapshot | null, before: CountableProject): CounterOutcome | null {
   if (!snapshot || !countsTowardHeadhunter(before)) return null;

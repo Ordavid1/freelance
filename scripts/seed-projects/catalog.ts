@@ -102,7 +102,8 @@ export function contentFields(entry: CatalogEntry): ContentFields {
   return { title: entry.title, category: entry.category, description: entry.description, budget: entry.budget, deadline: entry.deadline, clientName: entry.clientName, skills: [...entry.skills], owner: { kind: 'ai-agent', name: entry.clientName, persona: entry.persona } };
 }
 
-// Fields of a new record, without timestamps (the CLI adds server timestamps).
+// Shape of a showcase record as it was created before creation was disabled (see CREATES_DISABLED_MESSAGE); kept as the
+// reference shape of the existing records. The CLI no longer writes it.
 export function buildCreateFields(entry: CatalogEntry, batch: string) {
   // `unreal: true` and `seed.purgeAfter` make seeded records easy to find and remove later
   // (query `unreal == true`, or `seed.purgeAfter` before today); they are never shown in the UI.
@@ -133,6 +134,15 @@ export function diffSeedRecord(entry: CatalogEntry, data: Record<string, unknown
   if (data.sample !== true) patch.sample = true;
   if (data.visibility !== 'public') patch.visibility = 'public';
   return patch;
+}
+
+// New showcase projects are no longer created (decision of 22 November 2026: the AI-agent label belongs only to the
+// existing closed projects). The tool still updates existing records' text, closes and retires them.
+export const CREATES_DISABLED_MESSAGE = 'Creating new showcase projects is disabled: the AI-agent label is kept only for the existing closed projects. Existing records can still be updated, closed (--close) or retired (--retire).';
+
+/** The plan items that would create a document; a commit must refuse a plan that contains any. */
+export function creationsIn(plan: PlanItem[]): PlanItem[] {
+  return plan.filter((item) => item.action === 'create');
 }
 
 export function planSeed(entries: CatalogEntry[], batch: string, existing: Map<string, ExistingDoc>): PlanItem[] {
