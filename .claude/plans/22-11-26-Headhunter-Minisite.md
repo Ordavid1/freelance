@@ -90,7 +90,7 @@ MVP needs **no Terraform change**: lookups are by document id (`headhunters/{uid
 
 **Confusable and impersonation check** at claim time: normalise (strip hyphens, map look-alike characters `0→o, 1→l, rn→m, vv→w`), then compare against the reserved/brand list and against all existing active and retired handles. A near-match is not auto-rejected; it routes the application to **manual review with a flag**, because the approval step (section 6) is a human gate anyway.
 
-**Renames:** allowed, rate-limited (at most one per 30 days, a decision in section 14), always through the transaction in 3.2. The old handle becomes a permanent 308 redirect to the current one, the sitemap lists only the current URL, IndexNow is pinged for both. Soft cap on how long a chain can be: `pointsTo` always stores the *current* handle (updated for all retired handles of the owner on each rename), so a redirect is one hop, never a chain.
+**Renames:** allowed, rate-limited (at most one per 30 days, decision D7 in section 16), always through the transaction in 3.2. The old handle becomes a permanent 308 redirect to the current one, the sitemap lists only the current URL, IndexNow is pinged for both. Soft cap on how long a chain can be: `pointsTo` always stores the *current* handle (updated for all retired handles of the owner on each rename), so a redirect is one hop, never a chain.
 
 **Deletion or revocation:** the handle becomes `retired` with no `pointsTo`; the URL returns 410-style "page removed" (`notFound()` with a noindex shell) and is not re-assignable for 12 months, then only by moderator action.
 
