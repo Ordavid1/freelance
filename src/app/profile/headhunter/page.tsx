@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/discovery/breadcrumbs';
 import { HeadhunterEditor } from '@/components/headhunter-editor';
+import { HeadhunterShowcase } from '@/components/headhunter-showcase';
 import { SupportHeaderActions } from '@/components/support-chat';
 import { getCurrentUser } from '@/lib/auth/session';
 import { signInHref } from '@/lib/auth/safe-next';
@@ -38,13 +39,18 @@ export default async function HeadhunterEditorPage() {
   const trail = [{ name: T.breadcrumbHome, path: '/' }, { name: T.breadcrumbProfile, path: '/profile/import' }, { name: T.pageTitle, path: EDITOR_PATH }];
   return <>
     <header className="discovery-header"><Link href="/" aria-label="Freelance Place — דף הבית"><Image src="/freelance-place-logo.svg" width={52} height={52} alt="Freelance Place" /></Link><span lang="en" dir="ltr">Freelance Place</span><SupportHeaderActions><Link href="/profile/import">{T.back}</Link></SupportHeaderActions></header>
-    <main className="discovery-content hh-site">
-      <Breadcrumbs items={trail} structured={false} />
-      <h1>{T.title}</h1>
-      <p className="disc-brief"><strong>{T.briefLabel}</strong> {T.brief}</p>
-      {failed
-        ? <p className="hh-empty" role="alert">{T.unavailable}</p>
-        : <HeadhunterEditor view={view} applicationsOpen={config.applicationsOpen} />}
+    <main className="discovery-content hh-site hh-page">
+      <div className="hh-page-head">
+        <Breadcrumbs items={trail} structured={false} />
+        <h1>{T.title}</h1>
+        <p className="disc-brief"><strong>{T.briefLabel}</strong> {T.brief}</p>
+      </div>
+      <HeadhunterShowcase />
+      <div className="hh-page-body">
+        {failed
+          ? <p className="hh-empty" role="alert">{T.unavailable}</p>
+          : <HeadhunterEditor view={view} applicationsOpen={config.applicationsOpen} />}
+      </div>
     </main>
   </>;
 }
