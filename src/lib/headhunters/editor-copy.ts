@@ -18,7 +18,7 @@ export const EDITOR_TEXT = {
   back: 'חזרה לפרופיל',
   breadcrumbHome: 'דף הבית',
   breadcrumbProfile: 'הפרופיל שלי',
-  brief: `עמוד משלכם ב־${SITE_NAME}, עם כל הפרויקטים שלכם, פרטי קשר ותג על כל פרויקט. העמוד נפתח אחרי ${HEADHUNTER_MIN_PROJECTS} פרויקטים ואישור של הצוות.`,
+  brief: `השירות חינם. עמוד משלכם ב־${SITE_NAME}, עם כל הפרויקטים שלכם, פרטי קשר ותג על כל פרויקט. העמוד נפתח אחרי ${HEADHUNTER_MIN_PROJECTS} פרויקטים ואישור של הצוות.`,
   briefLabel: 'בקיצור:',
   unavailable: 'לא הצלחנו לטעון את הנתונים כרגע. נסו לרענן את העמוד בעוד רגע.',
   closedTitle: 'ההרשמה לעמודי סוכנויות טרם נפתחה',
@@ -104,4 +104,20 @@ export const STATUS_PILL: Record<HeadhunterStatus, string> = {
 export const ANALYTICS = {
   apply: 'headhunter_apply_submit',
   contactClick: 'headhunter_contact_click',
+} as const;
+
+// Showcase strip beside the apply form: real screens of the feature, each with a short caption.
+const SHOWCASE_DIR = '/headhunter-showcase';
+export const SHOWCASE = {
+  title: 'כך זה נראה',
+  hint: 'לחצו על תמונה כדי להגדיל',
+  close: 'סגירה',
+  items: [
+    { src: `${SHOWCASE_DIR}/agency-page.webp`, width: 800, height: 673, title: 'עמוד הסוכנות שלכם', text: 'דף משלכם באתר: שם, תיאור, פרטי קשר וכל הפרויקטים הפתוחים במקום אחד.' },
+    { src: `${SHOWCASE_DIR}/project-tag.webp`, width: 800, height: 299, title: 'תג על כל פרויקט', text: 'בפיד הפרויקטים, כל פרויקט שפרסמתם מקבל תג עם שם הסוכנות וקישור לעמוד.' },
+    { src: `${SHOWCASE_DIR}/share-card.webp`, width: 800, height: 420, title: 'כרטיס שיתוף', text: 'כך נראה הכרטיס שנוצר אוטומטית לקישור לעמוד שלכם.' },
+    { src: `${SHOWCASE_DIR}/share-previews.webp`, width: 1100, height: 611, title: 'שיתוף בוואטסאפ, בלינקדין ובפייסבוק', text: 'ברירת מחדל אוטומטית, או כותרת ותיאור משלכם. הדוגמה להמחשה בלבד.' },
+    { src: `${SHOWCASE_DIR}/agency-mobile.webp`, width: 390, height: 690, title: 'העמוד בנייד', text: 'העמוד מותאם גם למסך הטלפון.' },
+    { src: `${SHOWCASE_DIR}/tag-mobile.webp`, width: 390, height: 370, title: 'התג בנייד', text: 'התג על הפרויקט בפיד, במסך הטלפון.' },
+  ],
 } as const;

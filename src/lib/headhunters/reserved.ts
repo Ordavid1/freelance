@@ -6,7 +6,7 @@ export const RESERVED_ROUTE_SEGMENTS: readonly string[] = [
   'about', 'alternatives', 'api', 'categories', 'faq', 'glossary', 'guides', 'how-it-works', 'membership', 'messages',
   'pricing', 'privacy', 'profile', 'projects', 'signin', 'skills', 'terms',
   'sitemap', 'robots', 'llms', 'llms-full', 'opengraph-image', 'twitter-image', 'icon', 'apple-icon', 'favicon', 'manifest',
-  'freelance-place-logo', '_next', '__',
+  'freelance-place-logo', 'headhunter-showcase', '_next', '__',
   // IndexNow key file in public/.
   '937d6e4c8033ee12864f2c5c27fcf898',
 ];
