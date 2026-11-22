@@ -38,3 +38,6 @@ export const HEADHUNTERS_TAG = 'headhunters';
 export function headhunterTag(handle: string) {
   return `headhunter:${handle}`;
 }
+
+/** The signed-in apply/edit screen (private path, under the /profile prefix). */
+export const HEADHUNTER_EDITOR_PATH = '/profile/headhunter';

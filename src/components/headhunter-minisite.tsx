@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { HEADHUNTER_CLOSED_BADGE, HEADHUNTER_CONTACT_LABEL, HEADHUNTER_KIND_LABEL, HEADHUNTER_STAT_OPEN, HEADHUNTER_STAT_PUBLISHED, headhunterInitials } from '@/lib/headhunters/presentation';
 import type { MinisiteView } from '@/lib/headhunters/minisite';
 import type { ContactLink } from '@/lib/headhunters/types';
+import { ContactClickTracker } from './headhunter-contact-tracker';
 import './headhunter-minisite.css';
 
 // Server components for the minisite page. They receive the public view only (MinisiteView), never the stored record.
@@ -15,26 +16,30 @@ const ICONS: Record<ContactLink['kind'], ReactNode> = {
 };
 const isExternal = (href: string) => /^https?:\/\//i.test(href);
 
-export function HeadhunterContact({ links }: { links: readonly ContactLink[] }) {
+/** `handle` turns on click tracking (the live page); the editor preview omits it, so previewing never counts as a click. */
+export function HeadhunterContact({ links, handle }: { links: readonly ContactLink[]; handle?: string }) {
   if (links.length === 0) return null;
-  return <ul className="hh-contact" aria-label={HEADHUNTER_CONTACT_LABEL}>
-    {links.map((link) => <li key={link.kind} className={link.kind === 'whatsapp' || link.kind === 'linkedin' ? 'hh-half' : undefined}>
-      <a href={link.href} {...(isExternal(link.href) ? { target: '_blank', rel: 'nofollow noopener noreferrer' } : {})}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{ICONS[link.kind]}</svg>
-        <bdi>{link.label}</bdi>
-      </a>
-    </li>)}
-  </ul>;
+  const items = links.map((link) => <li key={link.kind} className={link.kind === 'whatsapp' || link.kind === 'linkedin' ? 'hh-half' : undefined}>
+    <a href={link.href} {...(isExternal(link.href) ? { target: '_blank', rel: 'nofollow noopener noreferrer' } : {})}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{ICONS[link.kind]}</svg>
+      <bdi>{link.label}</bdi>
+    </a>
+  </li>);
+  return handle
+    ? <ContactClickTracker handle={handle} label={HEADHUNTER_CONTACT_LABEL}>{items}</ContactClickTracker>
+    : <ul className="hh-contact" aria-label={HEADHUNTER_CONTACT_LABEL}>{items}</ul>;
 }
 
-export function HeadhunterHero({ view, openCount, publishedCount }: { view: MinisiteView; openCount: number; publishedCount: number }) {
+/** `preview` is the editor's copy of the header: a level-2 heading and no click tracking. */
+export function HeadhunterHero({ view, openCount, publishedCount, preview = false }: { view: MinisiteView; openCount: number; publishedCount: number; preview?: boolean }) {
+  const Heading = preview ? 'h2' : 'h1';
   const paragraphs = (view.about ?? '').split(/\n{2,}|\r\n\r\n/).map((part) => part.trim()).filter(Boolean);
   return <section className="hh-hero" aria-labelledby="hh-name">
     <div className="hh-hero-top">
       <div className="hh-logo" aria-hidden="true">{headhunterInitials(view.displayName)}</div>
       <div className="hh-id">
         <p className="hh-kind">{HEADHUNTER_KIND_LABEL[view.kind]}{view.city ? ` · ${view.city}` : ''}</p>
-        <h1 id="hh-name">{view.displayName}</h1>
+        <Heading id="hh-name">{view.displayName}</Heading>
         {view.tagline && <p className="hh-tagline">{view.tagline}</p>}
       </div>
       <dl className="hh-stats">
@@ -43,7 +48,7 @@ export function HeadhunterHero({ view, openCount, publishedCount }: { view: Mini
       </dl>
     </div>
     {paragraphs.map((text, index) => <p className="hh-about" key={index}>{text}</p>)}
-    <HeadhunterContact links={view.contact} />
+    <HeadhunterContact links={view.contact} {...(preview ? {} : { handle: view.handle })} />
   </section>;
 }
 

@@ -1,15 +1,16 @@
 import { cache } from 'react';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
+import { StructuredData } from '@/components/discovery/structured-data';
 import { Breadcrumbs } from '@/components/discovery/breadcrumbs';
 import { Pagination } from '@/components/discovery/pagination';
 import { ProjectCardList } from '@/components/discovery/project-cards';
 import { PublicHeader } from '@/components/discovery/public-content';
 import { HeadhunterClosedList, HeadhunterHero } from '@/components/headhunter-minisite';
-import { getHeadhunterByHandle, getHeadhunterConfig, isAccountActive } from '@/lib/db/headhunters';
-import { getHeadhunterProjects } from '@/lib/db/projects';
 import { HEADHUNTER_CLOSED_HEADING, HEADHUNTER_EMPTY_OPEN, HEADHUNTER_OPEN_HEADING, HEADHUNTER_PAGE_NOTE, openProjectsCountLine } from '@/lib/headhunters/presentation';
-import { minisiteMetadata, minisitePagePath, resolveMinisite, type MinisiteDeps } from '@/lib/headhunters/minisite';
+import { minisiteMetadata, minisitePagePath, resolveMinisite } from '@/lib/headhunters/minisite';
+import { minisiteStructuredData } from '@/lib/headhunters/seo';
+import { minisiteDeps as deps } from '@/lib/headhunters/server-deps';
 import { minisitePath } from '@/lib/headhunters/urls';
 import { indexableSkills } from '@/lib/seo/skills';
 import { noIndex } from '@/lib/seo/site';
@@ -18,13 +19,6 @@ import { noIndex } from '@/lib/seo/site';
 // two namespaces apart. Every outcome (redirect, 404, page, metadata) comes from resolveMinisite, so they cannot disagree.
 export const dynamic = 'force-dynamic';
 type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
-
-const deps: MinisiteDeps = {
-  enabled: async () => (await getHeadhunterConfig()).enabled,
-  lookup: getHeadhunterByHandle,
-  accountActive: isAccountActive,
-  projects: getHeadhunterProjects,
-};
 
 // One resolution per request, shared by generateMetadata and the page. A repeated ?page parameter is never a valid page.
 const resolve = cache((handle: string, page: string | undefined) => resolveMinisite(handle, page, deps));
@@ -46,10 +40,12 @@ export default async function HeadhunterPage({ params, searchParams }: Props) {
 
   const { view, projects, page, totalPages } = result;
   const skills = indexableSkills();
+  const structured = minisiteStructuredData(result);
   const trail = [{ name: 'דף הבית', path: '/' }, { name: view.displayName, path: minisitePath(view.handle) }];
   return <>
     <PublicHeader />
     <main className="discovery-content hh-site">
+      {structured && <StructuredData data={structured} />}
       <Breadcrumbs items={trail} structured={false} />
       <HeadhunterHero view={view} openCount={projects.openCount} publishedCount={projects.publishedCount} />
 

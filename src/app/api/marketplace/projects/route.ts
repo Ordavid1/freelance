@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { applyProjectCreated, invalidateAfterCounter, readHeadhunterForCounter, type CounterOutcome } from '@/lib/db/headhunters';
+import { liveMinisiteHandle } from '@/lib/headhunters/pings';
 import { listFeedProjects, toPublicProject } from '@/lib/db/projects';
 import { onProjectClosed, onProjectPublished, type ProjectEventRecord } from '@/lib/projects/events';
 import { validateImportProvenance, validateProjectInput } from '@/lib/projects/validation';
@@ -60,14 +61,16 @@ export async function POST(request: Request) {
     // One transaction: the project and, when the owner is a headhunter, the published-project counter.
     const db = firestore();
     let counter: CounterOutcome | null = null;
+    let minisite: string | null = null;
     await db.runTransaction(async (transaction) => {
       counter = null;
       const headhunter = await readHeadhunterForCounter(transaction, user.uid);
+      minisite = liveMinisiteHandle(headhunter);
       transaction.create(db.collection('projects').doc(slug), record);
       counter = applyProjectCreated(transaction, headhunter, record);
     });
     invalidateAfterCounter(counter);
-    onProjectPublished(slug, record);
+    onProjectPublished(slug, record, { minisiteHandle: minisite });
     return NextResponse.json({ project: toPublicProject(slug, record), ok: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });
@@ -93,13 +96,16 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
     const projectRef = db.collection('projects').doc(slug);
     const profileRef = db.collection('profiles').doc(user.uid);
     let counter: CounterOutcome | null = null;
+    let minisite: string | null = null;
     const outcome = await db.runTransaction(async (transaction): Promise<ImportOutcome> => {
       counter = null;
+      minisite = null;
       const existing = await transaction.get(db.collection('projects').where('ownerUid', '==', user.uid).where('importSource.key', '==', key).limit(1));
       if (!existing.empty) return { rejected: { status: 409, body: { code: 'ALREADY_IMPORTED', error: 'הפרויקט הזה כבר יובא לחשבון שלך.', slug: existing.docs[0].id } } };
       const profile = await transaction.get(profileRef);
       // Read with the other reads: Firestore transactions read before they write.
       const headhunter = await readHeadhunterForCounter(transaction, user.uid);
+      minisite = liveMinisiteHandle(headhunter);
       const storedName = profile.exists ? profile.get('name') : '';
       const profileName = typeof storedName === 'string' ? storedName.trim() : '';
       const sourceName = provenance.publisherNameOnSource || '';
@@ -129,7 +135,7 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
     });
     if ('rejected' in outcome) return NextResponse.json(outcome.rejected.body, { status: outcome.rejected.status });
     invalidateAfterCounter(counter);
-    onProjectPublished(slug, outcome.record);
+    onProjectPublished(slug, outcome.record, { minisiteHandle: minisite });
     return NextResponse.json({ project: toPublicProject(slug, outcome.record), ok: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });
@@ -148,19 +154,23 @@ export async function PATCH(request: Request) {
     const ref = firestore().collection('projects').doc(body.slug);
     // The project as it was when this request closed it (not set when it was already closed).
     let closing: ProjectEventRecord | undefined;
+    let minisite: string | null = null;
     const result = await firestore().runTransaction(async transaction => {
       closing = undefined;
+      minisite = null;
       const project = await transaction.get(ref);
       if (!project.exists || project.get('ownerUid') !== user.uid) return 'NOT_FOUND';
       if (project.get('status') === 'closed') return 'CLOSED';
       if (project.get('status') !== 'open') return 'UNAVAILABLE';
+      // One more document read, only for a project that is actually closing: the owner's minisite lists it.
+      minisite = liveMinisiteHandle(await readHeadhunterForCounter(transaction, user.uid));
       transaction.update(ref, { status: 'closed', updatedAt: FieldValue.serverTimestamp() });
       closing = project.data();
       return 'CLOSED';
     });
     if (result === 'NOT_FOUND') return NextResponse.json({ error: 'הפרויקט לא נמצא.' }, { status: 404 });
     if (result === 'UNAVAILABLE') return NextResponse.json({ error: 'אי אפשר לסגור את הפרויקט במצבו הנוכחי.' }, { status: 409 });
-    if (closing) onProjectClosed(body.slug, closing);
+    if (closing) onProjectClosed(body.slug, closing, { minisiteHandle: minisite });
     return NextResponse.json({ ok: true, status: 'closed' });
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לסגור את הפרויקט.' }, { status: 503 });

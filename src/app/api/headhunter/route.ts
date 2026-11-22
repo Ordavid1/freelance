@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { applyAsHeadhunter, getHeadhunter, headhunterGate, invalidateHeadhunterCache, isAccountActive, updateHeadhunter } from '@/lib/db/headhunters';
+import { announceMinisites } from '@/lib/headhunters/indexnow';
 import { validateHandle } from '@/lib/headhunters/handle';
 import { HEADHUNTER_MIN_PROJECTS } from '@/lib/headhunters/constants';
 import { HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
@@ -92,6 +93,8 @@ export async function PATCH(request: Request) {
     }
     // Contact, tagline and the rest are public on an approved page, so any edit expires the cached page.
     invalidateHeadhunterCache(result.handle);
+    // A live page changed (or just left review): tell search engines. Drafts and pending records have no public page.
+    if (result.status === 'approved' || result.statusChanged) announceMinisites([result.handle]);
     return NextResponse.json({ ok: true, status: result.status }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });

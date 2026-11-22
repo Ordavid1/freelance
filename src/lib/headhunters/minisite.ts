@@ -2,7 +2,7 @@
 // with stubbed dependencies). The page and its metadata both go through `resolveMinisite`, so they cannot disagree.
 import type { Metadata } from 'next';
 import type { Project } from '../data.ts';
-import { noIndex, pageMetadata, SITE_NAME } from '../seo/site.ts';
+import { absoluteUrl, noIndex, pageMetadata, SITE_NAME } from '../seo/site.ts';
 import { parsePageParam } from '../seo/pagination.ts';
 import { HEADHUNTER_PAGE_SIZE } from './constants.ts';
 import { isHandleFormat } from './handle.ts';
@@ -91,8 +91,9 @@ export async function resolveMinisite(rawHandle: string, rawPage: string | reado
 }
 
 /**
- * Title, description and robots of a resolved minisite, from `resolveHeadhunterShare` (the same resolver the share image
- * will use). Page 1 is canonical at `/{handle}` and indexable when the page has open projects; a later page is noindex
+ * Title, description and robots of a resolved minisite. The social tags (og, twitter) take the title, description and image
+ * of `resolveHeadhunterShare`, the same resolver the share image route uses; canonical, hreflang and robots stay on the
+ * shared `pageMetadata` path. Page 1 is canonical at `/{handle}` and indexable when the page has open projects; a later page is noindex
  * (proxy.ts marks every `?page=` URL outside /projects noindex too).
  */
 export function minisiteMetadata(result: MinisiteResult): Metadata {
@@ -100,5 +101,9 @@ export function minisiteMetadata(result: MinisiteResult): Metadata {
   const { view, projects, page } = result;
   const share = resolveHeadhunterShare({ displayName: view.displayName, handle: view.handle, tagline: view.tagline, openProjects: projects.openCount, share: view.share }, SITE_NAME);
   const suffix = page > 1 ? ` · עמוד ${page}` : '';
-  return pageMetadata(`${share.title}${suffix}`, share.description, minisitePagePath(view.handle, page), result.state.indexable && page === 1, { absoluteTitle: true });
+  const image = share.image.kind === 'custom' ? share.image.url : absoluteUrl(share.image.path);
+  return pageMetadata(`${share.title}${suffix}`, share.description, minisitePagePath(view.handle, page), result.state.indexable && page === 1, {
+    absoluteTitle: true,
+    share: { title: share.title, description: share.description, image },
+  });
 }

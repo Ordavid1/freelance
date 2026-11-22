@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { checkHandleAvailability, headhunterGate, invalidateHeadhunterCache, renameHandle } from '@/lib/db/headhunters';
+import { announceMinisites } from '@/lib/headhunters/indexnow';
 import { validateHandle } from '@/lib/headhunters/handle';
 import { handleCooldownError, HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
 import { accountWriteDenied } from '@/lib/security/marketplace-policy';
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     // Both URLs change: the new one starts resolving, the old one redirects.
     invalidateHeadhunterCache(result.handle);
     invalidateHeadhunterCache(result.previous);
+    announceMinisites([result.handle, result.previous]);
     return NextResponse.json({ ok: true, handle: result.handle, status: result.status }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });

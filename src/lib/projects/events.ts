@@ -11,6 +11,7 @@
 import 'server-only';
 import { revalidateTag } from 'next/cache';
 import { after } from 'next/server';
+import { minisitePingUrls } from '@/lib/headhunters/pings';
 import { categoryForProject } from '@/lib/seo/categories';
 import { submitIndexNow } from '@/lib/seo/indexnow';
 import { isDiscoverableProject } from '@/lib/seo/publication';
@@ -46,14 +47,19 @@ export function invalidateProjectCache(slug: string): void {
   }
 }
 
+// `minisiteHandle`: the owner's minisite handle when the owner is a live headhunter (the caller already holds the record,
+// so no extra read happens here). The minisite lists the project, so its URL changes with it.
+export type ProjectEventOptions = { minisiteHandle?: string | null };
+
 // Absolute URLs whose content changes with this project.
-export function projectEventUrls(slug: string, record: ProjectEventRecord): string[] {
+export function projectEventUrls(slug: string, record: ProjectEventRecord, options: ProjectEventOptions = {}): string[] {
   if (!isSlug(slug)) return [];
   const urls = [absoluteUrl(`/projects/${encodeURIComponent(slug)}`)];
   const skills = Array.isArray(record.skills) ? record.skills.filter((skill): skill is string => typeof skill === 'string') : [];
   const category = categoryForProject({ category: typeof record.category === 'string' ? record.category : '', skills });
   if (category && pageByPath(`/categories/${category.slug}`)) urls.push(absoluteUrl(`/categories/${category.slug}`));
   for (const path of HUB_PATHS) if (pageByPath(path)) urls.push(absoluteUrl(path));
+  urls.push(...minisitePingUrls([options.minisiteHandle]));
   return urls;
 }
 
@@ -62,18 +68,18 @@ function afterResponse(task: () => Promise<unknown>) {
   try { after(task); } catch { /* not inside a request */ }
 }
 
-function announce(slug: string, record: ProjectEventRecord) {
+function announce(slug: string, record: ProjectEventRecord, options: ProjectEventOptions) {
   try {
     invalidateProjectCache(slug);
     if (!isDiscoverableProject(record)) return;
-    const urls = projectEventUrls(slug, record);
+    const urls = projectEventUrls(slug, record, options);
     if (urls.length > 0) afterResponse(() => submitIndexNow(urls));
   } catch (error) {
     warn('Project event failed', error);
   }
 }
 
-export const onProjectPublished = (slug: string, record: ProjectEventRecord = {}) => announce(slug, record);
-export const onProjectChanged = (slug: string, record: ProjectEventRecord = {}) => announce(slug, record);
-export const onProjectClosed = (slug: string, record: ProjectEventRecord = {}) => announce(slug, record);
-export const onProjectDeleted = (slug: string, record: ProjectEventRecord = {}) => announce(slug, record);
+export const onProjectPublished = (slug: string, record: ProjectEventRecord = {}, options: ProjectEventOptions = {}) => announce(slug, record, options);
+export const onProjectChanged = (slug: string, record: ProjectEventRecord = {}, options: ProjectEventOptions = {}) => announce(slug, record, options);
+export const onProjectClosed = (slug: string, record: ProjectEventRecord = {}, options: ProjectEventOptions = {}) => announce(slug, record, options);
+export const onProjectDeleted = (slug: string, record: ProjectEventRecord = {}, options: ProjectEventOptions = {}) => announce(slug, record, options);

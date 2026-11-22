@@ -7,6 +7,7 @@
 // Dry run by default: a decision is checked and described, and only --commit writes. A commit needs --actor (who
 // decided); it is recorded as `script:<name>` in the same `securityAuditEvents` entry the moderation API writes,
 // because both run the same store code (src/lib/headhunters/store.ts). The public caches expire within 60 seconds.
+import { MAILED_ACTIONS } from '../../src/lib/headhunters/mail.ts';
 import { isEligible } from '../../src/lib/headhunters/counting.ts';
 import { HEADHUNTERS_COLLECTION, HEADHUNTER_STATUSES } from '../../src/lib/headhunters/constants.ts';
 import { MODERATION_ACTIONS, nextStatus, parseDecision } from '../../src/lib/headhunters/moderation.ts';
@@ -55,6 +56,8 @@ async function main() {
   const result = await decideHeadhunter(db, { ...decision.value, actor: `script:${actor}`, via: 'script' });
   if (!result.ok) fail(`Not applied: ${result.code}.`, 1);
   console.log(`Done: ${result.from} -> ${result.to}. Audit entry written.`);
+  // The script runs outside Next.js: the decision email is sent by the moderation API only (src/lib/headhunters/events.ts).
+  if (MAILED_ACTIONS.includes(decision.value.action)) console.log('No email was sent from this script. Tell the owner yourself, or decide through POST /api/moderation/headhunters, which emails them.');
 }
 
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
