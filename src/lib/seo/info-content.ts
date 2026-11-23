@@ -1,5 +1,6 @@
 // Page content for the informational pages (/pricing, /about, /how-it-works, /faq). Every statement about
 // price, trial or billing is built from MembershipFacts (facts.ts), never typed by hand.
+import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
 import { categories } from './categories';
 import { contactFacts, membershipAnswer, type MembershipFacts } from './facts';
 import type { GuideSection, Question } from './types';
@@ -154,7 +155,7 @@ export function pricingContent(facts: MembershipFacts): InfoContent {
       { question: 'האם החברות היא תשלום עבור עבודה או התחייבות לקבלת עבודה?', answer: membershipIsNotAnswer },
       { question: 'האם Freelance Place מחזיק כספים או מגן על תשלום בין לקוח לפרילנסר?', answer: noEscrowAnswer },
     ],
-    related: ['/how-it-works', '/faq', '/terms', '/alternatives/xplace'],
+    related: ['/how-it-works', '/faq', '/terms', '/alternatives/xplace', HEADHUNTER_EDITOR_PATH],
     disclaimer: 'העמוד מסכם את תנאי החברות והתשלום שבתנאי השימוש ואינו מחליף אותם. אם יש הבדל, הנוסח המחייב הוא של תנאי השימוש.',
   };
 }

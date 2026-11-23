@@ -12,7 +12,7 @@ export type FooterGroup = { id: string; title: string; links: FooterLink[] };
 const SHORT_LABELS: Record<string, string> = {
   '/': 'דף הבית', '/alternatives/xplace': 'אלטרנטיבה ל־XPlace.com', '/privacy': 'מדיניות פרטיות', '/terms': 'תנאי שימוש',
   '/how-it-works': 'איך זה עובד', '/pricing': 'מחיר וחברות', '/faq': 'שאלות נפוצות', '/about': 'אודות', '/glossary': 'מילון מונחים',
-  '/guides': 'כל המדריכים', '/skills': 'כל הכישורים', '/projects': 'כל הפרויקטים',
+  '/guides': 'כל המדריכים', '/skills': 'כל הכישורים', '/projects': 'כל הפרויקטים', '/profile/headhunter': 'לסוכנויות גיוס',
 };
 const MAX_SKILLS = 8;
 const MAX_GUIDES = 6;

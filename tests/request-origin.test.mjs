@@ -20,7 +20,7 @@ function load(path, env, stubs) {
 }
 const env = { NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://freelance-place.com' };
 function session(config = env) {
-  return load('src/lib/auth/session.ts', config, { 'server-only': {}, 'next/headers': {}, './firebase-admin': {} });
+  return load('src/lib/auth/session.ts', config, { 'server-only': {}, 'next/headers': {}, './firebase-admin': {}, './session-cookie': { SESSION_COOKIE: 'fz_session' } });
 }
 const { isSameOrigin } = session();
 const backend = 'http://localhost:8080/api/integrations/nango/session';

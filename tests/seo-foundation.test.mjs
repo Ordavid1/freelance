@@ -243,7 +243,7 @@ test('registry resolves related paths of guides and skills, and only complete sk
 test('sitemap lastModified comes only from declared page dates', async () => {
   const route = loadModule('src/app/sitemap.ts', {
     env: { SITE_INDEXABLE: 'true' },
-    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [] } },
+    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [] } },
   });
   const entries = await route.default();
   const byUrl = new Map(entries.map((entry) => [entry.url, entry]));
@@ -257,7 +257,7 @@ test('sitemap lastModified comes only from declared page dates', async () => {
 
   const withProjects = loadModule('src/app/sitemap.ts', {
     env: { SITE_INDEXABLE: 'true' },
-    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-one', updatedAt: '2026-11-09' }] } },
+    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-one', updatedAt: '2026-11-09' }] } },
   });
   const listed = await withProjects.default();
   const listedUrls = new Set(listed.map((entry) => entry.url));

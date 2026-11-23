@@ -47,6 +47,8 @@ export type WebPageInput = {
   keywords?: readonly string[];
   // The public pages a comparison relies on: one URL, or several.
   citation?: string | readonly string[];
+  // The @id of the node this page is about, when it is not the organization (for example the service a landing page describes).
+  mainEntity?: string;
 };
 export function webPageNode(input: WebPageInput): JsonLdNode {
   const url = absoluteUrl(input.path);
@@ -55,7 +57,7 @@ export function webPageNode(input: WebPageInput): JsonLdNode {
     '@type': input.type ?? 'WebPage', '@id': `${url}#page`, url, name: input.name, description: input.description,
     inLanguage: LANGUAGE, isPartOf: { '@id': WEBSITE_ID }, publisher: { '@id': ORGANIZATION_ID },
     // An about page is about the organization that operates the site (its node is in the site graph).
-    ...(input.type === 'AboutPage' ? { mainEntity: { '@id': ORGANIZATION_ID } } : {}),
+    ...(input.type === 'AboutPage' ? { mainEntity: { '@id': ORGANIZATION_ID } } : input.mainEntity ? { mainEntity: { '@id': input.mainEntity } } : {}),
     ...(input.published ? { datePublished: input.published } : {}),
     ...(input.modified ? { dateModified: input.modified } : {}),
     ...(input.keywords?.length ? { keywords: input.keywords.join(', ') } : {}),
@@ -111,6 +113,21 @@ export function breadcrumbNode(items: { name: string; path: string }[]): JsonLdN
 
 export function faqNode(items: readonly Question[]): JsonLdNode {
   return { '@type': 'FAQPage', mainEntity: items.map(({ question, answer }) => ({ '@type': 'Question', name: question, acceptedAnswer: { '@type': 'Answer', text: answer } })) };
+}
+
+// The free agency page (/profile/headhunter for signed-out visitors): one Service the page is about, offered at no charge. The
+// page describes a feature of this site only, so no third-party agency, rating or review is ever part of this node.
+export type AgencyServiceInput = { path: string; name: string; serviceType: string; audience: string; description: string };
+export function agencyServiceId(path: string) {
+  return `${absoluteUrl(path)}#service`;
+}
+export function agencyServiceNode(input: AgencyServiceInput): JsonLdNode {
+  return {
+    '@type': 'Service', '@id': agencyServiceId(input.path), name: input.name, serviceType: input.serviceType, url: absoluteUrl(input.path),
+    description: input.description, provider: { '@id': ORGANIZATION_ID }, areaServed: AREA_SERVED,
+    audience: { '@type': 'Audience', audienceType: input.audience },
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'ILS', url: absoluteUrl(input.path) },
+  };
 }
 
 // The paid membership is described in structured data only while it can actually be bought.

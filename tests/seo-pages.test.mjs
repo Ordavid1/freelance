@@ -526,7 +526,7 @@ test('every guide in the repository renders through the guide route with the sam
 
 // ---- integration ----
 test('the sitemap and the footer pick the new pages up from the registry', async () => {
-  const sitemap = loadModule('src/app/sitemap.ts', { env: baseEnv, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [] } } });
+  const sitemap = loadModule('src/app/sitemap.ts', { env: baseEnv, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [] } } });
   const byUrl = new Map((await sitemap.default()).map((entry) => [entry.url, entry]));
   const footer = loadModule('src/components/site-footer.tsx', { env: baseEnv, stubs: uiStubs });
   const product = footer.footerGroups().find((group) => group.id === 'product');

@@ -18,6 +18,14 @@ function toDate(value: unknown): Date | undefined {
 }
 
 /**
+ * Whether the agency-page landing (the registry page at HEADHUNTER_EDITOR_PATH) is being served: it answers 404 while the headhunter
+ * feature switch is off, so the sitemap lists it only while the switch is on. Fails closed like `indexableHeadhunterPages()`.
+ */
+export async function headhunterLandingServed(): Promise<boolean> {
+  return (await getHeadhunterConfig()).enabled;
+}
+
+/**
  * The minisites search engines and AI crawlers may list (sitemap, llms-full): approved, eligible, account active and at
  * least one open project, through `headhunterPublicState(...).indexable`. Page 1 only: later `?page=n` pages are served
  * noindex, so they are never listed. `lastModified` is the newest open project change or the record's own update.

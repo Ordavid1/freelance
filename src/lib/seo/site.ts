@@ -8,7 +8,11 @@ if (configuredOrigin.protocol !== 'https:' || configuredOrigin.username || confi
 export const SITE_URL = configuredOrigin.origin;
 export const SITE_DESCRIPTION = 'Freelance Place — פרויקטים לפרילנסרים ופרסום פרויקטים לעסקים בישראל. מרחב עבודה בעברית, פרופיל מקצועי והצעות מחיר. הכירו אלטרנטיבה ל־XPlace.com.';
 export const privatePaths = ['/signin', '/messages', '/membership', '/profile', '/projects/new'];
-export function isPrivatePath(path: string) {
+// Exact URLs inside a private prefix that are public on purpose: a signed-out visitor (a crawler included) gets an indexable page,
+// and the same URL answers a signed-in session with the private editor. Only a request that carries a session cookie is private there.
+export const signedOutPublicPaths: readonly string[] = ['/profile/headhunter'];
+export function isPrivatePath(path: string, hasSession = false) {
+  if (signedOutPublicPaths.includes(path)) return hasSession;
   return privatePaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || path === '/api' || path.startsWith('/api/');
 }
 export function indexingEnabled() {

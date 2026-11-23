@@ -50,20 +50,41 @@ test('page: 404 while the feature switch is off or unreadable, even when signed 
   await assert.rejects(loadPage({ configFails: true }).page.default(), NOT_FOUND);
 });
 
-test('page: signed-out visitors are sent to sign in and come back to this page', async () => {
-  const { page, redirects } = loadPage({ user: null });
-  await assert.rejects(page.default(), { digest: 'NEXT_REDIRECT' });
-  assert.deepEqual(redirects, ['/signin?next=%2Fprofile%2Fheadhunter']);
+test('page: signed-out visitors and crawlers get the public landing at the same URL, with no redirect and no database read of a record', async () => {
+  // readFails would break the editor flow: the landing needs only the feature switch, never a record.
+  const { page, redirects } = loadPage({ user: null, readFails: true });
+  const out = renderToStaticMarkup(await page.default());
+  assert.deepEqual(redirects, []);
+  assert.match(out, /<h1[^>]*>עמוד חינם לסוכנויות גיוס ולמגייסים עצמאיים<\/h1>/);
+  assert.doesNotMatch(out, /<form/, 'the apply form belongs to the signed-in editor');
+  assert.doesNotMatch(out, /עמוד הסוכנות שלי/, 'the editor title is not shown to visitors');
+  // Signing in brings the visitor back to this URL, where the signed-in session finds the apply form.
+  assert.match(out, /href="\/signin\?next=%2Fprofile%2Fheadhunter"/);
   const { safeNextPath } = loadModule('src/lib/auth/safe-next.ts');
   assert.equal(safeNextPath('/profile/headhunter'), '/profile/headhunter');
   assert.equal(safeNextPath('/profile/headhunter?x=1'), '/', 'only the exact path is allowed');
 });
 
-test('page: noindex metadata, and the path is private', async () => {
+test('page: a signed-in session still gets the private editor at the same URL', async () => {
+  const out = await html();
+  assert.match(out, /<h1>עמוד הסוכנות שלי<\/h1>/);
+  assert.match(out, /<form/);
+  assert.doesNotMatch(out, /עמוד חינם לסוכנויות גיוס ולמגייסים עצמאיים/, 'the public landing is not the signed-in view');
+});
+
+test('page: the metadata is the landing\'s own and static, and only a request that carries a session is private', async () => {
   const { page } = loadPage();
-  assert.equal(page.metadata.robots.index, false);
+  // Static `metadata` (not generateMetadata) keeps title, description and canonical in the first bytes of <head> for crawlers.
+  assert.equal(page.generateMetadata, undefined);
+  assert.equal(page.metadata.robots.index, true);
+  assert.equal(page.metadata.robots.follow, true);
+  assert.equal(page.metadata.alternates.canonical, `${SITE}/profile/headhunter`);
+  assert.match(page.metadata.title, /עמוד חינם לסוכנויות גיוס/);
   const site = loadModule('src/lib/seo/site.ts', { env });
-  assert.equal(site.isPrivatePath('/profile/headhunter'), true);
+  // The proxy sends noindex for the signed-in view (the request carries the session cookie); crawlers send none.
+  assert.equal(site.isPrivatePath('/profile/headhunter'), false);
+  assert.equal(site.isPrivatePath('/profile/headhunter', true), true);
+  for (const path of ['/profile/headhunter/x', '/profile/import', '/profile', '/messages']) assert.equal(site.isPrivatePath(path), true, path);
 });
 
 // ---------------------------------------------------------------------------------------------

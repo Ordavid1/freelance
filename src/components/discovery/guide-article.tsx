@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { formatHebrewDate } from '@/lib/seo/dates';
 import type { InfoContent } from '@/lib/seo/info-content';
 import { pageByPath } from '@/lib/seo/registry';
@@ -89,9 +89,10 @@ function SectionView({ section }: { section: GuideSection }) {
   </section>;
 }
 
-// The shared section renderer: guides and information pages both use it.
-export function GuideSections({ sections }: { sections: readonly GuideSection[] }) {
-  return <>{sections.map((section) => <SectionView key={section.id} section={section} />)}</>;
+// The shared section renderer: guides and information pages both use it. `after` places a page-specific block right after the
+// section with that id (for example an illustration under the section that describes it).
+export function GuideSections({ sections, after }: { sections: readonly GuideSection[]; after?: Readonly<Record<string, ReactNode>> }) {
+  return <>{sections.map((section) => <Fragment key={section.id}><SectionView section={section} />{after?.[section.id]}</Fragment>)}</>;
 }
 
 export function ArticleActions({ items }: { items: readonly ArticleAction[] }) {
@@ -147,10 +148,12 @@ export type ArticleModel = {
   sources?: readonly Source[];
   disclaimer?: string;
   actions?: readonly ArticleAction[];
+  afterHeader?: ReactNode;            // page-specific block between the header (title, summary, byline) and the contents
+  afterSection?: Readonly<Record<string, ReactNode>>; // page-specific blocks, each right after the section with that id
   afterSections?: ReactNode;          // page-specific block between the sections and the FAQ
 };
 
-export function ArticleView({ path, title, summary, modified, sections, faq, related, sources, disclaimer, actions, afterSections }: ArticleModel) {
+export function ArticleView({ path, title, summary, modified, sections, faq, related, sources, disclaimer, actions, afterHeader, afterSection, afterSections }: ArticleModel) {
   const contents = [
     ...sections.map((section) => ({ id: section.id, label: section.heading })),
     ...(faq.length ? [{ id: FAQ_ANCHOR, label: articleLabels.faq }] : []),
@@ -158,8 +161,9 @@ export function ArticleView({ path, title, summary, modified, sections, faq, rel
   ];
   return <article className="ga-article">
     <ArticleHeader title={title} summary={summary} modified={modified} />
+    {afterHeader}
     <PageContents items={contents} />
-    <GuideSections sections={sections} />
+    <GuideSections sections={sections} after={afterSection} />
     {afterSections}
     {faq.length ? <Questions items={faq} /> : null}
     {actions?.length ? <ArticleActions items={actions} /> : null}
@@ -173,6 +177,6 @@ export function GuideArticle({ guide }: { guide: Guide }) {
   return <ArticleView path={`/guides/${guide.slug}`} title={guide.title} summary={guide.summary} modified={guide.modified} sections={guide.sections} faq={guide.faq} related={guide.related} sources={guide.sources} disclaimer={guide.disclaimer} actions={audienceActions[guide.audience]} />;
 }
 
-export function InfoArticle({ content, path, modified, actions, afterSections }: { content: InfoContent; path: string; modified?: string; actions?: readonly ArticleAction[]; afterSections?: ReactNode }) {
-  return <ArticleView path={path} title={content.h1} summary={content.summary} modified={modified} sections={content.sections} faq={content.faq} related={content.related} disclaimer={content.disclaimer} actions={actions} afterSections={afterSections} />;
+export function InfoArticle({ content, path, modified, actions, afterHeader, afterSection, afterSections }: { content: InfoContent; path: string; modified?: string; actions?: readonly ArticleAction[]; afterHeader?: ReactNode; afterSection?: Readonly<Record<string, ReactNode>>; afterSections?: ReactNode }) {
+  return <ArticleView path={path} title={content.h1} summary={content.summary} modified={modified} sections={content.sections} faq={content.faq} related={content.related} disclaimer={content.disclaimer} actions={actions} afterHeader={afterHeader} afterSection={afterSection} afterSections={afterSections} />;
 }
