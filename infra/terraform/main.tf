@@ -1,6 +1,6 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com", "cloudkms.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
@@ -447,6 +447,10 @@ resource "google_cloud_run_v2_service" "engine" {
         value = tostring(var.billing_enabled)
       }
       env {
+        name  = "BILLING_TOKEN_KMS_KEY"
+        value = google_kms_crypto_key.cardcom_tokens.id
+      }
+      env {
         name  = "SUPPORT_INBOX_EMAIL"
         value = var.support_inbox_email
       }
@@ -534,7 +538,7 @@ resource "google_cloud_run_v2_service" "engine" {
     }
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom, google_secret_manager_secret_iam_member.runtime_resend, google_secret_manager_secret_iam_member.runtime_slack]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom, google_secret_manager_secret_iam_member.runtime_resend, google_secret_manager_secret_iam_member.runtime_slack, google_kms_crypto_key_iam_member.runtime_cardcom_tokens]
 }
 resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
   count    = var.engine_image == null ? 0 : 1

@@ -128,3 +128,25 @@ Production access verification via GitHub completed successfully as a diagnostic
 The membership page shows the saved card (suffix and expiry), status, next charge, recent paid payments and actions. **Replace card** (`POST /api/billing/card`) opens a hosted `CreateTokenOnly` J5 form for an active or trialing subscription. The current token stays on the subscription and keeps renewing until `GetLpResult` verifies the new card; only then is the token/expiry/suffix swapped atomically. Abandoned or declined forms leave the saved card untouched, a pending form is reused for 20 minutes, replacement is refused while a renewal is in flight, and a verified card arriving after cancellation is discarded. There is never a moment without a saved card while renewal is on.
 
 Paid orders now store Cardcom's issued `DocumentType` with the document number. `GET /api/billing/invoice?order=` mints a fresh link through `Documents/CreateDocumentUrl` for the signed-in owner's own paid order and redirects to it (Cardcom hosts only; links are never stored). Orders without a known document type show "sent by email" instead of guessing a type, so a document number can never resolve to another customer's document.
+
+## Card token vault (Cloud KMS)
+
+Cardcom tokens (and with them the power to charge a card) are sealed with Cloud KMS before they are written to `billingSubscriptions/{uid}`, so a Firestore export or a Firestore-only credential yields ciphertext. Code: `src/lib/billing/token-vault.ts`.
+
+- **Stored field:** `tokenSealed: { v: 1, key: "<cryptoKeyVersion resource name from the encrypt response>", ct: "<base64 ciphertext>" }`, with `token: null`. The key is bound to the owner by AAD `freelance-billing-token:v1:<uid>:<terminal>`, so a ciphertext copied to another document or terminal does not open. Requests carry CRC32C checksums and responses are verified.
+- **Env `BILLING_TOKEN_KMS_KEY`** (full `projects/…/cryptoKeys/cardcom-tokens` resource name). Not set: tokens are still written as plaintext `token` and one `billing_token_unencrypted` warning is logged per instance, so the code is safe to deploy before Terraform is applied. Set: only `tokenSealed` is written. A KMS failure (or a malformed key name) returns `TOKEN_VAULT_UNAVAILABLE` (503) and never falls back to plaintext. A checkout or card update that hits this stays `pending` and is retried by the callback/confirmation; a renewal fails before any gateway call.
+- **Dual read:** `tokenSealed` is read first, legacy `token` second; `hasStoredCard(sub)` replaces every token-existence check. A sealed token with the key unset fails closed. Cancellation nulls both fields.
+- **Logs** contain only the fixed events `billing_token_vault_error` (operation, HTTP status) and `billing_token_unencrypted`; never tokens, plaintext or ciphertext.
+
+Rollout (operator steps; nothing here is applied by code):
+
+1. Deploy the application image (safe with the key unset).
+2. Review and apply `infra/terraform/kms.tf` with the `main.tf` changes: enables `cloudkms.googleapis.com`, creates key ring `freelance-billing` and key `cardcom-tokens` (90-day rotation, `prevent_destroy`), grants `roles/cloudkms.cryptoKeyEncrypterDecrypter` to the runtime service account only, and sets `BILLING_TOKEN_KMS_KEY` on Cloud Run (new revision). Do not grant KMS use to agent or deployer identities.
+3. Dry run (reads Firestore, no KMS calls, writes nothing; prints counts only):
+   `npm run billing:seal-tokens -- --project freelance-514118`
+4. Commit (needs ADC with Firestore access and encrypt/decrypt on the key, and the same env var):
+   `BILLING_TOKEN_KMS_KEY=<key resource name> npm run billing:seal-tokens -- --project freelance-514118 --commit`
+   Each document is sealed, opened and compared before its plaintext is nulled, in its own transaction. Re-running is safe; a non-zero exit means some documents failed or changed concurrently and should be re-run.
+5. Verify: re-run the dry run and expect `plaintext: 0`; spot-check one subscription in the console shows `token: null` and a `tokenSealed` map; confirm a scheduler renewal (or a sandbox card update) succeeds and logs no `billing_token_vault_error`.
+
+Rollback: unset `BILLING_TOKEN_KMS_KEY` only before sealing; once documents are sealed, renewals need the key. Keep key versions enabled (disabling or destroying a version makes the tokens it sealed unreadable and cards would have to be re-entered).
