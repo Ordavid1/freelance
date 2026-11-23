@@ -1,7 +1,8 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { adminAuth } from './firebase-admin';
-import { SESSION_COOKIE } from './session-cookie';
+import { SESSION_COOKIE, pickSessionCookie } from './session-cookie';
+import { isSessionRevoked } from './session-revocation';
 
 export { SESSION_COOKIE };
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
@@ -32,12 +33,23 @@ export type AuthenticatedUser = {
   picture: string | null;
 };
 
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+/** The one place a request's session cookie is read: current name first, then the pre-`__Host-` name. */
+export async function readSessionCookie(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  const value = cookieStore.get(SESSION_COOKIE)?.value;
+  return pickSessionCookie((name) => cookieStore.get(name)?.value);
+}
+
+/** Verifies a session cookie (signature, expiry, refresh-token revocation) and the sign-out denylist. Throws when not valid. */
+export async function verifySession(cookie: string) {
+  if (await isSessionRevoked(cookie)) throw new Error('SESSION_REVOKED');
+  return adminAuth().verifySessionCookie(cookie, true);
+}
+
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  const value = await readSessionCookie();
   if (!value) return null;
   try {
-    const token = await adminAuth().verifySessionCookie(value, true);
+    const token = await verifySession(value);
     if (token.firebase?.sign_in_provider !== 'google.com') return null;
     return {
       uid: token.uid,

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SUPPORT_MAX_TEXT, type SupportMessage, type SupportSession } from '@/lib/support/shared';
 import { ChatIcon, SUPPORT_RETURN_KEY } from './support-chat';
 import styles from './support-chat.module.css';
+import { humanCheckHeaders } from '@/lib/security/human-token-client';
 
 type Props = { open: boolean; onClose: () => void; onUnread: (count: number) => void; contactEmail: string };
 type SendInput = { id: string; text: string; name: string; email: string; page: string; website: string };
@@ -142,7 +143,7 @@ export default function SupportChatPanel({ open, onClose, onUnread, contactEmail
     pendingInputs.current.set(input.id, input);
     setMessages((current) => current.some((message) => message.id === input.id) ? current.map((message) => message.id === input.id ? { ...message, delivery: 'pending' } : message) : [...current, { id: input.id, sender: 'visitor', text: input.text, createdAt: Date.now(), delivery: 'pending' }]);
     try {
-      const response = await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal: AbortSignal.timeout(25_000) });
+      const response = await fetch('/api/support', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await humanCheckHeaders('support_message')) }, body: JSON.stringify(input), signal: AbortSignal.timeout(25_000) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'לא הצלחנו לשלוח את ההודעה. נסו שוב.');
       setMessages((current) => current.map((message) => message.id === input.id ? data.message : message));

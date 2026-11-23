@@ -5,6 +5,7 @@ import { firestore } from '@/lib/db/firestore';
 import { mailbox, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
 import { digest, fetchReceivedEmail, receiveSupportReply, replyRoute, type ReceivedEmail } from '@/lib/support/service';
+import { senderAuthenticated } from '@/lib/support/sender-auth';
 import { recordInboundEmail } from '@/lib/support/conversations';
 import { kickSlackJobs } from '@/lib/support/slack/outbox';
 
@@ -16,11 +17,14 @@ import { kickSlackJobs } from '@/lib/support/slack/outbox';
  * - the same provider email id (and RFC Message-ID) is acknowledged at most once;
  * - machines are never answered: our own addresses, no-reply/daemon senders, bulk/list/auto-generated
  *   mail (RFC 3834 and common vendor headers), bounces/reports, and mail failing sender authentication;
- * - each sender has a rolling 24h cap and the whole site has an hourly cap;
+ * - mail is answered only when DKIM or SPF passed for a domain aligned with the From domain (a forged From is never answered);
+ * - the reply subject is fixed, never the inbound one, so a sender cannot put their own text in mail from our domain;
+ * - each sender has a rolling 24h cap and the whole site has an hourly cap (AUTOREPLY_PER_HOUR, default 50);
  * - the reply is itself marked `Auto-Submitted: auto-replied`, so other responders skip it.
  */
 export const AUTOREPLY_PER_SENDER_PER_DAY = 3;
-export const AUTOREPLY_PER_HOUR = 200;
+const configuredHourly = Number(process.env.AUTOREPLY_PER_HOUR);
+export const AUTOREPLY_PER_HOUR = Number.isInteger(configuredHourly) && configuredHourly > 0 ? configuredHourly : 50;
 const DAY_MS = 86_400_000;
 const CLAIM_STALE_MS = 5 * 60_000;
 
@@ -58,6 +62,7 @@ export function autoReplyDecision(config: SupportConfig, email: Pick<ReceivedEma
   if (/multipart\/report|delivery-status/i.test(header(headers, 'content-type') || '')) return { reply: false, reason: 'report' };
   if (/^\s*<?\s*>?\s*$/.test(header(headers, 'return-path') ?? 'x')) return { reply: false, reason: 'null-return-path' };
   if (/(?:spf|dkim|dmarc)=(?:fail|softfail|permerror)/i.test(header(headers, 'authentication-results') || '')) return { reply: false, reason: 'failed-authentication' };
+  if (!senderAuthenticated(headers, domain)) return { reply: false, reason: 'unauthenticated-sender' };
   if (AUTO_SUBJECT.test(email.subject || '')) return { reply: false, reason: 'auto-subject' };
   return { reply: true, to: sender };
 }
@@ -78,6 +83,7 @@ function firstName(from: string) {
 const COPY = {
   he: {
     dir: 'rtl' as const,
+    subject: 'קיבלנו את ההודעה שלך | Freelance Place',
     greeting: (name: string | null) => (name ? `היי ${name}!` : 'היי!'),
     lines: ['קיבלנו את ההודעה שלך, ואנחנו כבר על זה! 🎉', 'מישהו מהצוות שלנו יחזור אליך עם תשובה אישית בתוך דקות ספורות.', 'בינתיים, אפשר להמשיך לגלוש ב-Freelance Place ולגלות פרויקטים ופרילנסרים חדשים.'],
     signoff: 'מחכים לדבר איתך,\nצוות Freelance Place',
@@ -85,6 +91,7 @@ const COPY = {
   },
   en: {
     dir: 'ltr' as const,
+    subject: 'We received your message | Freelance Place',
     greeting: (name: string | null) => (name ? `Hi ${name}!` : 'Hi there!'),
     lines: ['Thanks for reaching out — your message just landed with us and we are on it! 🎉', 'A real person from our team will get back to you with a personal answer within a few minutes.', 'Meanwhile, feel free to keep exploring Freelance Place for new projects and freelancers.'],
     signoff: 'Talk soon,\nThe Freelance Place team',
@@ -92,14 +99,13 @@ const COPY = {
   },
 };
 
-export function buildAutoReply(language: AutoReplyLanguage, from: string, subject: string) {
+export function buildAutoReply(language: AutoReplyLanguage, from: string) {
   const copy = COPY[language];
   const greeting = copy.greeting(firstName(from));
-  const clean = subject.replace(/[\r\n\x00-\x1f]+/g, ' ').trim().slice(0, 200);
   const text = [greeting, '', ...copy.lines.flatMap((line) => [line, '']), copy.signoff, '', '--', copy.note].join('\n');
   const paragraphs = copy.lines.map((line) => `<p style="margin:0 0 14px">${escapeHtml(line)}</p>`).join('');
   const html = `<!doctype html><html dir="${copy.dir}" lang="${language}"><body style="margin:0;padding:24px;background:#f6f7fb"><div dir="${copy.dir}" style="max-width:560px;margin:0 auto;padding:28px;background:#fff;border-radius:14px;font:16px/1.6 Arial,Helvetica,sans-serif;color:#1d2433;text-align:${language === 'he' ? 'right' : 'left'}"><h1 style="margin:0 0 16px;font-size:22px">${escapeHtml(greeting)}</h1>${paragraphs}<p style="margin:18px 0 0;white-space:pre-line">${escapeHtml(copy.signoff)}</p><hr style="border:0;border-top:1px solid #e5e8f0;margin:22px 0 12px"><p style="margin:0;font-size:13px;color:#6b7385">${escapeHtml(copy.note)}</p></div></body></html>`;
-  return { subject: /^(?:re|השב|תשובה):/i.test(clean) ? clean : `Re: ${clean || (language === 'he' ? 'ההודעה שלך' : 'your message')}`, text, html };
+  return { subject: copy.subject, text, html };
 }
 
 type Claim = { ok: true } | { ok: false; reason: string };
@@ -165,7 +171,7 @@ export async function sendAutoReply(config: SupportConfig, emailId: string, emai
     return claimed.reason === 'duplicate' ? { duplicate: true } : { ignored: true, reason: claimed.reason };
   }
   const language = detectLanguage(email.subject, email.text, email.html && !email.text ? email.html.replace(/<[^>]*>/g, ' ') : null);
-  const content = buildAutoReply(language, email.from, email.subject || '');
+  const content = buildAutoReply(language, email.from);
   const references = [header(email.headers, 'references')?.trim(), messageId].filter(Boolean).join(' ').slice(-900);
   try {
     const result = await new Resend(config.apiKey).emails.send({

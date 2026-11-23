@@ -7,6 +7,7 @@ import { untrustedHtmlToText } from '@/lib/security/html-text';
 import { firestore } from '@/lib/db/firestore';
 import { mailbox, validEmail, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
+import { senderAuthenticated } from '@/lib/support/sender-auth';
 import { SUPPORT_MAX_TEXT, type SupportMessage } from '@/lib/support/shared';
 import { emailNotifyEnabled, supportSlackConfig } from '@/lib/support/slack/config';
 import { enqueueSlackJobs, kickSlackJobs } from '@/lib/support/slack/outbox';
@@ -138,6 +139,8 @@ export async function receiveSupportReply(config: SupportConfig, emailId: string
   const email = preloaded ?? await fetchReceivedEmail(config, emailId);
   const sender = mailbox(email.from);
   if (!sender || !config.allowedSenders.includes(sender)) return { ignored: true };
+  // The reply token is the main secret, but the From header is forgeable: an allowed sender must also have passed aligned DKIM or SPF.
+  if (!senderAuthenticated(email.headers, sender.split('@')[1] || '')) return { ignored: true };
   const headers = Object.fromEntries(Object.entries(email.headers || {}).map(([key, value]) => [key.toLowerCase(), value]));
   if ((headers['auto-submitted'] && headers['auto-submitted'].toLowerCase() !== 'no') || /auto_reply|bulk|list/i.test(headers.precedence || '') || headers['x-autoreply'] || headers['x-autorespond']) return { ignored: true };
   const routes = replyRoute(email.received_for?.length ? email.received_for : email.to, config.replyDomain);

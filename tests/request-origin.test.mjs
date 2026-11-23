@@ -18,9 +18,10 @@ function load(path, env, stubs) {
   } });
   return module.exports;
 }
+const cookieNames = loadModule('src/lib/auth/session-cookie.ts');
 const env = { NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://freelance-place.com' };
 function session(config = env) {
-  return load('src/lib/auth/session.ts', config, { 'server-only': {}, 'next/headers': {}, './firebase-admin': {}, './session-cookie': { SESSION_COOKIE: 'fz_session' } });
+  return load('src/lib/auth/session.ts', config, { 'server-only': {}, 'next/headers': {}, './firebase-admin': {}, './session-cookie': cookieNames, './session-revocation': { isSessionRevoked: async () => false } });
 }
 const { isSameOrigin } = session();
 const backend = 'http://localhost:8080/api/integrations/nango/session';
@@ -55,6 +56,8 @@ test('session creation uses the same origin check and retains CSRF validation', 
     'next/server': { NextResponse, after: () => {} },
     '@/lib/auth/firebase-admin': {},
     '@/lib/auth/session': session(),
+    '@/lib/auth/session-cookie': cookieNames,
+    '@/lib/auth/session-revocation': { revokeSessionCookie: async () => true },
     '@/lib/support/shared': load('src/lib/support/shared.ts', {}, {}),
     '@/lib/audience/signin-sync': { recordSignInContact: async () => {} },
   });
