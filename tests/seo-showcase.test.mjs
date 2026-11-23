@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 
 // Showcase projects (seeded, published by an AI agent) are labelled inside the product, but they are
 // not client demand. Nothing that search engines or answer engines read may mention them, list them,
@@ -11,7 +12,7 @@ import { loadModule, projectRoot } from './helpers/load-ts.mjs';
 const ORIGIN = 'https://freelance-place.com';
 const env = { SITE_INDEXABLE: 'true', NEXT_PUBLIC_SITE_URL: ORIGIN };
 const billingOn = { ...env, BILLING_ENABLED: 'true', CARDCOM_TERMINAL_NUMBER: '1', CARDCOM_API_NAME: 'x' };
-const load = (entry, variant = env) => loadModule(entry, { env: variant, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true } } });
+const load = (entry, variant = env) => loadModule(entry, { env: variant, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
 
 // Wording that presents a project as AI-made, a sample or a demo, in Hebrew and English.
 const SHOWCASE_WORDING = /סוכן AI|סוכני AI|סוכן ה־?AI|פרויקט הדגמה|פרויקטי הדגמה|פרויקט השראה|פרויקטי השראה|פרויקטים לדוגמה|פרויקט לדוגמה|AI[ -]agent|sample project|demo project|showcase project|synthetic project/i;

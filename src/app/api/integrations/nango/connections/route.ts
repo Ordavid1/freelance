@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { integrationId, nangoApiKey, nangoJson, ownedNangoConnections } from '@/lib/integrations/nango';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בחיבורים.' }, { status: 401 });
+export const GET = route('nango.connections.list', {}, async ({ user }) => {
   if (!nangoApiKey()) return NextResponse.json({ connections: [] });
 
   try {
@@ -22,12 +20,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לטעון חיבורים קיימים.' }, { status: 502 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לנתק חיבור.' }, { status: 401 });
+export const DELETE = route('nango.connections.delete', {}, async ({ request, user }) => {
   const provider = new URL(request.url).searchParams.get('provider');
   const connectionId = new URL(request.url).searchParams.get('connectionId') || '';
   if ((provider !== 'github' && provider !== 'linkedin') || !/^[A-Za-z0-9_-]{1,200}$/.test(connectionId)) return NextResponse.json({ error: 'פרטי החיבור לא תקינים.' }, { status: 400 });
@@ -44,4 +39,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לנתק את החשבון כרגע.' }, { status: 502 });
   }
-}
+});

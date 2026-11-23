@@ -9,6 +9,7 @@ import { readJsonBody } from '@/lib/security/request-body';
 import { recordSignInContact } from '@/lib/audience/signin-sync';
 
 import { SUPPORT_COOKIE } from '@/lib/support/shared';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,7 @@ function sameToken(left: string, right: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export async function POST(request: Request) {
+export const POST = route('auth.session.create', {}, async ({ request }) => {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
 
   const cookieStore = await cookies();
@@ -57,9 +58,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Sign-in could not be completed. Try again.' }, { status: 401 });
   }
-}
+});
 
-export async function GET() {
+export const GET = route('auth.session.read', {}, async () => {
   const value = await readSessionCookie();
   if (!value) return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
   try {
@@ -74,9 +75,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
   }
-}
+});
 
-export async function DELETE(request: Request) {
+export const DELETE = route('auth.session.destroy', {}, async ({ request }) => {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   const cookieStore = await cookies();
   // Clearing the browser's copy does not invalidate a stolen one: denylist every session cookie presented until it expires.
@@ -90,4 +91,4 @@ export async function DELETE(request: Request) {
   response.cookies.set(SUPPORT_COOKIE, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/support', maxAge: 0 });
   response.cookies.set('fz_csrf', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
   return response;
-}
+});

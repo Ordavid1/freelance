@@ -1,7 +1,8 @@
 // Sender authentication for inbound support mail, read from the `Authentication-Results` header the receiving provider adds
 // (RFC 8601). The From header alone proves nothing: anyone can write it. Mail is treated as really from its From domain only
-// when DKIM or SPF passed for a domain aligned with it. No header, no pass, or a pass for an unrelated domain means "not
-// authenticated". Pure: no I/O, so every rule is unit-tested.
+// when DKIM or SPF passed for a domain aligned with it. No pass, or a pass for an unrelated domain, means "not authenticated".
+// Resend inbound (checked on a real message, 23 Nov 2026) does NOT add Authentication-Results, so a missing header cannot be
+// treated as a failure: `senderAuthFailed` refuses only when results are present and none is an aligned pass. Pure: no I/O.
 
 function headerValue(headers: Record<string, string> | null | undefined, name: string) {
   if (!headers) return '';
@@ -38,4 +39,10 @@ export function senderAuthenticated(headers: Record<string, string> | null | und
     if (result.method === 'dkim') return domainsAligned(result.props['header.d'] || '', senderDomain);
     return domainsAligned((result.props['smtp.mailfrom'] || '').split('@').pop() || '', senderDomain);
   });
+}
+
+/** True when the message carries Authentication-Results and none of them is an aligned DKIM or SPF pass. */
+export function senderAuthFailed(headers: Record<string, string> | null | undefined, senderDomain: string) {
+  if (!headerValue(headers, 'authentication-results').trim()) return false;
+  return !senderAuthenticated(headers, senderDomain);
 }

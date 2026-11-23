@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 
 const ORIGIN = 'https://freelance-place.com';
 const billingOn = { BILLING_ENABLED: 'true', CARDCOM_TERMINAL_NUMBER: '1', CARDCOM_API_NAME: 'x', NEXT_PUBLIC_SITE_URL: ORIGIN };
@@ -103,8 +104,10 @@ test('comparison copy follows the billing state and keeps the no-escrow statemen
 });
 
 test('llms.txt product facts follow the billing state', () => {
-  const route = (env) => loadModule('src/app/llms.txt/route.ts', { env: { SITE_INDEXABLE: 'true', ...env } });
-  return Promise.all([route(billingOn).GET().text(), route(billingOff).GET().text()]).then(([on, off]) => {
+  const route = (env) => loadModule('src/app/llms.txt/route.ts', { env: { SITE_INDEXABLE: 'true', ...env }, stubs: { '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
+  // Route handlers run behind the policy adapter, so they answer asynchronously.
+  const text = async (env) => (await route(env).GET()).text();
+  return Promise.all([text(billingOn), text(billingOff)]).then(([on, off]) => {
     assert.match(on, /Membership costs ILS 19\.99 per month/);
     assert.doesNotMatch(on, /Billing is not active|not yet available/);
     assert.match(off, /Payment is not yet available/);

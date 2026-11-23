@@ -6,6 +6,9 @@ function fixture(enabled) {
   const calls = [];
   const ai = loadModule('src/lib/ai.ts', { env: { GOOGLE_CLOUD_PROJECT: 'test-project', AI_GENERATION_ENABLED: enabled }, stubs: {
     'node:net': { isIP },
+    // The real runtime switch, over an empty Firestore: only the environment decides here.
+    'firebase-admin/firestore': { FieldValue: {} },
+    '@/lib/db/firestore': { firestore: () => ({ collection: () => ({ doc: () => ({ get: async () => ({ get: () => undefined }) }) }) }) },
     '@google/genai': { GoogleGenAI: class { models = { generateContent: async request => {
       calls.push(request);
       return { text: '{}', candidates: [{ finishReason: 'STOP' }] };

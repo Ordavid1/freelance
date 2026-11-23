@@ -149,7 +149,8 @@ test('language detection and HTML escaping', () => {
 // --- F10: sender authentication, fixed subject, lower cap ---------------------------------------------------------------
 const withAuth = (value) => inbound(randomUUID(), { headers: { 'Authentication-Results': value ?? '' } });
 const decide = (email) => autoreply.autoReplyDecision(config, email);
-test('replies only when aligned DKIM or SPF passed: no header, no pass and misaligned domains are never answered', () => {
+test('with Authentication-Results present, replies only on an aligned DKIM or SPF pass; without it (Resend today) the other rules decide', () => {
+  for (const value of [undefined, '']) assert.equal(decide(withAuth(value)).reply, true, 'absent header: ' + String(value));
   for (const value of [
     'mx.example.com; dkim=pass header.d=example.net header.s=s1',
     'mx.example.com; dkim=pass header.d=mail.example.net',
@@ -160,7 +161,7 @@ test('replies only when aligned DKIM or SPF passed: no header, no pass and misal
   ]) assert.equal(decide(withAuth(value)).reply, true, value);
   // A pass beside a failure is still refused by the existing failed-authentication rule.
   assert.equal(decide(withAuth('mx.example.com; dkim=pass header.d=example.net; spf=fail smtp.mailfrom=a@example.net')).reply, false, 'pass beside fail');
-  for (const value of [undefined, '', 'mx.example.com; dkim=none; spf=none', 'mx.example.com; dkim=neutral header.d=example.net',
+  for (const value of ['mx.example.com; dkim=none; spf=none', 'mx.example.com; dkim=neutral header.d=example.net',
     'mx.example.com; dkim=pass header.d=attacker.test', 'mx.example.com; spf=pass smtp.mailfrom=bounce@attacker.test',
     'mx.example.com; dkim=pass header.d=example.net.attacker.test', 'mx.example.com; dkim=pass header.d=ample.net',
     'mx.example.com; spf=pass smtp.helo=example.net', 'mx.example.com; dmarc=pass header.from=example.net', 'mx.example.com; dkim=pass', 'mx.example.com; spf=pass']) {
@@ -180,9 +181,9 @@ test('the acknowledgment subject is fixed and never carries inbound text', async
   assert.equal(en.subject, 'We received your message | Freelance Place');
   assert.doesNotMatch(en.subject, /^Re:/);
 });
-test('an unauthenticated or misaligned From gets no reply through the webhook', async () => {
+test('a misaligned or unauthenticated From gets no reply through the webhook', async () => {
   setup();
-  for (const headers of [{}, { 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=a@attacker.test' }]) {
+  for (const headers of [{ 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=a@attacker.test' }]) {
     const emailId = randomUUID(); const sent = []; const fetch = run(emailId, { ...inbound(emailId), headers }, sent);
     try { assert.equal((await hook(emailId)).status, 200); assert.equal(sent.length, 0, JSON.stringify(headers)); } finally { fetch.mock.restore(); }
   }
@@ -196,11 +197,11 @@ test('the site-wide hourly cap defaults to 50 and AUTOREPLY_PER_HOUR tunes it', 
     assert.equal(loadModule('src/lib/support/autoreply.ts', { env, stubs }).AUTOREPLY_PER_HOUR, expected, String(value));
   }
 });
-test('the owner reply bridge also requires aligned DKIM or SPF from the allowed sender', async () => {
+test('the owner reply bridge refuses an allowed sender whose reported authentication is missing or misaligned', async () => {
   setup(); const reply = randomUUID(); let replyToken;
   let fetch = transport((url, options) => options.method === 'POST' ? (replyToken = JSON.parse(options.body).reply_to.split('+')[1].split('@')[0], Response.json({ id: 'n' })) : Response.json({}));
   try { await service.sendSupportMessage(config, cookieToken, null, input()); } finally { fetch.mock.restore(); }
-  for (const [index, headers] of [{}, { 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=o@attacker.test' }, { 'Authentication-Results': 'mx; dkim=none; spf=none' }].entries()) {
+  for (const [index, headers] of [{ 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=o@attacker.test' }, { 'Authentication-Results': 'mx; dkim=none; spf=none' }].entries()) {
     const id = randomUUID();
     fetch = transport(() => Response.json({ id, from: 'owner@example.com', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'forged', html: null, headers, message_id: `<f${index}@x>`, subject: 're' }));
     try { assert.equal((await hook(id)).status, 200); } finally { fetch.mock.restore(); }

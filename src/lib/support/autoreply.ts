@@ -5,7 +5,7 @@ import { firestore } from '@/lib/db/firestore';
 import { mailbox, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
 import { digest, fetchReceivedEmail, receiveSupportReply, replyRoute, type ReceivedEmail } from '@/lib/support/service';
-import { senderAuthenticated } from '@/lib/support/sender-auth';
+import { senderAuthFailed } from '@/lib/support/sender-auth';
 import { recordInboundEmail } from '@/lib/support/conversations';
 import { kickSlackJobs } from '@/lib/support/slack/outbox';
 
@@ -17,7 +17,7 @@ import { kickSlackJobs } from '@/lib/support/slack/outbox';
  * - the same provider email id (and RFC Message-ID) is acknowledged at most once;
  * - machines are never answered: our own addresses, no-reply/daemon senders, bulk/list/auto-generated
  *   mail (RFC 3834 and common vendor headers), bounces/reports, and mail failing sender authentication;
- * - mail is answered only when DKIM or SPF passed for a domain aligned with the From domain (a forged From is never answered);
+ * - when Authentication-Results is present, mail is answered only with an aligned DKIM or SPF pass (Resend inbound omits it today);
  * - the reply subject is fixed, never the inbound one, so a sender cannot put their own text in mail from our domain;
  * - each sender has a rolling 24h cap and the whole site has an hourly cap (AUTOREPLY_PER_HOUR, default 50);
  * - the reply is itself marked `Auto-Submitted: auto-replied`, so other responders skip it.
@@ -62,7 +62,7 @@ export function autoReplyDecision(config: SupportConfig, email: Pick<ReceivedEma
   if (/multipart\/report|delivery-status/i.test(header(headers, 'content-type') || '')) return { reply: false, reason: 'report' };
   if (/^\s*<?\s*>?\s*$/.test(header(headers, 'return-path') ?? 'x')) return { reply: false, reason: 'null-return-path' };
   if (/(?:spf|dkim|dmarc)=(?:fail|softfail|permerror)/i.test(header(headers, 'authentication-results') || '')) return { reply: false, reason: 'failed-authentication' };
-  if (!senderAuthenticated(headers, domain)) return { reply: false, reason: 'unauthenticated-sender' };
+  if (senderAuthFailed(headers, domain)) return { reply: false, reason: 'unauthenticated-sender' };
   if (AUTO_SUBJECT.test(email.subject || '')) return { reply: false, reason: 'auto-subject' };
   return { reply: true, to: sender };
 }

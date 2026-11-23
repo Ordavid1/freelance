@@ -1,25 +1,15 @@
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readFormBody } from '@/lib/security/request-body';
 import { createHash, randomUUID } from 'node:crypto';
 import { MAX_SOCIAL_SOURCES, profileResponseSchema, profileSystemInstruction, PROFILE_PROMPT_VERSION, SOCIAL_SOURCE_PROVIDERS, validateProfileDraft, type SocialSourceProvider } from '@/lib/profile-generation';
 import { NextResponse } from 'next/server';
 import { generateWithVertex, isVertexConfigured, safePublicUrl, type VertexDiagnostics } from '@/lib/ai';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { userUploadsBucket } from '@/lib/db/storage';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'ai.profile');
-  if (limited) return limited;
-  const parsedBody = await readFormBody(request, 256 * 1024);
-  if (!parsedBody.ok) return parsedBody.response;
-  const form = parsedBody.value;
+export const POST = route('ai.profile', { body: { type: 'form', maxBytes: 256 * 1024 } }, async ({ request, user, body: form }) => {
   if (!form) return NextResponse.json({ error: 'לא הצלחנו לקרוא את הקבצים.' }, { status: 400 });
   const uploaded = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
   if (uploaded.length) return NextResponse.json({ error: 'יש לשמור את המסמכים במקורות הפרופיל לפני עיבוד.' }, { status: 400 });
@@ -109,4 +99,4 @@ export async function POST(request: Request) {
     log('failed');
     return NextResponse.json({ error: 'לא הצלחנו ליצור טיוטה מאומתת מהמקורות. נסו שוב או הוסיפו מסמך.', generationId: requestId }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
   }
-}
+});

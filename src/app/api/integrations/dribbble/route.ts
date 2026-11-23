@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import type { DribbbleImport } from '@/lib/integrations/dribbble';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בייבוא Dribbble.' }, { status: 401 });
+export const GET = route('dribbble.read', {}, async ({ user }) => {
   try {
     const snapshot = await firestore().collection('users').doc(user.uid).collection('profileSources').doc('dribbble').get();
     if (!snapshot.exists || snapshot.get('ownerUid') !== user.uid) return NextResponse.json({ import: null }, { headers: { 'Cache-Control': 'no-store' } });
@@ -19,12 +17,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לטעון את ייבוא Dribbble.' }, { status: 503 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי להסיר ייבוא Dribbble.' }, { status: 401 });
+export const DELETE = route('dribbble.disconnect', {}, async ({ user }) => {
   const ref = firestore().collection('users').doc(user.uid).collection('profileSources').doc('dribbble');
   try {
     const snapshot = await ref.get();
@@ -35,4 +30,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו להסיר את ייבוא Dribbble.' }, { status: 503 });
   }
-}
+});

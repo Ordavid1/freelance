@@ -1,4 +1,5 @@
 import { loadModule } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -59,6 +60,7 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
     '@/lib/membership/access': { requireMarketplaceAccess: async () => null },
     '@/lib/data': { getProject: (slug) => projects[`sample:${slug}`] },
   };
+  stubs['@/lib/security/policy'] = loadPolicy(stubs);
   const module = { exports: {} };
   const source = readFileSync(new URL('../src/app/api/marketplace/proposals/route.ts', import.meta.url), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;

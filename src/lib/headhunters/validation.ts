@@ -1,6 +1,7 @@
 import { cleanText } from '../imports/xplace/clean.ts';
 import { HEADHUNTER_KINDS, HEADHUNTER_LIMITS } from './constants.ts';
 import type { ContactLink, HeadhunterContact, HeadhunterInput, HeadhunterKind } from './types.ts';
+import { parseHttpsUrl } from '../security/url.ts';
 
 export type HeadhunterInputResult =
   | { ok: true; value: HeadhunterInput }
@@ -61,11 +62,7 @@ function whatsappDigits(value: string): string | null {
 }
 
 function parseHttps(value: string): URL | null {
-  if (value.length > HEADHUNTER_LIMITS.url) return null;
-  let url: URL;
-  try { url = new URL(value); } catch { return null; }
-  if (url.protocol !== 'https:' || url.username || url.password || !url.hostname.includes('.') || url.href.length > HEADHUNTER_LIMITS.url) return null;
-  return url;
+  return parseHttpsUrl(value, HEADHUNTER_LIMITS.url);
 }
 
 function contactValue(key: (typeof CONTACT_KEYS)[number], raw: string): string | null {

@@ -1,10 +1,6 @@
-import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { applyProjectCreated, invalidateAfterCounter, readHeadhunterForCounter, type CounterOutcome } from '@/lib/db/headhunters';
 import { liveMinisiteHandle, minisiteAfterCounter } from '@/lib/headhunters/pings';
@@ -16,13 +12,13 @@ import { isXPlaceImportEnabled } from '@/lib/imports/flag';
 import type { ProjectImportSource } from '@/lib/imports/types';
 import { matchPublisher } from '@/lib/imports/xplace/publisher-match';
 import { xplaceProjectKey } from '@/lib/imports/xplace/urls';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export const GET = route('project.list', {}, async ({ request, user }) => {
   try {
     if (new URL(request.url).searchParams.get('mine') === '1') {
-      const user = await getCurrentUser();
       if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בפרויקטים שלך.' }, { status: 401 });
       const snapshot = await firestore().collection('projects').where('ownerUid', '==', user.uid).limit(100).get();
       // An archived project is withdrawn from the product (no feed card, no page), so it also leaves its owner's list.
@@ -34,18 +30,10 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון פרויקטים כרגע.' }, { status: 503 });
   }
-}
+});
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לפרסם פרויקט.' }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'project.create');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, 24_000);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as Record<string, unknown> | null;
+export const POST = route('project.create', { body: { type: 'json', maxBytes: 24_000 } }, async ({ user, body: payload }) => {
+  const body = payload as Record<string, unknown> | null;
   const input = validateProjectInput(body);
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
   const { title, category, description, budget, deadline, skills } = input.value;
@@ -75,9 +63,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לפרסם את הפרויקט.' }, { status: 503 });
   }
-}
+});
 
-type ImportUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+type ImportUser = { uid: string; email: string | null; name: string | null };
 type ImportOutcome = { rejected: { status: number; body: Record<string, unknown> } } | { record: Record<string, unknown> };
 
 // Imported projects are created, together with a missing publisher profile name, in ONE transaction:
@@ -142,13 +130,8 @@ async function publishImportedProject(user: ImportUser, slug: string, rawImport:
   }
 }
 
-export async function PATCH(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לסגור פרויקט.' }, { status: 401 });
-  const parsedBody = await readJsonBody(request, 4_096);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as { slug?: unknown; status?: unknown } | null;
+export const PATCH = route('project.close', { body: { type: 'json', maxBytes: 4_096 } }, async ({ user, body: input }) => {
+  const body = input as { slug?: unknown; status?: unknown } | null;
   if (typeof body?.slug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.slug) || body.status !== 'closed') return NextResponse.json({ error: 'פרטי סגירת הפרויקט לא תקינים.' }, { status: 400 });
   try {
     const ref = firestore().collection('projects').doc(body.slug);
@@ -175,4 +158,4 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לסגור את הפרויקט.' }, { status: 503 });
   }
-}
+});

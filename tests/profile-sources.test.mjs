@@ -1,4 +1,5 @@
 import { loadModule } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,13 +20,15 @@ function sourceRoute() {
     async get() { return { docs: rows.map((row) => ({ id: row.id, get: (field) => row[field] })) }; },
   };
   const module = { exports: {} };
+  const session = { getCurrentUser: async () => ({ uid: 'owner' }) };
   const stubs = {
     '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
     '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
     'node:crypto': {}, 'firebase-admin/firestore': {}, 'next/server': { NextResponse },
-    '@/lib/auth/session': { getCurrentUser: async () => ({ uid: 'owner' }) },
+    '@/lib/auth/session': session,
     '@/lib/db/firestore': { firestore: () => ({ collection: () => ({ doc: () => ({ collection: () => query }) }) }) },
     '@/lib/db/storage': {},
+    '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': session }),
   };
   const code = ts.transpileModule(readFileSync(new URL('../src/app/api/uploads/profile-source/route.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

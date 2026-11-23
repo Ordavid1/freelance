@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { firestore } from '@/lib/db/firestore';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
 function params(request: Request) {
   const q = new URL(request.url).searchParams, uid = q.get('uid'), token = q.get('token');
@@ -7,11 +8,12 @@ function params(request: Request) {
 }
 const html = (body: string, status = 200) => new Response(`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>עדכוני פרויקטים</title><body style="font-family:Arial;padding:32px;color:#17263a">${body}</body></html>`, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'" } });
 // GET only confirms: mail-provider link scanners must not unsubscribe a user.
-export async function GET(request: Request) {
+export const GET = route('notifications.unsubscribe.confirm', {}, ({ request }) => {
   if (!params(request)) return html('קישור לא תקין.', 400);
   return html('<h1>להפסיק עדכוני פרויקטים במייל?</h1><form method="post"><button type="submit">הפסקת עדכונים</button></form>');
-}
-export async function POST(request: Request) {
+});
+// No same-origin check: mail clients POST the one-click link directly (RFC 8058); the token is the authorisation.
+export const POST = route('notifications.unsubscribe', { sameOrigin: false }, async ({ request }) => {
   const input = params(request);
   if (!input) return html('קישור לא תקין.', 400);
   try {
@@ -23,4 +25,4 @@ export async function POST(request: Request) {
     });
     return ok ? html('<h1>עדכוני הפרויקטים הופסקו.</h1><p>אפשר להפעיל אותם שוב בלשונית ההודעות.</p>') : html('הקישור אינו תקף.', 400);
   } catch { return html('לא ניתן לעדכן כרגע. נסו שוב.', 503); }
-}
+});
