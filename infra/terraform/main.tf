@@ -34,8 +34,8 @@ resource "google_project_iam_custom_role" "runtime_auth_session" {
   project     = var.project_id
   role_id     = "freelanceRuntimeAuthSession"
   title       = "Freelance Runtime Auth Sessions"
-  description = "Allows the runtime to create and verify sessions without managing user accounts."
-  permissions = ["firebaseauth.users.createSession", "firebaseauth.users.get"]
+  description = "Allows the runtime to create and verify sessions and to revoke a user's refresh tokens (moderator account decisions), without managing user accounts."
+  permissions = ["firebaseauth.users.createSession", "firebaseauth.users.get", "firebaseauth.users.update"]
   stage       = "GA"
 }
 resource "google_project_iam_member" "runtime_auth_session" {
@@ -260,6 +260,14 @@ resource "google_firestore_field" "security_rate_limit_expiry" {
   project    = var.project_id
   database   = google_firestore_database.default.name
   collection = "securityRateLimits"
+  field      = "expiresAt"
+  ttl_config {}
+  index_config {}
+}
+resource "google_firestore_field" "revoked_session_expiry" {
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "revokedSessions"
   field      = "expiresAt"
   ttl_config {}
   index_config {}

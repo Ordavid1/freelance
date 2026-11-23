@@ -42,7 +42,7 @@ const input = (patch = {}) => ({ id: randomUUID(), text: 'אפשר עזרה בפ
 function setup() { rows.clear(); viewer = null; cookieToken = service.newSupportToken(); Object.assign(process.env, env); }
 function transport(handler) { return mock.method(globalThis, 'fetch', async (url, options) => handler(String(url), options)); }
 function received(emailId, replyToken, patch = {}) {
-  return { id: emailId, from: 'Owner <owner@example.com>', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'בשמחה, הכל מסודר!\n\nOn Tue, Support wrote:\n> Original notification', html: null, headers: {}, ...patch };
+  return { id: emailId, from: 'Owner <owner@example.com>', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'בשמחה, הכל מסודר!\n\nOn Tue, Support wrote:\n> Original notification', html: null, ...patch, headers: { 'Authentication-Results': 'mx.example.com; dkim=pass header.d=example.com', ...patch.headers } };
 }
 function signedRequest(event, bad = false) {
   const payload = JSON.stringify(event); const id = 'msg_test'; const timestamp = String(Math.floor(Date.now() / 1000));

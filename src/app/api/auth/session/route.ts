@@ -2,7 +2,9 @@ import { timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { after, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth/firebase-admin';
-import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin } from '@/lib/auth/session';
+import { FIVE_DAYS_MS, SESSION_COOKIE, sessionCookieOptions, isSameOrigin, readSessionCookie, verifySession } from '@/lib/auth/session';
+import { LEGACY_SESSION_COOKIE, SESSION_COOKIE_NAMES, allSessionCookies } from '@/lib/auth/session-cookie';
+import { revokeSessionCookie } from '@/lib/auth/session-revocation';
 import { readJsonBody } from '@/lib/security/request-body';
 import { recordSignInContact } from '@/lib/audience/signin-sync';
 
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
     }
     const response = NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
     response.cookies.set(SESSION_COOKIE, session, sessionCookieOptions());
+    // The pre-`__Host-` cookie must not linger beside the new one (the reader prefers the new name, but a stale copy is clutter and risk).
+    if (SESSION_COOKIE !== LEGACY_SESSION_COOKIE) response.cookies.set(LEGACY_SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0 });
     response.cookies.set('fz_csrf', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });
     return response;
   } catch {
@@ -56,11 +60,10 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const value = cookieStore.get(SESSION_COOKIE)?.value;
+  const value = await readSessionCookie();
   if (!value) return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
   try {
-    const token = await adminAuth().verifySessionCookie(value, true);
+    const token = await verifySession(value);
     if (token.firebase?.sign_in_provider !== 'google.com') return NextResponse.json({ user: null }, { headers: { 'Cache-Control': 'no-store' } });
     return NextResponse.json({ user: {
       uid: token.uid,
@@ -76,8 +79,13 @@ export async function GET() {
 export async function DELETE(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   const cookieStore = await cookies();
+  // Clearing the browser's copy does not invalidate a stolen one: denylist every session cookie presented until it expires.
+  // A failed write must not trap the person in a signed-in state, so it is logged and sign-out still completes.
+  for (const cookie of allSessionCookies((name) => cookieStore.get(name)?.value)) {
+    if (!(await revokeSessionCookie(cookie))) console.error(JSON.stringify({ severity: 'ERROR', event: 'session_revoke_failed' }));
+  }
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0 });
+  for (const name of SESSION_COOKIE_NAMES) response.cookies.set(name, '', { ...sessionCookieOptions(), maxAge: 0 });
   // End the browser's support session too, especially on shared devices.
   response.cookies.set(SUPPORT_COOKIE, '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/support', maxAge: 0 });
   response.cookies.set('fz_csrf', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 });

@@ -15,9 +15,11 @@ The site has a Hebrew, RTL support conversation that works for guests and signed
 Every email that arrives at `SUPPORT_INBOX_EMAIL` (customer@freelance-place.com) receives an instant, friendly acknowledgment that a person will answer within a few minutes. It uses the same `email.received` webhook as the chat bridge, so no new secrets, webhooks or DNS records are needed.
 
 - **Language:** Hebrew when at least 20% of the message letters are Hebrew, otherwise English (RTL layout for Hebrew). Add a language in `COPY` in `src/lib/support/autoreply.ts`.
-- **Threading:** subject `Re: <original>`, `In-Reply-To` and `References` point at the received message; `Reply-To` is the inbox, so the customer's answer lands back in it.
+- **Subject:** fixed text, never the inbound subject (so a sender cannot put their own words in mail from our domain).
+- **Threading:** `In-Reply-To` and `References` point at the received message; `Reply-To` is the inbox, so the customer's answer lands back in it.
 - **Loop and abuse protection:** never replies to our own addresses/domain, `no-reply`/daemon senders, `Auto-Submitted`, `Precedence: bulk/list/junk`, list or vendor auto-response headers, delivery reports, empty return-path, SPF/DKIM/DMARC failures, or auto-reply/out-of-office subjects. The reply carries `Auto-Submitted: auto-replied`.
-- **Limits:** one acknowledgment per provider email id and per RFC Message-ID; at most 3 per sender per rolling 24h; at most 200 per hour site-wide. Only hashes of sender addresses are stored (`supportAutoReplies`, `supportAutoReplyLimits`, `supportRateLimits/autoreply-hour`). Failed sends return 503 so Resend redelivers, without spending the sender's allowance.
+- **Limits:** one acknowledgment per provider email id and per RFC Message-ID; at most 3 per sender per rolling 24h; at most `AUTOREPLY_PER_HOUR` per hour site-wide (default 50). Only hashes of sender addresses are stored (`supportAutoReplies`, `supportAutoReplyLimits`, `supportRateLimits/autoreply-hour`). Failed sends return 503 so Resend redelivers, without spending the sender's allowance.
+- **Sender authentication:** a reply is sent only when `Authentication-Results` shows `dkim=pass` with `header.d`, or `spf=pass` with `smtp.mailfrom`, aligned with the From domain (same domain or a subdomain of it). No header means no reply. The same rule applies to the allowed owner senders of the `chat+…` reply bridge.
 - **Kill switch:** set the optional runtime variable `SUPPORT_AUTOREPLY=off` (also `false`, `0`, `disabled`) to stop replies without a code change. Unset means on.
 - Replies to a private `chat+…` alias still go to the chat bridge, never to the responder.
 

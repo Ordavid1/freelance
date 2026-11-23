@@ -179,13 +179,13 @@ test('seed tool refuses to create showcase projects on commit and says so in a d
   assert.match(cli, /CREATES_DISABLED_MESSAGE/);
 });
 
-test('privacy page: agency contact paragraph in the public-information section, legal date is 22 November 2026', () => {
+test('privacy page: agency contact paragraph in the public-information section, legal date is 23 November 2026', () => {
   const privacy = read('src/app/privacy/page.tsx');
   const paragraph = 'סוכנויות ומגייסים שמפעילים עמוד סוכנות ב־Freelance Place בוחרים אילו פרטי קשר עסקיים לפרסם בו (כמו אימייל, טלפון, וואטסאפ, אתר ועמוד LinkedIn). פרטים אלה מוצגים בפומבי בעמוד הסוכנות, וניתן לשנות או למחוק אותם בכל עת מעמוד העריכה.';
   assert.equal(privacy.split(paragraph).length - 1, 1);
   const section = privacy.slice(privacy.indexOf("id: 'visibility'"));
   assert.ok(section.indexOf(paragraph) > 0 && section.indexOf(paragraph) < section.indexOf("id: '", 10), 'inside the visibility section');
   const identity = loadModule('src/lib/legal/identity.ts');
-  assert.equal(identity.legalUpdated, '2026-11-22');
-  assert.equal(identity.legalUpdatedLabel, '22 בנובמבר 2026');
+  assert.equal(identity.legalUpdated, '2026-11-23');
+  assert.equal(identity.legalUpdatedLabel, '23 בנובמבר 2026');
 });
