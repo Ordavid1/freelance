@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { getMembershipAccess } from '@/lib/membership/access';
 import { BillingError, PRICE_AGOROT, PRODUCT, cardcomConfig, cardcomPost, checkoutPayload, documentType, documentUrl, hostedUrl, nextMonth, success, verifyPayment, verifyRenewal, verifyTrialSetup } from './cardcom';
+import { NO_CARD, cardTokenFields, hasStoredCard, openToken } from '@/lib/billing/token-vault';
 const CONSENT_VERSION = '2026-11-09-monthly-v2';
 const idPattern = /^[a-f0-9-]{36}$/i;
 export function orderId(value: unknown): string {
@@ -66,6 +67,8 @@ export async function confirmPayment(id: string, uid?: string) {
   const result = await cardcomPost(config, 'LowProfile/GetLpResult', { LowProfileId: order.lowProfileId });
   if (order.kind === 'card_update') {
     const card = verifyTrialSetup(result, { id: ref.id, lowProfileId: order.lowProfileId, terminal: order.terminal });
+    // KMS is called before the transaction (no network inside it); a vault failure leaves the order pending and retryable.
+    const stored = await cardTokenFields(card.token, { uid: order.uid, terminal: config.terminal });
     const replaced = await db.runTransaction(async tx => {
       const current = await tx.get(ref);
       if (current.data()?.status !== 'pending') return current.data()?.status === 'card_updated';
@@ -73,13 +76,13 @@ export async function confirmPayment(id: string, uid?: string) {
       const sub = (await tx.get(subRef)).data();
       // The saved card is swapped only after Cardcom verified the new one, and only
       // while renewal is still on. A cancelled subscription never receives a new token.
-      if (sub?.cardUpdateOrderId !== ref.id || sub.autoRenew !== true || !sub.token) {
+      if (sub?.cardUpdateOrderId !== ref.id || sub.autoRenew !== true || !hasStoredCard(sub)) {
         tx.update(ref, { status: 'card_discarded', completedAt: Timestamp.now(), last4: card.last4 });
         if (sub?.cardUpdateOrderId === ref.id) tx.update(subRef, { cardUpdateOrderId: null });
         return false;
       }
       tx.update(ref, { status: 'card_updated', completedAt: Timestamp.now(), last4: card.last4 });
-      tx.update(subRef, { token: card.token, expiry: card.expiry, last4: card.last4, cardUpdatedAt: Timestamp.now(), cardUpdateOrderId: null });
+      tx.update(subRef, { ...stored, expiry: card.expiry, last4: card.last4, cardUpdatedAt: Timestamp.now(), cardUpdateOrderId: null });
       return true;
     });
     return { paid: false, cardUpdated: replaced };
@@ -87,6 +90,7 @@ export async function confirmPayment(id: string, uid?: string) {
   if (order.status === 'card_updated') return { paid: false, cardUpdated: true };
   if (order.kind === 'setup') {
     const card = verifyTrialSetup(result, { id: ref.id, lowProfileId: order.lowProfileId, terminal: order.terminal });
+    const stored = await cardTokenFields(card.token, { uid: order.uid, terminal: config.terminal });
     await db.runTransaction(async tx => {
       const current = await tx.get(ref);
       if (current.data()?.status === 'setup_complete') return;
@@ -95,12 +99,13 @@ export async function confirmPayment(id: string, uid?: string) {
       if (sub?.pendingOrderId !== ref.id) throw new BillingError('ORDER_SUPERSEDED', 409);
       const cancelled = sub.pendingCancelled === true;
       tx.update(ref, { status: 'setup_complete', completedAt: Timestamp.now(), last4: card.last4 });
-      tx.set(subRef, { autoRenew: !cancelled, status: cancelled ? 'cancelled' : 'trialing', token: cancelled ? null : card.token, expiry: cancelled ? null : card.expiry, terminal: config.terminal, name: order.name, email: order.email, last4: card.last4, nextChargeAt: Timestamp.fromMillis(order.trialEndsAt), pendingOrderId: null, consentVersion: order.consentVersion, consentAt: order.consentAt });
+      tx.set(subRef, { autoRenew: !cancelled, status: cancelled ? 'cancelled' : 'trialing', ...(cancelled ? NO_CARD : stored), expiry: cancelled ? null : card.expiry, terminal: config.terminal, name: order.name, email: order.email, last4: card.last4, nextChargeAt: Timestamp.fromMillis(order.trialEndsAt), pendingOrderId: null, consentVersion: order.consentVersion, consentAt: order.consentAt });
     });
     return { paid: false, setup: true, nextChargeAt: order.trialEndsAt };
   }
   const payment = verifyPayment(result, { id: ref.id, lowProfileId: order.lowProfileId, terminal: order.terminal, amountAgorot: order.amountAgorot });
   if (!payment.token || !payment.expiry) throw new BillingError('TOKEN_MISSING');
+  const stored = await cardTokenFields(payment.token, { uid: order.uid, terminal: config.terminal });
   await db.runTransaction(async tx => {
     const current = await tx.get(ref);
     if (current.data()?.status === 'paid') return;
@@ -113,7 +118,7 @@ export async function confirmPayment(id: string, uid?: string) {
     tx.create(claim, { uid: order.uid, orderId: ref.id, createdAt: Timestamp.now() });
     tx.update(ref, { status: 'paid', paidAt: Timestamp.now(), transactionId: payment.transactionId, documentNumber: payment.documentNumber, documentType: payment.documentType, invoicePending: payment.invoicePending, last4: payment.last4 });
     // Tokens stay exclusively in server-side Firestore, never public profiles or API responses.
-    tx.set(subRef, { autoRenew: sub.data()?.pendingCancelled !== true, status: sub.data()?.pendingCancelled ? 'cancelled' : 'active', token: sub.data()?.pendingCancelled ? null : payment.token, expiry: sub.data()?.pendingCancelled ? null : payment.expiry, terminal: config.terminal, name: order.name, email: order.email, last4: payment.last4, paidUntil, nextChargeAt: paidUntil, pendingOrderId: null, consentVersion: order.consentVersion, consentAt: order.consentAt });
+    tx.set(subRef, { autoRenew: sub.data()?.pendingCancelled !== true, status: sub.data()?.pendingCancelled ? 'cancelled' : 'active', ...(sub.data()?.pendingCancelled ? NO_CARD : stored), expiry: sub.data()?.pendingCancelled ? null : payment.expiry, terminal: config.terminal, name: order.name, email: order.email, last4: payment.last4, paidUntil, nextChargeAt: paidUntil, pendingOrderId: null, consentVersion: order.consentVersion, consentAt: order.consentAt });
     tx.set(db.collection('memberships').doc(order.uid), { paidUntil }, { merge: true });
   });
   return { paid: true };
@@ -124,7 +129,7 @@ export async function cancelSubscription(uid: string) {
     const sub = await tx.get(ref);
     if (!sub.exists) return;
     // A renewal already sent to the gateway can finish; never start a later one.
-    tx.update(ref, { autoRenew: false, status: 'cancelled', cancelledAt: Timestamp.now(), pendingCancelled: true, token: null, expiry: null });
+    tx.update(ref, { autoRenew: false, status: 'cancelled', cancelledAt: Timestamp.now(), pendingCancelled: true, ...NO_CARD, expiry: null });
   });
 }
 export async function billingStatus(uid: string) {
@@ -157,7 +162,7 @@ export async function renewSubscription(uid: string) {
   const attempt = await db.runTransaction(async tx => {
     const sub = (await tx.get(subRef)).data(); const now = Date.now();
     if (!sub || (!sub.autoRenew && !sub.renewalPending) || sub.nextChargeAt.toMillis() > now || sub.leaseUntil?.toMillis() > now) return null;
-    if (sub.terminal !== config.terminal || (sub.autoRenew && (!sub.token || !sub.expiry))) throw new BillingError('RENEWAL_CONFIG_MISMATCH');
+    if (sub.terminal !== config.terminal || (sub.autoRenew && (!hasStoredCard(sub) || !sub.expiry))) throw new BillingError('RENEWAL_CONFIG_MISMATCH');
     const membership = sub.status === 'trialing' ? (await tx.get(db.collection('memberships').doc(uid))).data() : null;
     const trialEnd = membership?.trialEndsAt?.toMillis?.();
     if (typeof trialEnd === 'number' && now < trialEnd + 24 * 60 * 60 * 1000) {
@@ -171,13 +176,16 @@ export async function renewSubscription(uid: string) {
     if (order.data()?.status === 'paid') return null;
     tx.set(ref, { uid, status: 'renewing', amountAgorot: PRICE_AGOROT, createdAt: Timestamp.now(), terminal: config.terminal, due }, { merge: true });
     tx.update(subRef, { lease, renewalPending: true, leaseUntil: Timestamp.fromMillis(now + 120000) });
-    return { id, due, autoRenew: sub.autoRenew === true, token: sub.token as string, expiry: sub.expiry as string, name: sub.name as string, email: sub.email as string };
+    return { id, due, autoRenew: sub.autoRenew === true, card: { token: sub.token, tokenSealed: sub.tokenSealed }, terminal: sub.terminal as number, expiry: sub.expiry as string, name: sub.name as string, email: sub.email as string };
   });
   if (!attempt) return;
   // Reuse the exact same gateway id on every retry, including unknown network outcomes.
   // Cardcom rejects duplicate successful ids with 608; only a verified lookup grants access.
+  // The card is opened only for a live renewal, and before any gateway call: a vault failure sends no charge.
+  const token = attempt.autoRenew ? await openToken(attempt.card, { uid, terminal: attempt.terminal }) : null;
+  if (attempt.autoRenew && !token) throw new BillingError('RENEWAL_CONFIG_MISMATCH');
   let result = attempt.autoRenew ? await cardcomPost(config, 'Transactions/Transaction', {
-    Token: attempt.token, CardExpirationMMYY: attempt.expiry, Amount: PRICE_AGOROT / 100, ISOCoinId: 1, ExternalUniqTranId: attempt.id,
+    Token: token, CardExpirationMMYY: attempt.expiry, Amount: PRICE_AGOROT / 100, ISOCoinId: 1, ExternalUniqTranId: attempt.id,
     Document: { DocumentTypeToCreate: 'Auto', Name: attempt.name, Email: attempt.email, IsSendByEmail: true, Languge: 'he', Products: [{ Description: PRODUCT, Quantity: 1, UnitCost: PRICE_AGOROT / 100 }] },
   }) : await cardcomPost(config, 'Transactions/GetTransactionByExternalUniqTran', { ExternalUniqTranId: attempt.id });
   if (attempt.autoRenew && (typeof result.ResponseCode === 'number' || (typeof result.ResponseCode === 'string' && /^\d+$/.test(result.ResponseCode))) && !success(result.ResponseCode) && Number(result.ResponseCode) !== 608) {
@@ -216,7 +224,7 @@ export async function startCardUpdate(user: AuthenticatedUser) {
   const ref = db.collection('billingOrders').doc(randomUUID());
   const existing = await db.runTransaction(async tx => {
     const sub = (await tx.get(subscription)).data();
-    if (!sub || sub.autoRenew !== true || !sub.token) throw new BillingError('NO_ACTIVE_CARD', 409);
+    if (!sub || sub.autoRenew !== true || !hasStoredCard(sub)) throw new BillingError('NO_ACTIVE_CARD', 409);
     if (sub.renewalPending || sub.leaseUntil?.toMillis() > Date.now()) throw new BillingError('RENEWAL_IN_PROGRESS', 409);
     if (sub.cardUpdateOrderId) {
       const pending = (await tx.get(db.collection('billingOrders').doc(sub.cardUpdateOrderId))).data();

@@ -1,16 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { adminAuth } from '@/lib/auth/firebase-admin';
 import { firestore } from '@/lib/db/firestore';
-import { readJsonBody } from '@/lib/security/request-body';
 import { defaultPreferences, eligibleProfile, parsePreferences, profileTags } from '@/lib/notifications/preferences';
 import { notificationConfig } from '@/lib/notifications/config';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return json({ error: 'יש להתחבר.' }, 401);
+export const GET = route('mailPreferences.read', {}, async ({ user }) => {
   try {
     const db = firestore();
     const [profile, saved] = await Promise.all([db.collection('profiles').doc(user.uid).get(), db.collection('projectMailPreferences').doc(user.uid).get()]);
@@ -18,14 +15,9 @@ export async function GET() {
     const preferences = parsePreferences(saved.data()) || defaultPreferences(profile.data()!);
     return json({ eligible: true, available: !!notificationConfig(), profileTags: profileTags(profile.data()!), preferences: { ...preferences, interval: 'daily' } });
   } catch { return json({ error: 'לא ניתן לטעון את העדפות המייל.' }, 503); }
-}
-export async function PUT(request: Request) {
-  if (!isSameOrigin(request)) return json({ error: 'הבקשה נדחתה.' }, 403);
-  const user = await getCurrentUser();
-  if (!user) return json({ error: 'יש להתחבר.' }, 401);
-  const body = await readJsonBody(request, 8000);
-  if (!body.ok) return body.response;
-  const prefs = parsePreferences(body.value);
+});
+export const PUT = route('mailPreferences.update', { body: { type: 'json', maxBytes: 8000 } }, async ({ user, body }) => {
+  const prefs = parsePreferences(body);
   if (!prefs) return json({ error: 'העדפות לא תקינות.' }, 400);
   if (prefs.interval !== 'daily') return json({ error: 'כרגע ניתן לבחור סיכום יומי בלבד. עדכון על כל פרויקט יהיה זמין בהמשך.' }, 409);
   if (prefs.enabled && !notificationConfig()) return json({ error: 'שליחת עדכונים במייל אינה זמינה כרגע.' }, 503);
@@ -43,4 +35,4 @@ export async function PUT(request: Request) {
     });
     return ok ? json({ ok: true, preferences: prefs }) : json({ error: 'יש להשלים קודם פרופיל פרילנסר.' }, 403);
   } catch { return json({ error: 'לא ניתן לשמור את העדפות המייל.' }, 503); }
-}
+});

@@ -1,6 +1,8 @@
 import 'server-only';
 import { generateWithVertex, isVertexConfigured } from '@/lib/ai';
 import { BRAND, membershipAnswer, membershipFacts } from '@/lib/seo/facts';
+import { consumeGlobalBudget } from '@/lib/security/rate-limit';
+import { featureEnabled } from '@/lib/security/runtime-switch';
 import { supportContactEmail } from '@/lib/support/config';
 import type { Triage } from '@/lib/support/slack/blocks';
 
@@ -95,7 +97,9 @@ function parseOutput(value: unknown): { triage: Triage; draft: string | null } {
 }
 
 export async function triageConversation(input: { channel: 'chat' | 'email'; name: string; page?: string; subject?: string; messages: { sender: 'visitor' | 'support'; text: string }[] }): Promise<{ triage: Triage; draft: string | null }> {
-  if (process.env.AI_GENERATION_ENABLED === 'false' || !isVertexConfigured()) throw new AiUnavailable('AI_UNAVAILABLE');
+  if (!isVertexConfigured() || !(await featureEnabled('ai'))) throw new AiUnavailable('AI_UNAVAILABLE');
+  // Site-wide ceiling: when it is spent (or cannot be checked) the message still reaches the agents, just without a draft.
+  if ((await consumeGlobalBudget('ai.supportTriage')).status !== 'ok') throw new AiUnavailable('AI_BUDGET');
   const result = await generateWithVertex(buildPrompt(input), { systemInstruction: SYSTEM_INSTRUCTION, responseJsonSchema: RESPONSE_SCHEMA, maxOutputTokens: 2048 });
   return parseOutput(result);
 }

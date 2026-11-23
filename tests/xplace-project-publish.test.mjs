@@ -49,8 +49,9 @@ test('without `import` the existing path is unchanged (no importSource, same cli
   assert.deepEqual(Object.keys(record).sort(), ['budget', 'category', 'clientName', 'createdAt', 'deadline', 'description', 'ownerUid', 'proposals', 'skills', 'status', 'title', 'updatedAt'].sort());
   assert.equal(record.clientName, 'Account Name');
   assert.equal(published.length, 1);
-  assert.deepEqual(calls.map((call) => call[0]), ['limit', 'denied']);
-  assert.deepEqual(calls[0], ['limit', user.uid, 'project.create']);
+  // The policy layer checks account state before it spends the account's budget.
+  assert.deepEqual(calls.map((call) => call[0]), ['denied', 'limit']);
+  assert.deepEqual(calls[1], ['limit', user.uid, 'project.create']);
 });
 
 test('import with the flag off is IMPORT_DISABLED and writes nothing', async () => {

@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { checkHandleAvailability, headhunterGate, invalidateHeadhunterCache, renameHandle } from '@/lib/db/headhunters';
 import { announceMinisites } from '@/lib/headhunters/indexnow';
 import { validateHandle } from '@/lib/headhunters/handle';
 import { handleCooldownError, HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
-import { accountWriteDenied } from '@/lib/security/marketplace-policy';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 // Availability for the live check in the editor. The answer never says who owns a taken handle (or whether it is
 // taken, retired or only look-alike), and the check spends the same per-account budget as a rename.
-export async function GET(request: Request) {
-  const gate = await headhunterGate();
-  if (!gate.ok) return gate.response;
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.SIGN_IN }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'headhunter.handle');
-  if (limited) return limited;
+export const GET = route('headhunter.handle.check', { gate: () => headhunterGate() }, async ({ request, user }) => {
   const checked = validateHandle(new URL(request.url).searchParams.get('handle'));
   if (!checked.ok) return NextResponse.json({ available: false, code: checked.code, error: checked.error }, { headers: NO_STORE });
   try {
@@ -30,21 +21,10 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });
   }
-}
+});
 
-export async function POST(request: Request) {
-  const gate = await headhunterGate();
-  if (!gate.ok) return gate.response;
-  if (!isSameOrigin(request)) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.FORBIDDEN }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.SIGN_IN }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'headhunter.handle');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid);
-  if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, 1_024);
-  if (!parsedBody.ok) return parsedBody.response;
-  const checked = validateHandle(parsedBody.value.handle);
+export const POST = route('headhunter.handle.rename', { gate: () => headhunterGate(), body: { type: 'json', maxBytes: 1_024 } }, async ({ user, body }) => {
+  const checked = validateHandle(body.handle);
   if (!checked.ok) return NextResponse.json({ code: checked.code, field: 'handle', error: checked.error }, { status: 400 });
   try {
     const result = await renameHandle(user.uid, checked.handle, checked.flags);
@@ -66,4 +46,4 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });
   }
-}
+});

@@ -14,6 +14,7 @@ import { SupportChatProvider } from '@/components/support-chat';
 import { supportContactEmail } from '@/lib/support/config';
 import Script from 'next/script';
 import { headers } from 'next/headers';
+import { humanCheckSiteKey } from '@/lib/security/human-check';
 import { Analytics } from '@/components/analytics';
 import { ExtensionAnnouncement } from '@/components/extension-announcement';
 
@@ -35,5 +36,5 @@ export const metadata: Metadata = {
 };
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const nonce = (await headers()).get('x-nonce') || undefined;
-  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body><Analytics /><ExtensionAnnouncement /><Script nonce={nonce} id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-CM5KEE7G13', {send_page_view: false});`}</Script><Script nonce={nonce} src="https://www.googletagmanager.com/gtag/js?id=G-CM5KEE7G13" strategy="afterInteractive" /><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
+  return <html lang="he" dir="rtl" className={`${heebo.variable} ${space.variable}`}><body>{humanCheckSiteKey() ? <meta name="human-check-site-key" content={humanCheckSiteKey()} /> : null}<Analytics /><ExtensionAnnouncement /><Script nonce={nonce} id="google-tag-init" strategy="afterInteractive">{`window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-CM5KEE7G13', {send_page_view: false});`}</Script><Script nonce={nonce} src="https://www.googletagmanager.com/gtag/js?id=G-CM5KEE7G13" strategy="afterInteractive" /><StructuredData data={siteGraph()} /><SupportChatProvider contactEmail={supportContactEmail()}>{children}<SiteFooter /></SupportChatProvider></body></html>;
 }

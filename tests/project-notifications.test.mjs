@@ -41,7 +41,7 @@ await mock.module('../src/lib/db/firestore.ts', { namedExports: { firestore: () 
 await mock.module('../src/lib/auth/session.ts', { namedExports: { getCurrentUser: async () => user, isSameOrigin: r => r.headers.get('origin') === 'https://example.com', publicAppOrigin: () => 'https://example.com' } });
 await mock.module('../src/lib/auth/firebase-admin.ts', { namedExports: { adminAuth: () => ({ getUser: async () => identity }) } });
 await mock.module('resend', { namedExports: { Resend: class { emails = { send: async (payload, opts) => { sends.push({ payload, opts }); if (duringSend) await duringSend(); return failSend ? { error: { message: 'timeout' } } : { data: { id: 'mail-id' } }; } }; } } });
-await mock.module('google-auth-library', { namedExports: { OAuth2Client: class { async verifyIdToken({ idToken, audience }) { assert.equal(audience, 'https://example.com/api/notifications/dispatch'); return { getPayload: () => ({ email: idToken, email_verified: true }) }; } } } });
+await mock.module('google-auth-library', { namedExports: { GoogleAuth: class { async request() { throw new Error('not used'); } }, OAuth2Client: class { async verifyIdToken({ idToken, audience }) { assert.equal(audience, 'https://example.com/api/notifications/dispatch'); return { getPayload: () => ({ email: idToken, email_verified: true }) }; } } } });
 const rules = await import('../src/lib/notifications/preferences.ts');
 const api = await import('../src/app/api/marketplace/mail-preferences/route.ts');
 const unsubscribe = await import('../src/app/api/notifications/unsubscribe/route.ts');

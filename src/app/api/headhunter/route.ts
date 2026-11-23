@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { applyAsHeadhunter, getHeadhunter, headhunterGate, invalidateHeadhunterCache, isAccountActive, updateHeadhunter } from '@/lib/db/headhunters';
 import { announceMinisites } from '@/lib/headhunters/indexnow';
 import { validateHandle } from '@/lib/headhunters/handle';
@@ -8,9 +7,7 @@ import { HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
 import type { HeadhunterRecord } from '@/lib/headhunters/types';
 import { validateHeadhunterInput } from '@/lib/headhunters/validation';
 import { ownerView } from '@/lib/headhunters/view';
-import { accountWriteDenied } from '@/lib/security/marketplace-policy';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -23,11 +20,7 @@ const editableFields = (record: HeadhunterRecord) => ({
   ...(record.about ? { about: record.about } : {}), ...(record.share ? { share: record.share } : {}),
 });
 
-export async function GET() {
-  const gate = await headhunterGate();
-  if (!gate.ok) return gate.response;
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.SIGN_IN }, { status: 401 });
+export const GET = route('headhunter.read', { gate: () => headhunterGate() }, async ({ user, gate }) => {
   try {
     const record = await getHeadhunter(user.uid);
     const headhunter = record ? ownerView(record, { accountActive: await isAccountActive(user.uid) }) : null;
@@ -35,21 +28,10 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });
   }
-}
+});
 
-export async function POST(request: Request) {
-  const gate = await headhunterGate({ applications: true });
-  if (!gate.ok) return gate.response;
-  if (!isSameOrigin(request)) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.FORBIDDEN }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.SIGN_IN }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'headhunter.edit');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid);
-  if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, BODY_LIMIT);
-  if (!parsedBody.ok) return parsedBody.response;
-  const { handle: rawHandle, ...fields } = parsedBody.value;
+export const POST = route('headhunter.apply', { gate: () => headhunterGate({ applications: true }), body: { type: 'json', maxBytes: BODY_LIMIT } }, async ({ user, body }) => {
+  const { handle: rawHandle, ...fields } = body;
   const input = validateHeadhunterInput(fields, { requireAttestation: true, allowFastTrack: true });
   if (!input.ok) return NextResponse.json({ code: input.code, ...(input.field ? { field: input.field } : {}), error: input.error }, { status: 400 });
   const handle = validateHandle(rawHandle);
@@ -66,24 +48,13 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });
   }
-}
+});
 
-export async function PATCH(request: Request) {
-  const gate = await headhunterGate();
-  if (!gate.ok) return gate.response;
-  if (!isSameOrigin(request)) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.FORBIDDEN }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: HEADHUNTER_API_ERRORS.SIGN_IN }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'headhunter.edit');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid);
-  if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, BODY_LIMIT);
-  if (!parsedBody.ok) return parsedBody.response;
+export const PATCH = route('headhunter.update', { gate: () => headhunterGate(), body: { type: 'json', maxBytes: BODY_LIMIT } }, async ({ user, body }) => {
   try {
     const record = await getHeadhunter(user.uid);
     if (!record) return NextResponse.json({ code: 'NOT_FOUND', error: HEADHUNTER_API_ERRORS.NOT_FOUND }, { status: 404 });
-    const input = validateHeadhunterInput({ ...editableFields(record), ...parsedBody.value });
+    const input = validateHeadhunterInput({ ...editableFields(record), ...body });
     if (!input.ok) return NextResponse.json({ code: input.code, ...(input.field ? { field: input.field } : {}), error: input.error }, { status: 400 });
     const result = await updateHeadhunter(user.uid, input.value);
     if (!result.ok) {
@@ -99,4 +70,4 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: HEADHUNTER_API_ERRORS.UNAVAILABLE }, { status: 503 });
   }
-}
+});

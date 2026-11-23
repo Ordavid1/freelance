@@ -118,7 +118,7 @@ function setup() {
   Object.assign(process.env, env);
 }
 const jobs = () => [...rows.keys()].filter((key) => key.startsWith('supportSlackOutbox/')).map((key) => ({ id: key.split('/')[1], ...rows.get(key) }));
-const inbound = (id, patch = {}) => ({ id, from: 'Dana Levi <dana@example.net>', to: ['owner@example.com'], cc: [], received_for: ['owner@example.com'], subject: 'Pricing', text: 'Hi, how much does it cost?', html: null, message_id: '<m1@mail.example.net>', headers: {}, ...patch });
+const inbound = (id, patch = {}) => ({ id, from: 'Dana Levi <dana@example.net>', to: ['owner@example.com'], cc: [], received_for: ['owner@example.com'], subject: 'Pricing', text: 'Hi, how much does it cost?', html: null, message_id: '<m1@mail.example.net>', ...patch, headers: { 'Authentication-Results': 'mx.example.com; dkim=pass header.d=example.net', ...patch.headers } });
 const jobId = (conversationId, messageId, type) => outbox.slackJobId(conversationId, messageId, type);
 
 test('chat message enqueues exactly one message job and one draft job, and a retry does not duplicate them', async () => {

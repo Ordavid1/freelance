@@ -23,6 +23,8 @@ function setup({ enabled = true, linkEnabled = false, sameOrigin = true, current
       '@/lib/auth/session': { getCurrentUser: async () => currentUser, isSameOrigin: () => sameOrigin },
       '@/lib/db/firestore': { firestore: () => db },
       '@/lib/security/rate-limit': { enforceActionLimit: async (...args) => { calls.limiter.push(args); return limit; } },
+      // Account state has its own tests; here it must not read the (deliberately failing) fake database.
+      '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null },
       '@/lib/imports/errors': errorsModule,
     },
   });

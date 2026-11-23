@@ -3,12 +3,13 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { firestore } from '@/lib/db/firestore';
 import { supportConfig } from '@/lib/support/config';
 import { deliverAgentReply } from '@/lib/support/delivery';
-import { limitedBody, SupportError } from '@/lib/support/http';
 import { digest } from '@/lib/support/service';
 import { addReaction, postEphemeral } from '@/lib/support/slack/client';
 import { isAgent, supportSlackConfig, type SlackConfig } from '@/lib/support/slack/config';
 import { verifySlackSignature } from '@/lib/support/slack/verify';
 import { isInternalNote, slackTextToPlain } from '@/lib/support/slack/text';
+import { route } from '@/lib/security/policy';
+import { SupportError } from '@/lib/support/http';
 
 export const runtime = 'nodejs';
 
@@ -61,11 +62,12 @@ async function handleMessage(config: SlackConfig, event: Record<string, unknown>
   }
 }
 
-export async function POST(request: Request) {
+// Slack signs the raw bytes: the policy layer hands them over untouched (capped at 1 MB).
+export const POST = route('support.slack.events', { sameOrigin: false, body: { type: 'raw', maxBytes: 1_000_000 } }, async ({ request, body: rawBody }) => {
   try {
     const config = supportSlackConfig();
     if (!config) return json({ error: 'NOT_CONFIGURED' }, 503);
-    const raw = await limitedBody(request, 1_000_000);
+    const raw = new TextDecoder().decode(rawBody);
     const verified = verifySlackSignature(raw, { timestamp: request.headers.get('x-slack-request-timestamp'), signature: request.headers.get('x-slack-signature') }, config.signingSecret);
     if (!verified) return json({ error: 'SIGNATURE' }, 401);
     let body: Record<string, unknown> | null;
@@ -86,4 +88,4 @@ export async function POST(request: Request) {
     console.error('support_slack_events_failed');
     return json({ error: 'UNAVAILABLE' }, 503);
   }
-}
+});

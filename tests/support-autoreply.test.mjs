@@ -51,7 +51,7 @@ function signedRequest(event, bad = false) {
 
 
 const autoreply = await import('../src/lib/support/autoreply.ts');
-const inbound = (id, patch = {}) => ({ id, from: 'Dana Levi <dana@example.net>', to: ['owner@example.com'], cc: [], received_for: ['owner@example.com'], subject: 'שאלה על פרויקט', text: 'שלום, רציתי לשאול על התמחור שלכם', html: null, message_id: '<abc@mail.example.net>', headers: { references: '<root@mail.example.net>' }, ...patch });
+const inbound = (id, patch = {}) => ({ id, from: 'Dana Levi <dana@example.net>', to: ['owner@example.com'], cc: [], received_for: ['owner@example.com'], subject: 'שאלה על פרויקט', text: 'שלום, רציתי לשאול על התמחור שלכם', html: null, message_id: '<abc@mail.example.net>', ...patch, headers: { references: '<root@mail.example.net>', 'Authentication-Results': 'mx.example.com; dkim=pass header.d=example.net', ...patch.headers } });
 function run(emailId, email, sent = []) {
   return transport((url, options) => {
     if (options.method === 'POST') { sent.push(JSON.parse(options.body)); return Response.json({ id: 'sent-' + sent.length }); }
@@ -67,7 +67,7 @@ test('acknowledges a Hebrew email once, threaded, in Hebrew, and survives webhoo
     assert.equal(sent.length, 1);
     const mail = sent[0];
     assert.deepEqual(mail.to, ['dana@example.net']); assert.equal(mail.from, env.SUPPORT_FROM_EMAIL);
-    assert.equal(mail.subject, 'Re: שאלה על פרויקט');
+    assert.equal(mail.subject, 'קיבלנו את ההודעה שלך | Freelance Place', 'the subject is fixed, never the inbound one');
     assert.equal(mail.headers['In-Reply-To'], '<abc@mail.example.net>'); assert.equal(mail.headers.References, '<root@mail.example.net> <abc@mail.example.net>');
     assert.equal(mail.headers['Auto-Submitted'], 'auto-replied');
     assert.match(mail.text, /^היי Dana!/); assert.match(mail.html, /dir="rtl"/); assert.match(mail.text, /דקות ספורות/);
@@ -134,7 +134,7 @@ test('kill switch disables replies and chat aliases still reach the chat bridge,
   setup(); process.env.SUPPORT_AUTOREPLY = 'off'; const emailId = randomUUID(); const sent = []; let fetch = run(emailId, inbound(emailId), sent);
   try { await hook(emailId); assert.equal(sent.length, 0); } finally { fetch.mock.restore(); delete process.env.SUPPORT_AUTOREPLY; }
   let replyToken; const reply = randomUUID();
-  fetch = transport((url, options) => options.method === 'POST' ? (replyToken = JSON.parse(options.body).reply_to.split('+')[1].split('@')[0], Response.json({ id: 'n' })) : Response.json({ id: reply, from: 'owner@example.com', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'on it', html: null, headers: {}, message_id: '<r@x>', subject: 're' }));
+  fetch = transport((url, options) => options.method === 'POST' ? (replyToken = JSON.parse(options.body).reply_to.split('+')[1].split('@')[0], Response.json({ id: 'n' })) : Response.json({ id: reply, from: 'owner@example.com', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'on it', html: null, headers: { 'Authentication-Results': 'mx.example.com; dkim=pass header.d=example.com' }, message_id: '<r@x>', subject: 're' }));
   try {
     await service.sendSupportMessage(config, cookieToken, null, input()); await hook(reply);
     assert.equal((await service.readSupportConversation(cookieToken, null)).messages.length, 2);
@@ -144,4 +144,70 @@ test('language detection and HTML escaping', () => {
   assert.equal(autoreply.detectLanguage('Hello team, I would like to ask about pricing, שלום'), 'en'); assert.equal(autoreply.detectLanguage('שלום, I need help'), 'he'); assert.equal(autoreply.detectLanguage(''), 'en');
   const mail = autoreply.buildAutoReply('en', '"<script>x</script>" <a@b.co>', 'Hi\r\nBcc: evil@x.co');
   assert.ok(!mail.html.includes('<script>')); assert.ok(!/[\r\n]/.test(mail.subject));
+});
+
+// --- F10: sender authentication, fixed subject, lower cap ---------------------------------------------------------------
+const withAuth = (value) => inbound(randomUUID(), { headers: { 'Authentication-Results': value ?? '' } });
+const decide = (email) => autoreply.autoReplyDecision(config, email);
+test('with Authentication-Results present, replies only on an aligned DKIM or SPF pass; without it (Resend today) the other rules decide', () => {
+  for (const value of [undefined, '']) assert.equal(decide(withAuth(value)).reply, true, 'absent header: ' + String(value));
+  for (const value of [
+    'mx.example.com; dkim=pass header.d=example.net header.s=s1',
+    'mx.example.com; dkim=pass header.d=mail.example.net',
+    'mx.example.com; spf=pass smtp.mailfrom=bounce@example.net',
+    'mx.example.com; spf=pass smtp.mailfrom=bounce@em.example.net',
+    'mx.example.com; dkim=none; spf=pass (sender ok) smtp.mailfrom="x@example.net"',
+    'MX.EXAMPLE.COM; DKIM=PASS header.d=EXAMPLE.NET',
+  ]) assert.equal(decide(withAuth(value)).reply, true, value);
+  // A pass beside a failure is still refused by the existing failed-authentication rule.
+  assert.equal(decide(withAuth('mx.example.com; dkim=pass header.d=example.net; spf=fail smtp.mailfrom=a@example.net')).reply, false, 'pass beside fail');
+  for (const value of ['mx.example.com; dkim=none; spf=none', 'mx.example.com; dkim=neutral header.d=example.net',
+    'mx.example.com; dkim=pass header.d=attacker.test', 'mx.example.com; spf=pass smtp.mailfrom=bounce@attacker.test',
+    'mx.example.com; dkim=pass header.d=example.net.attacker.test', 'mx.example.com; dkim=pass header.d=ample.net',
+    'mx.example.com; spf=pass smtp.helo=example.net', 'mx.example.com; dmarc=pass header.from=example.net', 'mx.example.com; dkim=pass', 'mx.example.com; spf=pass']) {
+    const result = decide(withAuth(value));
+    assert.equal(result.reply, false, 'case: ' + String(value));
+    assert.equal(result.reason, 'unauthenticated-sender', String(value));
+  }
+});
+test('the acknowledgment subject is fixed and never carries inbound text', async () => {
+  setup(); const hostile = 'WIN a prize at http://evil.test \r\nBcc: v@x.co'; const emailId = randomUUID(); const sent = [];
+  const fetch = run(emailId, inbound(emailId, { subject: hostile }), sent);
+  try { await hook(emailId); } finally { fetch.mock.restore(); }
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].subject, 'קיבלנו את ההודעה שלך | Freelance Place');
+  assert.ok(!JSON.stringify(sent[0]).includes('evil.test'));
+  const en = autoreply.buildAutoReply('en', 'a@b.co');
+  assert.equal(en.subject, 'We received your message | Freelance Place');
+  assert.doesNotMatch(en.subject, /^Re:/);
+});
+test('a misaligned or unauthenticated From gets no reply through the webhook', async () => {
+  setup();
+  for (const headers of [{ 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=a@attacker.test' }]) {
+    const emailId = randomUUID(); const sent = []; const fetch = run(emailId, { ...inbound(emailId), headers }, sent);
+    try { assert.equal((await hook(emailId)).status, 200); assert.equal(sent.length, 0, JSON.stringify(headers)); } finally { fetch.mock.restore(); }
+  }
+});
+test('the site-wide hourly cap defaults to 50 and AUTOREPLY_PER_HOUR tunes it', async () => {
+  assert.equal(autoreply.AUTOREPLY_PER_HOUR, 50);
+  const { loadModule } = await import('./helpers/load-ts.mjs');
+  const stubs = { 'firebase-admin/firestore': { Timestamp: {} }, resend: { Resend: class {} }, '@/lib/db/firestore': {}, '@/lib/support/service': {}, '@/lib/support/conversations': {}, '@/lib/support/slack/outbox': {}, '@/lib/support/http': { SupportError: class extends Error {} }, '@/lib/support/config': {} };
+  for (const [value, expected] of [['120', 120], ['0', 50], ['abc', 50], ['-5', 50], ['2.5', 50], [undefined, 50]]) {
+    const env = value === undefined ? {} : { AUTOREPLY_PER_HOUR: value };
+    assert.equal(loadModule('src/lib/support/autoreply.ts', { env, stubs }).AUTOREPLY_PER_HOUR, expected, String(value));
+  }
+});
+test('the owner reply bridge refuses an allowed sender whose reported authentication is missing or misaligned', async () => {
+  setup(); const reply = randomUUID(); let replyToken;
+  let fetch = transport((url, options) => options.method === 'POST' ? (replyToken = JSON.parse(options.body).reply_to.split('+')[1].split('@')[0], Response.json({ id: 'n' })) : Response.json({}));
+  try { await service.sendSupportMessage(config, cookieToken, null, input()); } finally { fetch.mock.restore(); }
+  for (const [index, headers] of [{ 'Authentication-Results': 'mx; dkim=pass header.d=attacker.test' }, { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=o@attacker.test' }, { 'Authentication-Results': 'mx; dkim=none; spf=none' }].entries()) {
+    const id = randomUUID();
+    fetch = transport(() => Response.json({ id, from: 'owner@example.com', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'forged', html: null, headers, message_id: `<f${index}@x>`, subject: 're' }));
+    try { assert.equal((await hook(id)).status, 200); } finally { fetch.mock.restore(); }
+    assert.equal((await service.readSupportConversation(cookieToken, null)).messages.length, 1, JSON.stringify(headers));
+  }
+  fetch = transport(() => Response.json({ id: reply, from: 'owner@example.com', to: [`chat+${replyToken}@chat.example.com`], received_for: [`chat+${replyToken}@chat.example.com`], text: 'real', html: null, headers: { 'Authentication-Results': 'mx; spf=pass smtp.mailfrom=owner@example.com' }, message_id: '<ok@x>', subject: 're' }));
+  try { await hook(reply); } finally { fetch.mock.restore(); }
+  assert.equal((await service.readSupportConversation(cookieToken, null)).messages.length, 2);
 });

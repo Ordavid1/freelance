@@ -7,6 +7,7 @@ import { untrustedHtmlToText } from '@/lib/security/html-text';
 import { firestore } from '@/lib/db/firestore';
 import { mailbox, validEmail, type SupportConfig } from '@/lib/support/config';
 import { SupportError } from '@/lib/support/http';
+import { senderAuthFailed } from '@/lib/support/sender-auth';
 import { SUPPORT_MAX_TEXT, type SupportMessage } from '@/lib/support/shared';
 import { emailNotifyEnabled, supportSlackConfig } from '@/lib/support/slack/config';
 import { enqueueSlackJobs, kickSlackJobs } from '@/lib/support/slack/outbox';
@@ -18,6 +19,12 @@ export const digest = (text: string) => createHash('sha256').update(text).digest
 type Visitor = { uid: string; email: string | null; name: string | null } | null;
 type Conversation = { uid: string | null; name: string; email: string; replyToken: string; messageCount: number; windowStart: number; windowCount: number };
 export type VisitorMessage = { id: string; text: string; name: string; email: string; page: string };
+
+/** Messages per hour across ALL visitors (env SUPPORT_SITE_HOURLY_LIMIT). Above what one address may send, below what would flood the inbox. */
+function siteHourlyLimit() {
+  const configured = Number(process.env.SUPPORT_SITE_HOURLY_LIMIT);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : 300;
+}
 
 export function visitorMessage(body: unknown): VisitorMessage {
   if (!body || typeof body !== 'object') throw new SupportError('INVALID', 400, 'נא למלא הודעה וכתובת מייל תקינה.');
@@ -52,7 +59,8 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
   const db = firestore();
   const ref = conversationRef(token);
   const messageRef = ref.collection('messages').doc(input.id);
-  // A persistent shared budget also limits clients that rotate their cookies.
+  // A persistent site-wide ceiling also limits clients that rotate their cookies. Per-address and per-account
+  // limits are applied before this point by the policy layer (security/operations.ts: support.message).
   const budgetRef = db.collection('supportRateLimits').doc('outbound-hour');
   // With Slack configured, Slack is the console; the per-message email is optional (SUPPORT_EMAIL_NOTIFY).
   const slack = supportSlackConfig();
@@ -72,7 +80,7 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
     const budgetCount = budget.data()?.window === budgetWindow ? (budget.data()?.count || 0) : 0;
     const windowStart = data && now - data.windowStart < 600_000 ? data.windowStart : now;
     const windowCount = data && windowStart === data.windowStart ? data.windowCount : 0;
-    if (windowCount >= 10 || (data?.messageCount || 0) >= 200 || budgetCount >= 100) throw new SupportError('RATE_LIMIT', 429, 'התקבלו הרבה הודעות. אפשר לנסות שוב מאוחר יותר או לפנות במייל.');
+    if (windowCount >= 10 || (data?.messageCount || 0) >= 200 || budgetCount >= siteHourlyLimit()) throw new SupportError('RATE_LIMIT', 429, 'התקבלו הרבה הודעות. אפשר לנסות שוב מאוחר יותר או לפנות במייל.');
     const next: Conversation = { uid: data?.uid || viewer?.uid || null, name: data?.name || input.name, email: data?.email || input.email, replyToken: data?.replyToken || randomBytes(16).toString('hex'), messageCount: (data?.messageCount || 0) + 1, windowStart, windowCount: windowCount + 1 };
     // threadRoot is stored once, so retries of this message keep the same email headers.
     const message = { sender: 'visitor', text: input.text, createdAt: Timestamp.fromMillis(now), delivery: slackOnly ? 'sent' : 'pending', contactName: input.name, contactEmail: input.email, page: input.page, ...(next.messageCount === 1 ? { threadRoot: true } : {}) };
@@ -138,6 +146,8 @@ export async function receiveSupportReply(config: SupportConfig, emailId: string
   const email = preloaded ?? await fetchReceivedEmail(config, emailId);
   const sender = mailbox(email.from);
   if (!sender || !config.allowedSenders.includes(sender)) return { ignored: true };
+  // The reply token is the main secret. When the provider reports sender authentication, an allowed sender must have an aligned pass.
+  if (senderAuthFailed(email.headers, sender.split('@')[1] || '')) return { ignored: true };
   const headers = Object.fromEntries(Object.entries(email.headers || {}).map(([key, value]) => [key.toLowerCase(), value]));
   if ((headers['auto-submitted'] && headers['auto-submitted'].toLowerCase() !== 'no') || /auto_reply|bulk|list/i.test(headers.precedence || '') || headers['x-autoreply'] || headers['x-autorespond']) return { ignored: true };
   const routes = replyRoute(email.received_for?.length ? email.received_for : email.to, config.replyDomain);

@@ -1,4 +1,5 @@
 import { loadModule } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -19,6 +20,7 @@ function fixture({ uid = 'owner', status = 'submitted', sameOrigin = true, signe
       update: (ref, value) => writes.push({ ref, value }),
     }) }) },
   };
+  stubs['@/lib/security/policy'] = loadPolicy(stubs);
   const module = { exports: {} };
   const code = ts.transpileModule(readFileSync('src/app/api/marketplace/proposals/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   vm.runInNewContext(code, { module, exports: module.exports, require: name => stubs[name], console });

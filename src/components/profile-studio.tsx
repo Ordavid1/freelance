@@ -1,5 +1,6 @@
 'use client';
 import { trackEvent } from '@/lib/analytics';
+import { humanCheckHeaders } from '@/lib/security/human-token-client';
 import { compressProfileImage } from '@/lib/profile/compress-image';
 import { portfolioLink } from '@/lib/profile/portfolio-link';
 
@@ -411,7 +412,7 @@ export function ProfileStudio({ userId }: { userId: string }) {
       if (xplaceSource) importedSources.push({ provider: 'xplace', sourceText: xplaceSource.sourceText });
       if (dribbbleSource) importedSources.push({ provider: 'dribbble', sourceText: dribbbleSource.sourceText });
       form.set('socialSources', JSON.stringify(importedSources));
-      const response = await fetch('/api/ai/profile', { method: 'POST', body: form });
+      const response = await fetch('/api/ai/profile', { method: 'POST', headers: await humanCheckHeaders('ai_profile'), body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       trackEvent(data.demo ? 'profile_generation_demo' : 'profile_generation_completed');

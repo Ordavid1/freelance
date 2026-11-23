@@ -180,3 +180,23 @@ variable "resend_secrets" {
     error_message = "Resend secret versions must be pinned positive version numbers."
   }
 }
+variable "billing_account_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Cloud Billing account ID (for example 012345-6789AB-CDEF01) to attach the AI cost budget to. Leave null to skip creating the budget."
+}
+variable "budget_amount" {
+  type        = number
+  default     = 100
+  description = "Monthly budget, in whole units of budget_currency, whose thresholds (50%, 90%, 100%) are published to the budget guard."
+  validation {
+    condition     = var.budget_amount > 0 && floor(var.budget_amount) == var.budget_amount
+    error_message = "budget_amount must be a positive whole number."
+  }
+}
+variable "budget_currency" {
+  type        = string
+  default     = "USD"
+  description = "Currency of the billing account, which the budget amount must use."
+}

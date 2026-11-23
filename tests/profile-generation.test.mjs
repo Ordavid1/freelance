@@ -1,4 +1,5 @@
 import { loadModule } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -16,6 +17,8 @@ function load(path, stubs = {}) {
     if (name === '@/lib/security/request-body') return loadModule('src/lib/security/request-body.ts');
     if (name === '@/lib/security/rate-limit') return { enforceActionLimit: async () => null };
     if (name === 'server-only') return {};
+    if (name === '@/lib/security/policy') return loadPolicy({ '@/lib/auth/session': stubs['@/lib/auth/session'] });
+    if (name === '@/lib/security/runtime-switch') return { featureEnabled: async () => true };
     if (name === 'node:net') return { isIP };
     if (name in stubs) return stubs[name];
     throw new Error(name);

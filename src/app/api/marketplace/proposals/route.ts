@@ -1,13 +1,10 @@
-import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
-import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { getProject } from '@/lib/data';
+import { route } from '@/lib/security/policy';
+import { assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
 
 export const runtime = 'nodejs';
 
@@ -20,9 +17,7 @@ function timestampMillis(value: unknown): number {
   return 0;
 }
 
-export async function GET(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בהצעות.' }, { status: 401 });
+export const GET = route('proposal.list', {}, async ({ request, user }) => {
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   if (projectSlug !== null && !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug)) return NextResponse.json({ error: 'הפרויקט לא נמצא.' }, { status: 404 });
@@ -67,7 +62,7 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון הצעות כרגע.' }, { status: 503 });
   }
-}
+});
 
 async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: string, input: { projectSlug: string; projectTitle: string; message: string; amount: number; pricingType: unknown; delivery: string; privateFromPublic: boolean }) {
   try {
@@ -92,17 +87,8 @@ async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: strin
   }
 }
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשלוח הצעה.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
-  const limited = await enforceActionLimit(user.uid, 'proposal.create');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, 16_000);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as Record<string, unknown> | null;
+export const POST = route('proposal.create', { body: { type: 'json', maxBytes: 16_000 } }, async ({ user, body: input }) => {
+  const body = input as Record<string, unknown> | null;
   const projectSlug = body?.projectSlug;
   const message = body?.message;
   const delivery = body?.delivery;
@@ -169,15 +155,9 @@ export async function POST(request: Request) {
     if (reason === 'PROJECT_CLOSED') return NextResponse.json({ error: 'הפרויקט כבר אינו פתוח להצעות.' }, { status: 409 });
     return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
   }
-}
+});
 
-export async function PATCH(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לבטל הצעה.' }, { status: 401 });
-  const parsedBody = await readJsonBody(request, 4_096);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value;
+export const PATCH = route('proposal.withdraw', { body: { type: 'json', maxBytes: 4_096 } }, async ({ user, body }) => {
   if (typeof body?.proposalId !== 'string' || !/^[a-f0-9]{64}$/.test(body.proposalId)) return NextResponse.json({ error: 'הצעה לא תקינה.' }, { status: 400 });
   const proposalId = body.proposalId;
   const db = firestore();
@@ -198,4 +178,4 @@ export async function PATCH(request: Request) {
     const reason = cause instanceof Error ? cause.message : '';
     return NextResponse.json({ error: reason === 'NOT_FOUND' ? 'ההצעה לא נמצאה.' : reason === 'INVALID_STATUS' ? 'לא ניתן לבטל את ההצעה במצב הנוכחי.' : 'ביטול ההצעה נכשל.' }, { status: reason === 'NOT_FOUND' ? 404 : reason === 'INVALID_STATUS' ? 409 : 503 });
   }
-}
+});
