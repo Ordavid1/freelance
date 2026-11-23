@@ -50,9 +50,12 @@ Coordinator merges W2, W3, then W1 into the branch, resolves conflicts, runs the
 
 ## Needs Or after merge (Terraform apply and console)
 - Apply `kms.tf`, then run `npm run billing:seal-tokens -- --commit`.
-- Apply the custom-role permission and TTL fields.
+- Apply `main.tf`: custom-role permission, `revokedSessions.expiresAt` TTL, pubsub/cloudkms/recaptchaenterprise APIs, runtime `recaptchaenterprise.agent`.
 - Create a reCAPTCHA Enterprise key and set `RECAPTCHA_SITE_KEY`.
 - Set `billing_account_id` and apply `budget-guard.tf` (needs billing-account permissions).
 
 ## Execution log
 - 23-11-26: plan written; workers started.
+- 23-11-26: DONE W2 (KMS token vault, `billing:seal-tokens`), W3 (`__Host-` cookie, logout denylist, moderator `revokeSessions`, reCAPTCHA behind `RECAPTCHA_SITE_KEY`, fixed auto-reply subject, cap 50), W1 (46 route methods on `route()`, registry + coverage test, global budgets, per-IP anonymous limits, AI kill switch, `/api/maintenance/budget`, `budget-guard.tf`, profile image/URL validation).
+- 23-11-26: merge fixes. CHANGED from plan: Resend inbound carries no `Authentication-Results` (checked on a real message), so "no header = no reply" would have stopped every auto-reply and the owner reply bridge; now refused only when the header is present without an aligned pass. Profile save keeps http websites and unchanged older images. Terraform fmt/validate pass (1.13.5). 1005/1005 tests, typecheck, build clean; CI green; Codex review clean on 92801df.
+- NOT DONE (needs Or): every item under "Needs Or after merge". Until applied, KMS sealing, reCAPTCHA and the budget guard stay off; the code is safe without them.
