@@ -1,6 +1,6 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com", "pubsub.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
@@ -381,6 +381,10 @@ resource "google_cloud_run_v2_service" "engine" {
       env {
         name  = "MAINTENANCE_SCHEDULER_EMAIL"
         value = google_service_account.maintenance_scheduler.email
+      }
+      env {
+        name  = "BUDGET_ALERT_PUSH_EMAIL"
+        value = google_service_account.budget_push.email
       }
       env {
         name  = "UPLOADS_BUCKET"
