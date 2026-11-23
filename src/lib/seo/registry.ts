@@ -8,7 +8,7 @@ import { guides } from './guides';
 import { hubPages } from './hubs';
 import { infoPages } from './info-pages';
 import { skillCompleteness, skills } from './skills';
-import { pageMetadata } from './site';
+import { absoluteUrl, pageMetadata } from './site';
 import type { SeoPage } from './types';
 
 const corePages: SeoPage[] = [
@@ -22,7 +22,7 @@ const corePages: SeoPage[] = [
     path: '/alternatives/xplace', kind: 'comparison',
     title: 'אלטרנטיבה ל־XPlace.com לפרילנסרים בישראל',
     description: 'השוואה מבוססת מקורות בין Freelance Place ל־XPlace.com: מחיר מנוי, התחייבות, ניסיון חינם ומהירות טעינה, עם תאריך בדיקה ושיטה גלויה.',
-    modified: '2026-11-10',
+    modified: '2026-11-23',
     llms: { section: 'Comparisons', note: 'Dated, sourced comparison of membership price, commitment, free trial and page speed, with the method and the cited XPlace pages.' },
   },
   {
@@ -86,5 +86,6 @@ export function metadataFor(path: string): Metadata {
     published: page.published,
     modified: page.modified,
     absoluteTitle: page.kind === 'home',
+    share: page.shareImage ? { image: absoluteUrl(page.shareImage) } : undefined,
   });
 }

@@ -12,33 +12,41 @@ type Range = readonly [low: number, high: number];
 export type ComparisonRow = { label: string; freelancePlace: string; xplace: string };
 
 // What XPlace publishes. Prices are ILS per month before VAT; every plan is billed once for its
-// whole period (plans page: "חיוב העסקה נעשה בתשלום אחד לכל התקופה ולא ניתן לחלקו לתשלומים").
+// whole period (plans page: "חיוב העסקה נעשה בתשלום אחד לכל התקופה ולא ניתן לחלקו לתשלומים"). The per-month and the
+// total figures are the plans page's own, rounded as it rounds them, so a total is not always exactly months x per month.
+// `priceNote` is anything the page says about those prices on the check date (a marked discount, for example); it is
+// stated beside the prices, and is left empty when there is none.
 export const XPLACE = {
-  checked: '2026-11-10',
+  checked: '2026-11-23',
   sources: {
     plans: { label: 'טבלת המחירים לפרילנסרים', url: 'https://www.xplace.com/il/plans' },
     terms: { label: 'תנאי השימוש', url: 'https://www.xplace.com/il/terms' },
     home: { label: 'עמוד הבית', url: 'https://www.xplace.com/' },
   },
   plans: {
-    monthly: { months: 1, perMonth: 99, total: 99 },
-    quarterly: { months: 3, perMonth: 89, total: 267 },
-    annual: { months: 12, perMonth: 69, total: 828 },
+    monthly: { months: 1, perMonth: 74, total: 74 },
+    quarterly: { months: 3, perMonth: 67, total: 200 },
+    annual: { months: 12, perMonth: 52, total: 621 },
   },
+  priceNote: { he: 'בעמוד מסומנת הנחה של 25% על המסלולים של 3 ו־12 חודשים.', en: 'the page marks a 25% discount on the 3- and 12-month plans' },
 } as const;
 
 // Google Lighthouse on the production home pages. Scores are the range over the runs, every
 // other value is the median. Both sites were measured in the same session with the same settings.
+// `thirdPartyUse` says what our own third-party requests are, because they are real: the home page loads Google Analytics.
+// Refresh this whenever the home page changes materially (a new script or widget), not only when XPlace does.
 export const SPEED_TEST = {
-  checked: '2026-11-10',
+  checked: '2026-11-23',
   tool: 'Google Lighthouse 12.8.2',
   setup: 'מובייל מדומה (Moto G Power, חיבור Slow 4G, האטת מעבד פי 4)',
   runs: 3,
-  freelancePlace: { mobileScore: [89, 95], desktopScore: [96, 99], accessibility: 100, bestPractices: 100, lcpSeconds: 2.1, blockingMs: 253, requests: 24, kilobytes: 308, thirdPartyRequests: 0, thirdPartyHosts: 0 },
-  xplace: { mobileScore: [50, 52], desktopScore: [75, 82], accessibility: 93, bestPractices: 61, lcpSeconds: 4.1, blockingMs: 2051, requests: 162, kilobytes: 20327, thirdPartyRequests: 65, thirdPartyHosts: 31, videos: 6, videoKilobytes: 14579, animatedGifKilobytes: 3281 },
+  freelancePlace: { mobileScore: [71, 75], desktopScore: [88, 96], accessibility: 100, bestPractices: 93, lcpSeconds: 2.3, blockingMs: 1280, requests: 38, kilobytes: 507, thirdPartyRequests: 2, thirdPartyHosts: 2, thirdPartyUse: 'מדידת שימוש של Google Analytics' },
+  xplace: { mobileScore: [35, 37], desktopScore: [70, 74], accessibility: 93, bestPractices: 61, lcpSeconds: 19.6, blockingMs: 1950, requests: 162, kilobytes: 20325, thirdPartyRequests: 65, thirdPartyHosts: 31, videos: 6, videoKilobytes: 14579, animatedGifKilobytes: 3283 },
 } as const;
 
 const NO_CARD = 'בלי כרטיס אשראי';
+// The measured values are literal types, so a comparison with a different number goes through a plain number.
+const none = (count: number) => count === 0;
 const ils = (amount: number) => `₪${amount}`;
 const percentLess = (ours: number, theirs: number) => Math.round((1 - ours / theirs) * 100);
 const range = ([low, high]: Range) => low === high ? String(low) : `${low}–${high}`;
@@ -48,6 +56,8 @@ const megabytes = (kilobytes: number) => {
 };
 const checkedOn = () => formatHebrewDate(XPLACE.checked);
 const joinSentences = (...parts: string[]) => parts.filter(Boolean).join(' ');
+// What XPlace's plans page says about its prices on the check date, as a sentence to append to the prices (empty when nothing).
+const priceNote = () => (XPLACE.priceNote.he as string);
 // "בעלות, בגמישות ובמהירות": the last item takes a plain ו.
 const listHe = (items: string[]) => items.length > 1 ? `${items.slice(0, -1).join(', ')} ו${items[items.length - 1]}` : items[0] ?? '';
 
@@ -75,6 +85,8 @@ export function derive(facts: MembershipFacts) {
     ourWeight: megabytes(ours.kilobytes), theirWeight: megabytes(theirs.kilobytes),
     ourAccessibility: String(ours.accessibility), theirAccessibility: String(theirs.accessibility),
     ourThirdParty: String(ours.thirdPartyRequests), theirThirdParty: String(theirs.thirdPartyRequests),
+    // Whether we send none at all decides the wording: "none" is only said when the measurement says none.
+    ourThirdPartyNone: none(ours.thirdPartyRequests), ourThirdPartyUse: ours.thirdPartyUse,
   };
 }
 type Derived = ReturnType<typeof derive>;
@@ -84,7 +96,7 @@ const speedSentence = (d: Derived) => d.faster
   : '';
 // Accessibility score and requests to third parties are part of how the page feels and what it does behind the reader's back.
 const qualitySentence = (d: Derived) => d.cleaner
-  ? `ציון הנגישות שלו ${d.ourAccessibility} לעומת ${d.theirAccessibility}, והוא לא שולח בקשות לצדדים שלישיים, לעומת ${d.theirThirdParty} ב־XPlace.`
+  ? `ציון הנגישות שלו ${d.ourAccessibility} לעומת ${d.theirAccessibility}, ${d.ourThirdPartyNone ? 'והוא לא שולח בקשות לצדדים שלישיים' : `והוא שולח ${d.ourThirdParty} בקשות לצדדים שלישיים (${d.ourThirdPartyUse})`}, לעומת ${d.theirThirdParty} ב־XPlace.`
   : '';
 
 function priceSentence(d: Derived) {
@@ -134,7 +146,7 @@ export function comparisonLead(facts: MembershipFacts) {
 export function comparisonRows(facts: MembershipFacts): ComparisonRow[] {
   const d = derive(facts);
   const { monthly, quarterly, annual } = XPLACE.plans;
-  const xplacePrices = `${ils(monthly.perMonth)} לחודש במסלול חודשי, ${ils(quarterly.perMonth)} לחודש במסלול של ${quarterly.months} חודשים (${ils(quarterly.total)}) או ${ils(annual.perMonth)} לחודש במסלול של ${annual.months} חודשים (${ils(annual.total)}), לפני מע״מ.`;
+  const xplacePrices = joinSentences(`${ils(monthly.perMonth)} לחודש במסלול חודשי, ${ils(quarterly.perMonth)} לחודש במסלול של ${quarterly.months} חודשים (${ils(quarterly.total)}) או ${ils(annual.perMonth)} לחודש במסלול של ${annual.months} חודשים (${ils(annual.total)}), לפני מע״מ.`, priceNote());
   const xplaceCommitment = 'כל מסלול נגבה בתשלום אחד לכל התקופה, ללא תשלומים. לפי תנאי השימוש, מנוי שנרכש אינו ניתן להקפאה ואין החזר כספי מלא או חלקי־יחסי לאחר הרכישה.';
   return [
     { label: 'מטרת האתר', freelancePlace: 'פרסום וגילוי פרויקטים, פרופיל מקצועי והצעות במרחב עבודה בעברית.', xplace: 'האתר מציג חיפוש פרילנסרים ופרויקטים במגוון תחומים.' },
@@ -158,7 +170,7 @@ export function speedRows(): ComparisonRow[] {
     { label: 'זמן חסימה של הממשק (TBT)', freelancePlace: seconds(ours.blockingMs / 1000, 2), xplace: seconds(theirs.blockingMs / 1000, 2) },
     { label: 'משקל טעינה ראשונה', freelancePlace: `כ־${megabytes(ours.kilobytes)} MB`, xplace: `כ־${megabytes(theirs.kilobytes)} MB` },
     { label: 'בקשות רשת', freelancePlace: String(ours.requests), xplace: String(theirs.requests) },
-    { label: 'בקשות לצדדים שלישיים', freelancePlace: String(ours.thirdPartyRequests), xplace: `${theirs.thirdPartyRequests}, ל־${theirs.thirdPartyHosts} דומיינים (כגון אנליטיקה ופרסום)` },
+    { label: 'בקשות לצדדים שלישיים', freelancePlace: none(ours.thirdPartyRequests) ? '0' : `${ours.thirdPartyRequests}, ל־${ours.thirdPartyHosts} דומיינים (${ours.thirdPartyUse})`, xplace: `${theirs.thirdPartyRequests}, ל־${theirs.thirdPartyHosts} דומיינים (כגון אנליטיקה ופרסום)` },
     { label: 'נגישות (ציון Lighthouse)', freelancePlace: String(ours.accessibility), xplace: String(theirs.accessibility) },
     { label: 'שיטות עבודה מומלצות (ציון Lighthouse)', freelancePlace: String(ours.bestPractices), xplace: String(theirs.bestPractices) },
   ];
@@ -198,7 +210,7 @@ export function comparisonQuestions(facts: MembershipFacts): Question[] {
   return [
     { question: 'מהי האלטרנטיבה הטובה ביותר ל־XPlace.com?', answer: best },
     { question: 'מה ההבדל בין Freelance Place לבין XPlace?', answer: difference },
-    { question: 'כמה עולה Freelance Place, ומה לגבי XPlace?', answer: `${membershipAnswer(facts)} המחירים של XPlace לפי עמוד המסלולים שלה ב־${checkedOn()}, לפני מע״מ ובתשלום אחד לכל התקופה: ${xplacePlans}.` },
+    { question: 'כמה עולה Freelance Place, ומה לגבי XPlace?', answer: joinSentences(`${membershipAnswer(facts)} המחירים של XPlace לפי עמוד המסלולים שלה ב־${checkedOn()}, לפני מע״מ ובתשלום אחד לכל התקופה: ${xplacePlans}.`, priceNote()) },
     { question: 'אפשר לנסות את Freelance Place בלי לוותר על XPlace?', answer: `כן. הניסיון ב־Freelance Place חינם, ${NO_CARD} ובלי חיוב בסיומו אם לא מצטרפים, ולכן אפשר להפעיל אותו במקביל לכל שירות אחר. לפי תנאי השימוש של XPlace, מנוי שנרכש אינו ניתן להקפאה ואין עליו החזר כספי מלא או חלקי־יחסי, ולכן כדאי לקרוא אותם לפני שמשלמים מראש על מסלול ארוך.` },
     { question: 'אפשר להעביר חשבון או ביקורות מ־XPlace?', answer: 'אין כיום העברה אוטומטית של חשבון, ביקורות, הודעות או פרויקטים מ־XPlace. אפשר להכין פרופיל אישי על בסיס חומרים שבבעלותכם ולבדוק את המידע לפני שמירתו.' },
     { question: 'האם Freelance Place קשור ל־XPlace?', answer: 'לא. Freelance Place הוא מוצר עצמאי. השם XPlace והדומיין xplace.com מוזכרים לצורך השוואה וזיהוי השירות האחר.' },
@@ -211,7 +223,7 @@ export function llmsComparisonLines(facts: MembershipFacts): string[] {
   const { monthly, quarterly, annual } = XPLACE.plans;
   const lines: string[] = [];
   if (d.monthlySaving !== undefined) {
-    lines.push(`XPlace.com prices, from its public plans page checked ${XPLACE.checked}: freelancer subscriptions cost ILS ${monthly.perMonth} per month, ILS ${quarterly.perMonth} per month for ${quarterly.months} months or ILS ${annual.perMonth} per month for ${annual.months} months, before VAT, each billed as one payment for the whole period. Freelance Place membership costs ILS ${facts.priceIls.toFixed(2)} per month with VAT included where applicable, billed monthly and cancellable at any time.`);
+    lines.push(`XPlace.com prices, from its public plans page checked ${XPLACE.checked}: freelancer subscriptions cost ILS ${monthly.perMonth} per month, ILS ${quarterly.perMonth} per month for ${quarterly.months} months or ILS ${annual.perMonth} per month for ${annual.months} months, before VAT, each billed as one payment for the whole period${XPLACE.priceNote.en ? `; ${XPLACE.priceNote.en}` : ''}. Freelance Place membership costs ILS ${facts.priceIls.toFixed(2)} per month with VAT included where applicable, billed monthly and cancellable at any time.`);
   }
   if (d.faster) {
     lines.push(`Speed, ${SPEED_TEST.tool} simulated mobile test of both home pages on ${SPEED_TEST.checked} (${SPEED_TEST.runs} runs each): Freelance Place scored ${d.ourScore} and transferred about ${d.ourWeight} MB; XPlace scored ${d.theirScore} and transferred about ${d.theirWeight} MB.`);

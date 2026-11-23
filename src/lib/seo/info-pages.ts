@@ -1,4 +1,4 @@
-import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
+import { HEADHUNTER_EDITOR_PATH, HEADHUNTER_LANDING_CARD_PATH } from '@/lib/headhunters/constants';
 import { guides } from './guides';
 import { newestDate } from './guides-index';
 import type { SeoPage } from './types';
@@ -6,6 +6,8 @@ import type { SeoPage } from './types';
 // Informational pages (for example /pricing, /about, /faq) and the guides index. Add an entry only together with its route.
 // Titles and descriptions never carry prices, trial lengths or billing state: those statements come from facts.ts on the page itself.
 const CREATED = '2026-11-10';
+// Pages whose copy changed after publication carry the day of the change in `modified` (it drives lastmod and dateModified).
+const REVISED = '2026-11-23';
 // The agency-page landing was published later; bump `modified` below whenever its copy (headhunter-content.ts) changes.
 const AGENCY_PAGE_PUBLISHED = '2026-11-23';
 
@@ -21,14 +23,14 @@ export const infoPages: SeoPage[] = [
     path: '/pricing', kind: 'info',
     title: 'כמה עולה Freelance Place? פרסום, ניסיון וחברות',
     description: 'מה עולה פרסום פרויקט, מה כולל הניסיון לפרילנסרים ומה כוללת החברות: מחיר, חידוש וביטול, ומה אינו כלול. תשובה ישירה ושאלות נפוצות.',
-    published: CREATED, modified: CREATED,
+    published: CREATED, modified: REVISED,
     llms: { section: 'Product', note: 'Cost of posting, the freelancer trial and the membership, generated from the live product rules.' },
   },
   {
     path: '/faq', kind: 'info',
     title: 'שאלות ותשובות על Freelance Place: לקוחות ופרילנסרים',
     description: 'תשובות קצרות לשאלות נפוצות: פרסום פרויקט, הגשת הצעות, חברות ותשלום, אמון ופרטיות. כל תשובה עומדת בפני עצמה.',
-    published: CREATED, modified: CREATED,
+    published: CREATED, modified: REVISED,
     llms: { section: 'Product', note: 'Grouped questions and answers on posting, proposals, membership, trust and privacy.' },
   },
   {
@@ -56,7 +58,7 @@ export const infoPages: SeoPage[] = [
   {
     // The public page of /profile/headhunter: signed-out visitors and crawlers get it, and a signed-in session gets the private
     // editor at the same URL (see signedOutPublicPaths in site.ts). The route answers 404 while the headhunter feature switch is off.
-    path: HEADHUNTER_EDITOR_PATH, kind: 'info', needsHeadhunterSwitch: true,
+    path: HEADHUNTER_EDITOR_PATH, kind: 'info', needsHeadhunterSwitch: true, shareImage: HEADHUNTER_LANDING_CARD_PATH,
     title: 'פרסום פרויקטים לפרילנסרים: עמוד חינם לסוכנויות גיוס',
     description: 'סוכנויות גיוס, משרדי השמה, מגייסים ואנשי HR עצמאיים מפרסמים פרויקטים לפרילנסרים ב־Freelance Place ופותחים עמוד משלהם עם תג על כל פרויקט. השירות חינם.',
     published: AGENCY_PAGE_PUBLISHED, modified: AGENCY_PAGE_PUBLISHED,

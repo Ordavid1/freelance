@@ -141,6 +141,12 @@ export const LANDING = {
   path: HEADHUNTER_EDITOR_PATH,
   breadcrumb: 'עמוד לסוכנויות גיוס',
   cta: { apply: 'להגשת בקשה לעמוד סוכנות' },
+  // The share card (src/app/profile/headhunter/opengraph-image.tsx). The headline is the h1 cut into two lines, which a test keeps
+  // identical to it; the line under it restates what the page lists. Each is drawn as one unwrapped line (see landing-card.tsx).
+  card: {
+    headline: ['עמוד חינם לסוכנויות גיוס', 'ולמגייסים עצמאיים'],
+    line: 'הפרויקטים, פרטי הקשר ותג על כל פרויקט',
+  },
   service: {
     name: `עמוד סוכנות גיוס ב־${SITE_NAME}`,
     serviceType: 'עמוד סוכנות גיוס',

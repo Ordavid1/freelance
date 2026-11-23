@@ -46,3 +46,5 @@ export function headhunterTag(handle: string) {
 
 /** The signed-in apply/edit screen (private path, under the /profile prefix). */
 export const HEADHUNTER_EDITOR_PATH = '/profile/headhunter';
+/** The share card of the public landing at that path (src/app/profile/headhunter/opengraph-image.tsx), public like the landing itself. */
+export const HEADHUNTER_LANDING_CARD_PATH = `${HEADHUNTER_EDITOR_PATH}/opengraph-image`;

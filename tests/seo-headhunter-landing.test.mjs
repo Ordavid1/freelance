@@ -335,3 +335,88 @@ test('IndexNow: the landing can be announced, and no other account page can', ()
   assert.deepEqual(plain(normalizeIndexNowUrls([`${ORIGIN}${PATH}`, `${ORIGIN}${PATH}#faq-heading`])), [`${ORIGIN}${PATH}`]);
   assert.deepEqual(plain(normalizeIndexNowUrls([`${ORIGIN}/profile/import`, `${ORIGIN}${PATH}/x`, `${ORIGIN}/profile`, `${ORIGIN}/messages`])), []);
 });
+
+// ---------------------------------------------------------------------------------------------
+// The share card of the landing (og:image and twitter:image)
+// ---------------------------------------------------------------------------------------------
+
+const CARD_PATH = `${PATH}/opengraph-image`;
+const platformCard = `${ORIGIN}/opengraph-image`;
+
+test('share card: the landing declares its own card, and every other page keeps the platform card', () => {
+  assert.equal(constants.HEADHUNTER_LANDING_CARD_PATH, CARD_PATH);
+  assert.equal(entry.shareImage, CARD_PATH);
+  assert.ok(existsSync(`${projectRoot}/src/app/profile/headhunter/opengraph-image.tsx`), 'the card route exists beside the page');
+  const meta = registry.metadataFor(PATH);
+  assert.equal(meta.openGraph.images[0].url, `${ORIGIN}${CARD_PATH}`);
+  assert.equal(meta.twitter.images[0].url, `${ORIGIN}${CARD_PATH}`);
+  assert.deepEqual(plain({ width: meta.openGraph.images[0].width, height: meta.openGraph.images[0].height }), { width: 1200, height: 630 });
+  assert.equal(meta.openGraph.title, `${entry.title} | Freelance Place`, 'only the image is overridden: the title and description stay the registry ones');
+  assert.equal(meta.alternates.canonical, `${ORIGIN}${PATH}`, 'canonical, hreflang and robots never change with the card');
+  const others = registry.allPages().filter((other) => other.path !== PATH);
+  assert.equal(others.some((other) => other.shareImage !== undefined), false, 'no other page declares a card of its own yet');
+  for (const other of others) {
+    const otherMeta = registry.metadataFor(other.path);
+    assert.equal(otherMeta.openGraph.images[0].url, platformCard, other.path);
+    assert.equal(otherMeta.twitter.images[0].url, platformCard, other.path);
+  }
+});
+
+test('share card: the card URL is public like the landing for a request without a session, and private with one', () => {
+  const site = load('src/lib/seo/site.ts');
+  assert.equal(site.isPrivatePath(CARD_PATH), false);
+  assert.equal(site.isPrivatePath(CARD_PATH, true), true);
+  assert.equal(site.isPrivatePath(`${CARD_PATH}/x`), true, 'the carve-out is the exact path');
+  assert.equal(site.isPrivatePath(`${PATH}/opengraph-image-2`), true);
+  const robots = robotsHeader();
+  assert.equal(robots(CARD_PATH), null, 'link previews and crawlers fetch it without a noindex header');
+  assert.match(robots(CARD_PATH, { cookie: 'fz_session=abc' }), /noindex/);
+  for (const path of site.signedOutPublicPaths) assert.ok(path === PATH || path === CARD_PATH, `${path} is a known public path under /profile`);
+});
+
+test('share card: its words are the landing headline cut into lines, plus one short line that restates what the page lists', () => {
+  const { headline, line } = LANDING.card;
+  assert.equal(headline.join(' '), content.h1, 'the card cannot drift from the h1');
+  assert.ok(headline.length === 2 && headline.every((text) => text.trim() === text && text.length > 0));
+  assert.ok(headline.every((text) => Array.from(text).length <= 28), 'each headline line fits the card on one line');
+  assert.ok(line.length > 0 && Array.from(line).length <= 44);
+  assert.doesNotMatch([...headline, line].join(' '), /\d/, 'no number is typed into the card: the rules live in the constants');
+  assert.doesNotMatch([...headline, line].join(' '), /מובטח|מבטיח|הכי|מס׳ 1|מספר 1|ראשון|מוביל/, 'no superlative or promise');
+  assert.match(line, /פרויקטים/);
+  assert.ok(content.summary.includes('כל הפרויקטים ופרטי הקשר') && content.summary.includes('תג'), 'the line restates what the summary says the page has');
+});
+
+test('share card: 1200x630 PNG with the headline, the line and the page address, drawn in the brand fonts', async () => {
+  const calls = [];
+  class ImageResponse { constructor(element, options) { this.element = element; this.options = options; calls.push(this); } }
+  const fonts = [{ name: 'Heebo', data: Buffer.alloc(1), weight: 700, style: 'normal' }, { name: 'Heebo', data: Buffer.alloc(1), weight: 800, style: 'normal' }];
+  const route = loadModule('src/app/profile/headhunter/opengraph-image.tsx', { env, stubs: { 'next/og': { ImageResponse }, '@/lib/headhunters/og-font-loader': { loadCardFonts: async () => fonts } } });
+  assert.deepEqual(plain(route.size), { width: 1200, height: 630 });
+  assert.equal(route.contentType, 'image/png');
+  assert.equal(route.dynamic, undefined, 'no request data: generated once, like the platform card');
+  const response = await route.default();
+  assert.equal(response, calls[0]);
+  assert.equal(response.options.width, 1200);
+  assert.equal(response.options.height, 630);
+  assert.deepEqual(response.options.fonts.map((font) => [font.name, font.weight]), [['Heebo', 700], ['Heebo', 800]]);
+  assert.deepEqual(plain(response.element.props.headline), plain(LANDING.card.headline));
+  assert.equal(response.element.props.line, LANDING.card.line);
+  assert.equal(response.element.props.address, 'freelance-place.com/profile/headhunter');
+});
+
+test('share card: Hebrew goes through the visual-order step, one unwrapped line each, and the headline size fits the longest line', () => {
+  const card = loadModule('src/lib/headhunters/landing-card.tsx', { env });
+  const { toVisualRtl } = loadModule('src/lib/headhunters/visual-text.ts', { env });
+  const { headline, line } = LANDING.card;
+  const html = render(createElement(card.LandingCardElement, { headline, line, address: 'freelance-place.com/profile/headhunter' }));
+  for (const text of [...headline, line]) {
+    assert.ok(html.includes(toVisualRtl(text)), `drawn in visual order: ${text}`);
+    assert.notEqual(toVisualRtl(text), text, 'the visual order differs from the logical one, so Satori would otherwise mirror it');
+  }
+  assert.ok(html.includes('freelance-place.com/profile/headhunter'), 'the address is drawn as it is (Latin)');
+  assert.equal(count(html, /white-space:nowrap/g), headline.length + 2, 'every text is a single unwrapped line');
+  const size = card.headlineSize(headline);
+  assert.ok(size >= 60 && size <= 92, `headline size ${size}`);
+  assert.ok(card.headlineSize(['א'.repeat(60)]) >= 48, 'a very long headline never shrinks below the minimum');
+  assert.ok(card.headlineSize(['א']) <= 92, 'a short one never exceeds the maximum');
+});
