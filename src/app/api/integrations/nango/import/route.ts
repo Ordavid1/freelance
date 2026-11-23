@@ -1,8 +1,6 @@
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { integrationId, nangoJson, ownedNangoConnections, safeText, type SocialProvider } from '@/lib/integrations/nango';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
@@ -10,15 +8,8 @@ function value(data: Record<string, unknown>, key: string, fallback = ''): strin
   return safeText(data[key], 4000) || fallback;
 }
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לייבא פרופיל.' }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'oauth.import');
-  if (limited) return limited;
-  const parsedBody = await readJsonBody(request, 4_096);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as { provider?: unknown; connectionId?: unknown } | null;
+export const POST = route('nango.import', { body: { type: 'json', maxBytes: 4_096 } }, async ({ user, body: input }) => {
+  const body = input as { provider?: unknown; connectionId?: unknown } | null;
   const provider = body?.provider;
   const connectionId = typeof body?.connectionId === 'string' ? body.connectionId.trim() : '';
   if ((provider !== 'github' && provider !== 'linkedin') || !connectionId || connectionId.length > 200) {
@@ -67,4 +58,4 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: `לא הצלחנו לקרוא את פרטי ${provider === 'github' ? 'GitHub' : 'LinkedIn'}. בדקו את ההרשאות וה־scopes שהוגדרו ב־Nango.` }, { status: 502 });
   }
-}
+});

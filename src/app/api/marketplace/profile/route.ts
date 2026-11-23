@@ -1,34 +1,29 @@
-import { readJsonBody } from '@/lib/security/request-body';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 
 import { getMembershipAccess } from '@/lib/membership/access';
 import { profileIsComplete, shouldStartFreelancerTrial, TRIAL_MS } from '@/lib/membership/state';
+import { route } from '@/lib/security/policy';
+import { isValidProfileImage } from '@/lib/profile/image-validation';
+import { parseHttpsUrl } from '@/lib/security/url';
 
 export const runtime = 'nodejs';
 
 const textFields = ['name', 'headline', 'bio', 'portfolio', 'experience', 'education', 'website', 'phone', 'email', 'logo', 'avatar'] as const;
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בפרופיל.' }, { status: 401 });
+export const GET = route('profile.read', {}, async ({ user }) => {
   try {
     const snapshot = await firestore().collection('profiles').doc(user.uid).get();
     return NextResponse.json({ profile: snapshot.exists ? snapshot.data() : null }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון את הפרופיל כרגע.' }, { status: 503 });
   }
-}
+});
 
-export async function PUT(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשמור פרופיל.' }, { status: 401 });
-  const parsedBody = await readJsonBody(request, 2_100_000);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as { profile?: unknown } | null;
+// The browser sends at most two WebP images of 300 KB (about 400 KB each as base64) plus a few KB of text.
+export const PUT = route('profile.update', { body: { type: 'json', maxBytes: 1_000_000 } }, async ({ user, body: payload }) => {
+  const body = payload as { profile?: unknown } | null;
   const profile = body?.profile;
   if (!profile || typeof profile !== 'object' || Array.isArray(profile)) return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
   const input = profile as Record<string, unknown>;
@@ -38,7 +33,17 @@ export async function PUT(request: Request) {
   for (const key of textFields) {
     const value = input[key];
     if (value !== undefined && typeof value !== 'string') return NextResponse.json({ error: 'פרטי הפרופיל לא תקינים.' }, { status: 400 });
-    if (typeof value === 'string') clean[key] = value.slice(0, key === 'bio' ? 1500 : key === 'portfolio' || key === 'experience' || key === 'education' ? 4000 : key === 'logo' || key === 'avatar' ? 2_000_000 : 200);
+    if (typeof value !== 'string') continue;
+    if (key === 'logo' || key === 'avatar') {
+      if (value !== '' && !isValidProfileImage(value)) return NextResponse.json({ error: 'התמונה אינה תקינה. אפשר להעלות PNG, JPG או WebP עד 1.5MB.' }, { status: 400 });
+      clean[key] = value;
+    } else if (key === 'website') {
+      const website = value.trim();
+      if (website !== '' && !parseHttpsUrl(website, 200)) return NextResponse.json({ error: 'כתובת האתר חייבת להיות קישור תקין שמתחיל ב־https://.' }, { status: 400 });
+      clean[key] = website;
+    } else {
+      clean[key] = value.slice(0, key === 'bio' ? 1500 : key === 'portfolio' || key === 'experience' || key === 'education' ? 4000 : 200);
+    }
   }
   const skills = input.skills ?? [];
   if (!Array.isArray(skills) || skills.length > 50 || skills.some((skill) => typeof skill !== 'string' || skill.length > 60)) {
@@ -65,4 +70,4 @@ export async function PUT(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו לשמור את הפרופיל.' }, { status: 503 });
   }
-}
+});

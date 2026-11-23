@@ -19,6 +19,12 @@ type Visitor = { uid: string; email: string | null; name: string | null } | null
 type Conversation = { uid: string | null; name: string; email: string; replyToken: string; messageCount: number; windowStart: number; windowCount: number };
 export type VisitorMessage = { id: string; text: string; name: string; email: string; page: string };
 
+/** Messages per hour across ALL visitors (env SUPPORT_SITE_HOURLY_LIMIT). Above what one address may send, below what would flood the inbox. */
+function siteHourlyLimit() {
+  const configured = Number(process.env.SUPPORT_SITE_HOURLY_LIMIT);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : 300;
+}
+
 export function visitorMessage(body: unknown): VisitorMessage {
   if (!body || typeof body !== 'object') throw new SupportError('INVALID', 400, 'נא למלא הודעה וכתובת מייל תקינה.');
   const data = body as Record<string, unknown>;
@@ -52,7 +58,8 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
   const db = firestore();
   const ref = conversationRef(token);
   const messageRef = ref.collection('messages').doc(input.id);
-  // A persistent shared budget also limits clients that rotate their cookies.
+  // A persistent site-wide ceiling also limits clients that rotate their cookies. Per-address and per-account
+  // limits are applied before this point by the policy layer (security/operations.ts: support.message).
   const budgetRef = db.collection('supportRateLimits').doc('outbound-hour');
   // With Slack configured, Slack is the console; the per-message email is optional (SUPPORT_EMAIL_NOTIFY).
   const slack = supportSlackConfig();
@@ -72,7 +79,7 @@ export async function sendSupportMessage(config: SupportConfig, token: string, v
     const budgetCount = budget.data()?.window === budgetWindow ? (budget.data()?.count || 0) : 0;
     const windowStart = data && now - data.windowStart < 600_000 ? data.windowStart : now;
     const windowCount = data && windowStart === data.windowStart ? data.windowCount : 0;
-    if (windowCount >= 10 || (data?.messageCount || 0) >= 200 || budgetCount >= 100) throw new SupportError('RATE_LIMIT', 429, 'התקבלו הרבה הודעות. אפשר לנסות שוב מאוחר יותר או לפנות במייל.');
+    if (windowCount >= 10 || (data?.messageCount || 0) >= 200 || budgetCount >= siteHourlyLimit()) throw new SupportError('RATE_LIMIT', 429, 'התקבלו הרבה הודעות. אפשר לנסות שוב מאוחר יותר או לפנות במייל.');
     const next: Conversation = { uid: data?.uid || viewer?.uid || null, name: data?.name || input.name, email: data?.email || input.email, replyToken: data?.replyToken || randomBytes(16).toString('hex'), messageCount: (data?.messageCount || 0) + 1, windowStart, windowCount: windowCount + 1 };
     // threadRoot is stored once, so retries of this message keep the same email headers.
     const message = { sender: 'visitor', text: input.text, createdAt: Timestamp.fromMillis(now), delivery: slackOnly ? 'sent' : 'pending', contactName: input.name, contactEmail: input.email, page: input.page, ...(next.messageCount === 1 ? { threadRoot: true } : {}) };

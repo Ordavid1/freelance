@@ -1,6 +1,7 @@
 import 'server-only';
 import { isIP } from 'node:net';
 import { GoogleGenAI } from '@google/genai';
+import { featureEnabled } from '@/lib/security/runtime-switch';
 
 export function isVertexConfigured() {
   return Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim());
@@ -9,7 +10,7 @@ export function isVertexConfigured() {
 export type VertexDiagnostics = { responseId?: string; modelVersion?: string; finishReason?: string; inputTokens?: number; outputTokens?: number; thoughtTokens?: number; totalTokens?: number; urls: { url: string; status: string }[] };
 
 export async function generateWithVertex(prompt: string, options: { file?: { mimeType: string; data: string }; urls?: string[]; files?: { mimeType: string; data: string }[]; systemInstruction?: string; responseJsonSchema?: unknown; maxOutputTokens?: number; onDiagnostics?: (diagnostics: VertexDiagnostics) => void } = {}) {
-  if (process.env.AI_GENERATION_ENABLED === 'false') throw new Error('AI generation is temporarily disabled.');
+  if (!(await featureEnabled('ai'))) throw new Error('AI generation is temporarily disabled.');
   if (!isVertexConfigured()) throw new Error('Vertex AI is not configured.');
   const ai = new GoogleGenAI({ vertexai: true, enterprise: true, project: process.env.GOOGLE_CLOUD_PROJECT!, location: process.env.GOOGLE_CLOUD_LOCATION || 'global' });
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];

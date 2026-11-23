@@ -114,11 +114,27 @@ test('conversation and global outbound budgets persist across clients and reset 
   try {
     for (let i = 0; i < 10; i++) await service.sendSupportMessage(config, cookieToken, null, input());
     await assert.rejects(() => service.sendSupportMessage(config, cookieToken, null, input()), { code: 'RATE_LIMIT' });
-    rows.set('supportRateLimits/outbound-hour', { window: Math.floor(Date.now() / 3_600_000), count: 100 });
+    // The site-wide ceiling is 300 per hour by default (per-address limits sit in front of it).
+    rows.set('supportRateLimits/outbound-hour', { window: Math.floor(Date.now() / 3_600_000), count: 299 });
+    await service.sendSupportMessage(config, service.newSupportToken(), null, input());
     await assert.rejects(() => service.sendSupportMessage(config, service.newSupportToken(), null, input()), { code: 'RATE_LIMIT' });
-    rows.set('supportRateLimits/outbound-hour', { window: Math.floor(Date.now() / 3_600_000) - 1, count: 100 });
+    rows.set('supportRateLimits/outbound-hour', { window: Math.floor(Date.now() / 3_600_000) - 1, count: 300 });
     await service.sendSupportMessage(config, service.newSupportToken(), null, input()); assert.equal(rows.get('supportRateLimits/outbound-hour').count, 1);
   } finally { fetch.mock.restore(); }
+});
+test('the site-wide hourly ceiling is tunable with SUPPORT_SITE_HOURLY_LIMIT and ignores invalid values', async () => {
+  setup(); const fetch = transport(() => Response.json({ id: 'sent' }));
+  const previous = process.env.SUPPORT_SITE_HOURLY_LIMIT;
+  try {
+    process.env.SUPPORT_SITE_HOURLY_LIMIT = '5';
+    rows.set('supportRateLimits/outbound-hour', { window: Math.floor(Date.now() / 3_600_000), count: 5 });
+    await assert.rejects(() => service.sendSupportMessage(config, service.newSupportToken(), null, input()), { code: 'RATE_LIMIT' });
+    process.env.SUPPORT_SITE_HOURLY_LIMIT = 'not-a-number';
+    await service.sendSupportMessage(config, service.newSupportToken(), null, input());
+  } finally {
+    if (previous === undefined) delete process.env.SUPPORT_SITE_HOURLY_LIMIT; else process.env.SUPPORT_SITE_HOURLY_LIMIT = previous;
+    fetch.mock.restore();
+  }
 });
 test('real signed webhook retrieves the owner reply and adds it once to the matching chat', async () => {
   setup(); let replyToken; const emailId = randomUUID(); let reads = 0;

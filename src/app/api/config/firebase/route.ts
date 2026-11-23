@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { route } from '@/lib/security/policy';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export const GET = route('config.firebase', {}, () => {
   const { FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, GOOGLE_CLOUD_PROJECT, FIREBASE_WEB_APP_ID } = process.env;
   if (!FIREBASE_WEB_API_KEY || !FIREBASE_AUTH_DOMAIN || !GOOGLE_CLOUD_PROJECT || !FIREBASE_WEB_APP_ID) {
     return NextResponse.json({ error: 'Authentication is not configured.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
@@ -14,4 +15,4 @@ export async function GET() {
     appId: FIREBASE_WEB_APP_ID,
     googleSignInEnabled: true,
   }, { headers: { 'Cache-Control': 'no-store' } });
-}
+});

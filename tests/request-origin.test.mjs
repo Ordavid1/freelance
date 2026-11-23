@@ -1,4 +1,5 @@
 import { loadModule } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,6 +14,7 @@ function load(path, env, stubs) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext(code, { module, exports: module.exports, URL, Buffer, process: { env }, require(name) {
+    if (name === '@/lib/security/policy') return loadPolicy({ '@/lib/auth/session': stubs['@/lib/auth/session'] }, env);
     if (name in stubs) return stubs[name];
     throw new Error(`Unexpected dependency: ${name}`);
   } });

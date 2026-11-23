@@ -45,12 +45,14 @@ function defaultStubs() {
   };
 }
 
-export function loadModule(entry, { stubs = {}, env = { SITE_INDEXABLE: 'true' } } = {}) {
+export function loadModule(entry, { stubs = {}, env = { SITE_INDEXABLE: 'true' }, globals = {} } = {}) {
   const allStubs = { ...defaultStubs(), ...stubs };
   const context = vm.createContext({
     process: { env: { ...env } }, console, crypto: webcrypto, URL, URLSearchParams, TextEncoder, TextDecoder, Buffer,
     setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask, structuredClone,
     fetch: globalThis.fetch, Response, Request, Headers, AbortController, AbortSignal,
+    // Test seams, e.g. { Date: fakeClock } to move time.
+    ...globals,
   });
   const cache = new Map();
 

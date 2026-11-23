@@ -1,13 +1,15 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, publicAppOrigin } from '@/lib/auth/session';
+import { publicAppOrigin } from '@/lib/auth/session';
 import { createDribbbleOAuthState, dribbbleConfig, DRIBBBLE_STATE_COOKIE, DRIBBBLE_STATE_TTL_SECONDS } from '@/lib/integrations/dribbble';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
+// A browser navigation, so a signed-out visit goes to the sign-in page instead of getting a JSON 401.
+const signInRedirect = (request: Request) => NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
+
+export const GET = route('dribbble.connect', { onUnauthenticated: signInRedirect }, async ({ request, user }) => {
   const config = dribbbleConfig();
   if (!config) return NextResponse.redirect(new URL('/profile/import?dribbble=unconfigured', publicAppOrigin(request)));
 
@@ -27,4 +29,4 @@ export async function GET(request: Request) {
   authorize.searchParams.set('scope', 'public');
   authorize.searchParams.set('state', state);
   return NextResponse.redirect(authorize);
-}
+});

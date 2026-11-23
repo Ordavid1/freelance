@@ -1,9 +1,10 @@
 import { cookies } from 'next/headers';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, publicAppOrigin } from '@/lib/auth/session';
+import { publicAppOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { dribbbleConfig, DRIBBBLE_STATE_COOKIE, exchangeDribbbleCode, fetchDribbbleImport, validateDribbbleOAuthState } from '@/lib/integrations/dribbble';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 
@@ -13,14 +14,14 @@ function resultRedirect(request: Request, status: string) {
   return NextResponse.redirect(target);
 }
 
-export async function GET(request: Request) {
+const signInRedirect = (request: Request) => NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
+
+export const GET = route('dribbble.callback', { onUnauthenticated: signInRedirect }, async ({ request, user }) => {
   const cookieStore = await cookies();
   const stateCookie = cookieStore.get(DRIBBBLE_STATE_COOKIE)?.value;
   const params = new URL(request.url).searchParams;
 
   try {
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.redirect(new URL('/signin?next=%2Fprofile%2Fimport', publicAppOrigin(request)));
     if (!validateDribbbleOAuthState(stateCookie, params.get('state'), user.uid)) return resultRedirect(request, 'state-error');
     if (params.has('error')) return resultRedirect(request, params.get('error') === 'access_denied' ? 'denied' : 'failed');
 
@@ -39,4 +40,4 @@ export async function GET(request: Request) {
   } finally {
     cookieStore.delete(DRIBBBLE_STATE_COOKIE);
   }
-}
+});

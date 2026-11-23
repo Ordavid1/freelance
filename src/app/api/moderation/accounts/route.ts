@@ -3,8 +3,9 @@ import { isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { moderatorUid } from '@/lib/security/moderator';
 import { readJsonBody } from '@/lib/security/request-body';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
-export async function POST(request: Request) {
+export const POST = route('moderation.account.decide', {}, async ({ request }) => {
   if (!isSameOrigin(request)) return Response.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
   const actor = await moderatorUid(); if (!actor) return Response.json({ error: 'RECENT_MFA_MODERATOR_REQUIRED' }, { status: 403 });
   const parsed = await readJsonBody(request, 4096); if (!parsed.ok) return parsed.response;
@@ -27,8 +28,8 @@ export async function POST(request: Request) {
     });
     return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) { return Response.json({ error: error instanceof Error && error.message === 'STALE_APPEAL' ? 'STALE_APPEAL' : 'DECISION_UNAVAILABLE' }, { status: error instanceof Error && error.message === 'STALE_APPEAL' ? 409 : 503 }); }
-}
-export async function GET() {
+});
+export const GET = route('moderation.account.queue', {}, async () => {
   const actor = await moderatorUid(); if (!actor) return Response.json({ error: 'RECENT_MFA_MODERATOR_REQUIRED' }, { status: 403 });
   try {
     const db = firestore();
@@ -36,4 +37,4 @@ export async function GET() {
     await db.collection('securityAuditEvents').add({ actorUid: actor, action: 'appeal.queue.read', createdAt: FieldValue.serverTimestamp() });
     return Response.json({ appeals: snapshot.docs.map(doc => ({ id: doc.id, ownerUid: doc.get('ownerUid'), message: doc.get('message'), restrictionVersion: doc.get('restrictionVersion') })) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch { return Response.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 }); }
-}
+});

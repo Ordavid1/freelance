@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { loadPolicy } from './helpers/policy.mjs';
 
 const { SITE_URL } = loadModule('src/lib/seo/site.ts');
 const base = { SITE_INDEXABLE: 'true', NEXT_PUBLIC_SITE_URL: SITE_URL };
@@ -235,7 +236,7 @@ test('the routes serve the generated text as plain text, noindex and cacheable',
   const llms = llmsFor(billingOn);
   for (const env of [billingOn, billingOff, {}]) {
     for (const [entry, generate] of [['src/app/llms.txt/route.ts', 'llmsTxt'], ['src/app/llms-full.txt/route.ts', 'llmsFullTxt']]) {
-      const route = loadModule(entry, { env, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] } } });
+      const route = loadModule(entry, { env, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
       const response = await route.GET();
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');

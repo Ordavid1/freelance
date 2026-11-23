@@ -1,21 +1,14 @@
-import { OAuth2Client } from 'google-auth-library';
 import { Timestamp } from 'firebase-admin/firestore';
 import { firestore } from '@/lib/db/firestore';
-import { BillingError, cardcomConfig } from '@/lib/billing/cardcom';
+import { cardcomConfig } from '@/lib/billing/cardcom';
 import { failure, json } from '@/lib/billing/http';
 import { renewSubscription } from '@/lib/billing/service';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
-export async function POST(request: Request) {
+// Cloud Scheduler only: the policy layer verifies the OIDC token of BILLING_SCHEDULER_EMAIL. Invalid callers never trigger billing.
+export const POST = route('billing.renew', {}, async () => {
   try {
-    const config = cardcomConfig();
-    const expected = process.env.BILLING_SCHEDULER_EMAIL;
-    if (!expected) throw new BillingError('SCHEDULER_UNAVAILABLE');
-    let authorized = false;
-    try {
-      const ticket = await new OAuth2Client().verifyIdToken({ idToken: request.headers.get('authorization')?.replace(/^Bearer /, '') || '', audience: `${config.siteUrl}/api/billing/renew` });
-      const token = ticket.getPayload(); authorized = token?.email === expected && token.email_verified === true;
-    } catch { /* Invalid tokens must never trigger billing. */ }
-    if (!authorized) throw new BillingError('UNAUTHORIZED', 401);
+    cardcomConfig();
     const due = await firestore().collection('billingSubscriptions').where('autoRenew', '==', true).where('nextChargeAt', '<=', Timestamp.now()).orderBy('nextChargeAt').limit(10).get();
     const unresolved = await firestore().collection('billingSubscriptions').where('renewalPending', '==', true).limit(10).get();
     const ids = new Set([...due.docs, ...unresolved.docs].map(doc => doc.id));
@@ -25,4 +18,4 @@ export async function POST(request: Request) {
     console.info(JSON.stringify({ event: 'billing_renewal_batch', severity: failed ? 'ERROR' : 'INFO', processed: results.length - failed, failed }));
     return json({ processed: results.length - failed, failed }, failed ? 503 : 200);
   } catch (error) { return failure(error); }
-}
+});
