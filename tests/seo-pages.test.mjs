@@ -24,6 +24,8 @@ const PAGES = [
   { path: '/glossary', kind: 'info', entry: 'src/app/glossary/page.tsx' },
   { path: '/guides', kind: 'hub', entry: 'src/app/guides/page.tsx' },
 ];
+// Pages whose visible copy changed after publication, with the day of the change (the registry's `modified`).
+const REVISED = { '/pricing': '2026-11-23', '/faq': '2026-11-23' };
 const GUIDE_ROUTE = 'src/app/guides/[slug]/page.tsx';
 const read = (file) => readFileSync(`${projectRoot}/${file}`, 'utf8');
 const rendered = (route) => render(createElement(route.default));
@@ -74,7 +76,8 @@ test('registry: the information pages and the guides index are registered with a
     assert.notEqual(page.indexable, false, `${path}: indexable`);
     assert.equal(page.published, '2026-11-10', `${path}: published`);
     assert.ok(page.modified >= page.published, `${path}: modified is not before published`);
-    if (kind === 'info') assert.equal(page.modified, '2026-11-10', `${path}: info pages carry the creation date`);
+    // An information page carries its creation date until its copy changes; a revision is recorded here on purpose.
+    if (kind === 'info') assert.equal(page.modified, REVISED[path] ?? '2026-11-10', `${path}: info pages carry the creation date, or the day of the revision listed above`);
     assert.ok(['Product', 'Guides'].includes(page.llms?.section), `${path}: llms section`);
     assert.match(page.llms.note, /^[\x20-\x7E]{20,}$/, `${path}: the llms note is a plain English sentence`);
     // Prices, trial length and billing state are statements from facts.ts, never part of a title or description.
@@ -410,7 +413,7 @@ test('/faq: answers are visible and grouped, each group and question has an anch
   assert.deepEqual(jsonTypes(html), ['BreadcrumbList', 'FAQPage', 'WebPage']);
   assertStructuredDataPolicy(jsonLd(html), '/faq');
   assertUniqueNodeIds(jsonLd(html), '/faq');
-  assert.deepEqual(bylineTime(html), { iso: '2026-11-10', shown: '10 בנובמבר 2026' });
+  assert.deepEqual(bylineTime(html), { iso: '2026-11-23', shown: '23 בנובמבר 2026' }, 'the byline shows the day the answers were revised');
   assertInOrder(html, ['<h1>', 'class="ga-summary"', 'class="ga-byline"', 'class="ga-toc"', `<section id="${filled[0].id}"`, 'id="article-related"']);
 });
 

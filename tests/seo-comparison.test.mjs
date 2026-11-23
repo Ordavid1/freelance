@@ -37,15 +37,15 @@ test('the savings are computed from the price facts and XPlace prices, not typed
   const derived = comparison.derive(factsOn);
   assert.equal(derived.monthlySaving, Math.round((1 - factsOn.priceIls / XPLACE.plans.monthly.perMonth) * 100));
   assert.equal(derived.annualSaving, Math.round((1 - factsOn.priceIls / XPLACE.plans.annual.perMonth) * 100));
-  assert.equal(derived.monthlySaving, 80);
-  assert.equal(derived.annualSaving, 71);
+  assert.equal(derived.monthlySaving, 73);
+  assert.equal(derived.annualSaving, 62);
   const answer = comparison.homeComparisonAnswer(factsOn);
-  assert.match(answer, /כ־80% פחות מהמסלול החודשי של XPlace \(₪99 לפני מע״מ\)/);
-  assert.match(answer, /כ־71% פחות מהמסלול השנתי שלה \(₪69 לחודש, ₪828 בתשלום אחד מראש\)/);
+  assert.match(answer, /כ־73% פחות מהמסלול החודשי של XPlace \(₪74 לפני מע״מ\)/);
+  assert.match(answer, /כ־62% פחות מהמסלול השנתי שלה \(₪52 לחודש, ₪621 בתשלום אחד מראש\)/);
   // Another price flows straight through to the sentence.
   const cheaper = comparison.homeComparisonAnswer(withPrice(factsOn, 9.99));
   assert.match(cheaper, /₪9\.99 לחודש/);
-  assert.match(cheaper, /כ־90% פחות/);
+  assert.match(cheaper, /כ־87% פחות/);
   assert.doesNotMatch(cheaper, /19\.99/);
   // Without an available paid offer there is no price comparison at all.
   assert.equal(comparison.derive(factsOff).monthlySaving, undefined);
@@ -55,10 +55,10 @@ test('the home answer leads with the verdict, names every verified aspect and st
   const answer = comparison.homeComparisonAnswer(factsOn);
   assert.match(answer, /^בעלות, בגמישות ובמהירות, ואפשר לבדוק כל מספר\./);
   assert.match(answer, /60 ימי ניסיון להגשת הצעות, בלי כרטיס אשראי/);
-  assert.match(answer, /כ־0\.3 MB ומקבל 89–95 בבדיקת Google Lighthouse במובייל, לעומת כ־20 MB ו־50–52 ב־XPlace/);
+  assert.match(answer, /כ־0\.5 MB ומקבל 71–75 בבדיקת Google Lighthouse במובייל, לעומת כ־20 MB ו־35–37 ב־XPlace/);
   assert.match(answer, /ציון הנגישות שלו 100 לעומת 93/);
-  assert.match(answer, /לא שולח בקשות לצדדים שלישיים, לעומת 65 ב־XPlace/);
-  assert.match(answer, /המחירים והמדידה מ־10 בנובמבר 2026; המקורות בעמוד ההשוואה\.$/);
+  assert.match(answer, /והוא שולח 2 בקשות לצדדים שלישיים \(מדידת שימוש של Google Analytics\), לעומת 65 ב־XPlace/);
+  assert.match(answer, /המחירים והמדידה מ־23 בנובמבר 2026; המקורות בעמוד ההשוואה\.$/);
   assert.ok(answer.length <= 700, `answer length ${answer.length}`);
   assert.equal(comparison.homeComparisonQuestion(factsOn).question, 'במה Freelance Place טוב יותר מ־XPlace.com?');
   assert.equal(comparison.homeComparisonQuestion(factsOn).answer, answer);
@@ -66,7 +66,7 @@ test('the home answer leads with the verdict, names every verified aspect and st
   assert.match(off, /^במהירות, ואפשר לבדוק כל מספר\./, 'without a paid offer only the measured aspects are named');
   assert.match(off, /התשלום עדיין אינו זמין ולא מופעל חיוב\./);
   assert.doesNotMatch(off, /₪|פחות מהמסלול/, 'no price comparison while payment is unavailable');
-  assert.match(off, /המדידה מ־10 בנובמבר 2026/);
+  assert.match(off, /המדידה מ־23 בנובמבר 2026/);
 });
 
 test('a claim disappears when its price data stops supporting it', () => {
@@ -74,10 +74,10 @@ test('a claim disappears when its price data stops supporting it', () => {
   const dear = comparison.homeComparisonAnswer(withPrice(factsOn, 120));
   assert.doesNotMatch(dear, /%|בעלות|בגמישות|פחות מהמסלול/);
   assert.match(dear, /^במהירות, ואפשר לבדוק כל מספר\./);
-  assert.equal(comparison.homeTeaser(withPrice(factsOn, 120)).includes('₪99'), false);
+  assert.equal(comparison.homeTeaser(withPrice(factsOn, 120)).includes('₪74'), false);
   assert.equal(comparison.comparisonLead(withPrice(factsOn, 120)).includes('פחות ממסלול'), false);
   // Between XPlace's monthly and annual per-month price: cheaper than the monthly plan only, so no "flexibility" and no annual comparison.
-  const middle = comparison.homeComparisonAnswer(withPrice(factsOn, 80));
+  const middle = comparison.homeComparisonAnswer(withPrice(factsOn, 60));
   assert.match(middle, /כ־19% פחות מהמסלול החודשי/);
   assert.doesNotMatch(middle, /השנתי|בגמישות/);
   assert.match(middle, /^בעלות ובמהירות, ואפשר לבדוק כל מספר\./);
@@ -98,7 +98,7 @@ test('a claim disappears when its price data stops supporting it', () => {
 
 test('a claim disappears when the measurement stops supporting it, and with no data left the answer claims no edge', () => {
   const slow = fresh();
-  slow.SPEED_TEST.freelancePlace.mobileScore = [48, 55];
+  slow.SPEED_TEST.freelancePlace.mobileScore = [30, 36];
   assert.equal(slow.derive(factsOn).faster, false, 'overlapping score ranges are not an advantage');
   const noSpeed = slow.homeComparisonAnswer(factsOn);
   assert.doesNotMatch(noSpeed, /Lighthouse במובייל|במהירות/);
@@ -147,7 +147,8 @@ test('every number has a source and a date: prices, totals and the measurement a
     assert.ok(source.label.length > 0);
   }
   const plans = Object.values(XPLACE.plans);
-  for (const plan of plans) assert.equal(plan.total, plan.perMonth * plan.months, `${plan.months}-month plan total`);
+  // The plans page rounds its per-month figures, so a printed total can differ from months x per month by the rounding only.
+  for (const plan of plans) assert.ok(Math.abs(plan.total - plan.perMonth * plan.months) <= plan.months / 2, `${plan.months}-month plan total`);
   assert.deepEqual(plan3(XPLACE).map((plan) => plan.months), [1, 3, 12]);
   assert.ok(XPLACE.plans.monthly.perMonth > XPLACE.plans.quarterly.perMonth && XPLACE.plans.quarterly.perMonth > XPLACE.plans.annual.perMonth, 'longer plans cost less per month');
   for (const side of [SPEED_TEST.freelancePlace, SPEED_TEST.xplace]) {
@@ -159,8 +160,11 @@ test('every number has a source and a date: prices, totals and the measurement a
   assert.match(SPEED_TEST.tool, /Lighthouse/);
   const sources = comparison.comparisonSources();
   assert.equal(sources.checked, XPLACE.checked);
-  assert.equal(sources.checkedText, '10 בנובמבר 2026');
+  assert.equal(sources.checkedText, '23 בנובמבר 2026');
   assert.deepEqual(plain(sources.links.map((link) => link.url)), Object.values(XPLACE.sources).map((source) => source.url));
+  // The page's own date (sitemap lastmod, dateModified, byline) is never older than the data it states.
+  const { modified } = loadModule('src/lib/seo/registry.ts', { env }).requirePage('/alternatives/xplace');
+  assert.ok(modified >= XPLACE.checked && modified >= SPEED_TEST.checked, `the comparison page date ${modified} is not before its data dates`);
 });
 const plan3 = (xplace) => [xplace.plans.monthly, xplace.plans.quarterly, xplace.plans.annual];
 
@@ -169,7 +173,7 @@ test('no price, total or score is typed into the copy: it all comes from the dat
   for (const file of files) {
     const source = readFileSync(`${projectRoot}/${file}`, 'utf8').replace(/\/\/.*$/gm, '');
     assert.doesNotMatch(source, /₪\s?\d|\bILS\s?\d/, `${file} hard-codes a price`);
-    assert.doesNotMatch(source, /\b(?:99|89|69|267|828)\b/, `${file} hard-codes an XPlace figure`);
+    assert.doesNotMatch(source, /\b(?:99|89|69|267|828|74|67|52|200|621)\b/, `${file} hard-codes an XPlace figure`);
     assert.doesNotMatch(source, /\b\d{1,3}%/, `${file} hard-codes a percentage`);
     assert.doesNotMatch(source, /Lighthouse|MB\b/, `${file} hard-codes a measurement`);
   }
@@ -190,7 +194,7 @@ test('the banned-wording list really matches the phrases it names', () => {
 });
 
 test('no superlative, guarantee or absolute wording in any generated comparison text, in either billing state', () => {
-  for (const facts of [factsOn, factsOff, withPrice(factsOn, 120), withPrice(factsOn, 80)]) {
+  for (const facts of [factsOn, factsOff, withPrice(factsOn, 120), withPrice(factsOn, 60)]) {
     for (const text of everyText(facts)) {
       for (const [banned] of BANNED) assert.doesNotMatch(text, banned, `${banned} in: ${text.slice(0, 90)}`);
     }
@@ -218,10 +222,10 @@ test('the comparison page renders both tables with the date, the method and ever
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
     assert.equal((html.match(/<table>/g) ?? []).length, 2, 'the offer table and the speed table');
     assert.equal((html.match(/<caption>/g) ?? []).length, 2, 'every table has a caption');
-    assert.ok(html.includes('<time dateTime="2026-11-10">10 בנובמבר 2026</time>'), 'the check date is machine readable');
+    assert.ok(html.includes('<time dateTime="2026-11-23">23 בנובמבר 2026</time>'), 'the check date is machine readable');
     for (const url of Object.values(comparison.XPLACE.sources).map((source) => source.url)) assert.ok(html.includes(`href="${url}"`), url);
     assert.ok(html.includes('Google Lighthouse 12.8.2'), 'the method names its tool');
-    assert.ok(html.includes('89–95') && html.includes('50–52'));
+    assert.ok(html.includes('71–75') && html.includes('35–37'));
     assert.ok(html.includes('PageSpeed Insights'), 'the visitor can repeat the test');
     assert.match(html, /נתון לא מעודכן\? כתבו אל/, 'a way to report a stale number');
     assert.match(html, /אינו קשור ל־XPlace/, 'the independence statement');
@@ -234,8 +238,8 @@ test('the comparison page renders both tables with the date, the method and ever
     const faq = nodes.find((node) => node['@type'] === 'FAQPage');
     assert.equal(faq.mainEntity.length, 6);
   }
-  assert.ok(on.includes('₪19.99 לחודש כולל מע״מ ככל שחל') && on.includes('כ־80% פחות'), 'billing available: the price comparison is stated');
-  assert.ok(on.includes('₪99 לחודש במסלול חודשי'));
+  assert.ok(on.includes('₪19.99 לחודש כולל מע״מ ככל שחל') && on.includes('כ־73% פחות'), 'billing available: the price comparison is stated');
+  assert.ok(on.includes('₪74 לחודש במסלול חודשי'));
   assert.equal(off.includes('פחות ממסלול'), false, 'billing unavailable: no saving is claimed');
   assert.ok(off.includes('מחיר מתוכנן: ₪19.99 לחודש. התשלום עדיין אינו זמין ולא מופעל חיוב.'));
 });
@@ -245,6 +249,42 @@ test('the home page teases the comparison from the same data and links to it', (
   assert.match(page, /homeTeaser\(/);
   assert.match(page, /href="\/alternatives\/xplace"/);
   const teaser = comparison.homeTeaser(factsOn);
-  assert.match(teaser, /60 ימי ניסיון בלי כרטיס אשראי, ואחר כך ₪19\.99 לחודש כולל מע״מ ככל שחל, במקום ₪99 לחודש לפני מע״מ ב־XPlace\./);
+  assert.match(teaser, /60 ימי ניסיון בלי כרטיס אשראי, ואחר כך ₪19\.99 לחודש כולל מע״מ ככל שחל, במקום ₪74 לחודש לפני מע״מ ב־XPlace\./);
   assert.doesNotMatch(comparison.homeTeaser(factsOff), /₪/);
+});
+
+test('the home page loads Google Analytics, so the measurement never claims zero third-party requests', () => {
+  const layout = readFileSync(`${projectRoot}/src/app/layout.tsx`, 'utf8');
+  assert.match(layout, /googletagmanager\.com/, 'this guard follows the tag in the layout: update it if the tag moves');
+  const ours = comparison.SPEED_TEST.freelancePlace;
+  assert.ok(ours.thirdPartyRequests > 0 && ours.thirdPartyHosts > 0, 'a page that loads a third-party script cannot be measured at zero');
+  assert.match(ours.thirdPartyUse, /Google Analytics/);
+  for (const text of everyText(factsOn)) assert.doesNotMatch(text, /לא שולח בקשות לצדדים שלישיים/);
+  const row = comparison.speedRows().find((item) => item.label === 'בקשות לצדדים שלישיים');
+  assert.equal(row.freelancePlace, '2, ל־2 דומיינים (מדידת שימוש של Google Analytics)');
+});
+
+test('"none" is said about our third-party requests only when the measurement says none', () => {
+  const clean = fresh();
+  clean.SPEED_TEST.freelancePlace.thirdPartyRequests = 0;
+  clean.SPEED_TEST.freelancePlace.thirdPartyHosts = 0;
+  assert.equal(clean.derive(factsOn).cleaner, true);
+  assert.match(clean.homeComparisonAnswer(factsOn), /והוא לא שולח בקשות לצדדים שלישיים, לעומת 65 ב־XPlace/);
+  assert.equal(clean.speedRows().find((item) => item.label === 'בקשות לצדדים שלישיים').freelancePlace, '0');
+});
+
+test("what XPlace's plans page says about its prices is stated beside them, and vanishes when it says nothing", () => {
+  const { XPLACE } = comparison;
+  assert.match(XPLACE.priceNote.he, /25%/);
+  const row = comparison.comparisonRows(factsOn).find((item) => item.label === 'מחיר לפרילנסרים');
+  assert.ok(row.xplace.endsWith(XPLACE.priceNote.he), 'the table says what the page marks');
+  assert.ok(comparison.comparisonQuestions(factsOn)[2].answer.endsWith(XPLACE.priceNote.he), 'the price answer says it too');
+  assert.ok(comparison.llmsComparisonLines(factsOn)[0].includes(XPLACE.priceNote.en));
+  const plain = fresh();
+  plain.XPLACE.priceNote.he = '';
+  plain.XPLACE.priceNote.en = '';
+  const noNote = plain.comparisonRows(factsOn).find((item) => item.label === 'מחיר לפרילנסרים').xplace;
+  assert.ok(noNote.endsWith('לפני מע״מ.'), noNote);
+  assert.doesNotMatch(plain.llmsComparisonLines(factsOn)[0], /; \./);
+  for (const text of everyText(factsOn, plain)) assert.doesNotMatch(text, /undefined|NaN|\s{2,}$/);
 });

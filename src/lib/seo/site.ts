@@ -10,7 +10,8 @@ export const SITE_DESCRIPTION = 'Freelance Place — פרויקטים לפריל
 export const privatePaths = ['/signin', '/messages', '/membership', '/profile', '/projects/new'];
 // Exact URLs inside a private prefix that are public on purpose: a signed-out visitor (a crawler included) gets an indexable page,
 // and the same URL answers a signed-in session with the private editor. Only a request that carries a session cookie is private there.
-export const signedOutPublicPaths: readonly string[] = ['/profile/headhunter'];
+// The second entry is that landing's share card, which every crawler and link preview must be able to fetch.
+export const signedOutPublicPaths: readonly string[] = ['/profile/headhunter', '/profile/headhunter/opengraph-image'];
 export function isPrivatePath(path: string, hasSession = false) {
   if (signedOutPublicPaths.includes(path)) return hasSession;
   return privatePaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || path === '/api' || path.startsWith('/api/');

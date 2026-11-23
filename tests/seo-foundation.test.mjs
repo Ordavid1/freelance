@@ -250,7 +250,12 @@ test('sitemap lastModified comes only from declared page dates', async () => {
   assert.equal(byUrl.get(`${ORIGIN}/`).lastModified, undefined, 'home has no real date');
   assert.equal(byUrl.get(`${ORIGIN}/terms`).lastModified, load('src/lib/legal/identity.ts').legalUpdated);
   assert.equal(byUrl.get(`${ORIGIN}/guides/project-brief`).lastModified, '2026-11-08');
-  assert.equal(byUrl.get(`${ORIGIN}/alternatives/xplace`).lastModified, '2026-11-10');
+  // The comparison page carries the day its numbers were last re-checked (the data module's check date).
+  assert.equal(byUrl.get(`${ORIGIN}/alternatives/xplace`).lastModified, '2026-11-23');
+  // Information pages revised after publication carry the day of the revision; the others keep their creation date.
+  assert.equal(byUrl.get(`${ORIGIN}/pricing`).lastModified, '2026-11-23');
+  assert.equal(byUrl.get(`${ORIGIN}/faq`).lastModified, '2026-11-23');
+  assert.equal(byUrl.get(`${ORIGIN}/about`).lastModified, '2026-11-10');
   // The project index is noindex while nothing is listed, so the sitemap does not advertise it.
   assert.equal(byUrl.has(`${ORIGIN}/projects`), false, 'no /projects URL while there are no public projects');
   assert.equal(entries.length, registry.indexablePages().filter((page) => !page.listsProjects).length);

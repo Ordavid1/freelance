@@ -12,6 +12,7 @@ export type SeoPage = {
   indexable?: boolean;          // default true; false => noindex + excluded from sitemap/footer/llms
   listsProjects?: boolean;      // a list of public projects: noindex, and left out of the sitemap, while none exist
   needsHeadhunterSwitch?: boolean; // answers 404 while the headhunter feature switch is off: left out of the sitemap while it is off
+  shareImage?: string;          // local path of a card made for this page (og:image and twitter:image only); the platform card when absent
   llms?: { section: 'Product' | 'Guides' | 'Categories' | 'Skills' | 'Comparisons' | 'Legal'; note: string };
 };
 export type GuideSection = {
