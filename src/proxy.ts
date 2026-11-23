@@ -1,5 +1,6 @@
 import { contentSecurityPolicy } from '@/lib/security/csp';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
 import { SITE_URL, indexingEnabled, isPrivatePath } from '@/lib/seo/site';
 
 // Query parameters that do not make a URL a different page: campaign tags everywhere, and the
@@ -49,7 +50,10 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', policy);
   const hasContentQuery = [...request.nextUrl.searchParams.keys()].some((key) => !isNeutralQuery(key, request.nextUrl.pathname));
-  if (!indexingEnabled() || host !== canonical.hostname || isPrivatePath(request.nextUrl.pathname) || hasContentQuery) {
+  // A URL that is public for signed-out visitors (the agency-page landing) is private as soon as the request carries a session
+  // cookie, because the page then renders the account's own editor. Crawlers send no cookies, so they always see the public page.
+  const hasSession = request.cookies.has(SESSION_COOKIE);
+  if (!indexingEnabled() || host !== canonical.hostname || isPrivatePath(request.nextUrl.pathname, hasSession) || hasContentQuery) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
   return response;

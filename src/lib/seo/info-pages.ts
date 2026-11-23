@@ -1,3 +1,4 @@
+import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
 import { guides } from './guides';
 import { newestDate } from './guides-index';
 import type { SeoPage } from './types';
@@ -5,6 +6,8 @@ import type { SeoPage } from './types';
 // Informational pages (for example /pricing, /about, /faq) and the guides index. Add an entry only together with its route.
 // Titles and descriptions never carry prices, trial lengths or billing state: those statements come from facts.ts on the page itself.
 const CREATED = '2026-11-10';
+// The agency-page landing was published later; bump `modified` below whenever its copy (headhunter-content.ts) changes.
+const AGENCY_PAGE_PUBLISHED = '2026-11-23';
 
 export const infoPages: SeoPage[] = [
   {
@@ -49,5 +52,14 @@ export const infoPages: SeoPage[] = [
     description: 'הגדרה קצרה וטיפ מעשי לכל מונח שנתקלים בו בפרויקט עם פרילנסר: בריף, היקף עבודה, אבן דרך, סבב תיקונים, זכויות שימוש ועוד.',
     published: CREATED, modified: CREATED,
     llms: { section: 'Guides', note: 'Plain-language definitions of terms used in freelance projects, each with a practical tip.' },
+  },
+  {
+    // The public page of /profile/headhunter: signed-out visitors and crawlers get it, and a signed-in session gets the private
+    // editor at the same URL (see signedOutPublicPaths in site.ts). The route answers 404 while the headhunter feature switch is off.
+    path: HEADHUNTER_EDITOR_PATH, kind: 'info', needsHeadhunterSwitch: true,
+    title: 'פרסום פרויקטים לפרילנסרים: עמוד חינם לסוכנויות גיוס',
+    description: 'סוכנויות גיוס, משרדי השמה, מגייסים ואנשי HR עצמאיים מפרסמים פרויקטים לפרילנסרים ב־Freelance Place ופותחים עמוד משלהם עם תג על כל פרויקט. השירות חינם.',
+    published: AGENCY_PAGE_PUBLISHED, modified: AGENCY_PAGE_PUBLISHED,
+    llms: { section: 'Product', note: 'Free agency page for recruiting agencies and independent recruiters: what it includes, how to open it, the two tracks, the rules and the limits.' },
   },
 ];

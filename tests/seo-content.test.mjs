@@ -13,14 +13,19 @@ const PLANNED_GUIDE_SLUGS = [
   'project-brief', 'hire-a-freelancer', 'compare-freelancer-quotes', 'freelancer-or-agency', 'website-cost-factors',
   'freelance-pricing-models', 'write-a-winning-proposal', 'freelance-contract-checklist', 'freelance-sites-israel',
 ];
-const STATIC_PATHS = ['/', '/pricing', '/about', '/how-it-works', '/faq', '/glossary', '/guides', '/skills', '/projects', '/alternatives/xplace', '/guides/project-brief', '/privacy', '/terms'];
+const STATIC_PATHS = ['/', '/pricing', '/about', '/how-it-works', '/faq', '/glossary', '/guides', '/skills', '/projects', '/alternatives/xplace', '/guides/project-brief', '/privacy', '/terms', '/profile/headhunter'];
 
 const BANNED_PHRASES = ['הכי טוב', 'מס׳ 1', 'מספר 1', 'מוביל', 'מובטח', 'מבטיחים', '100%', 'ללא סיכון', 'אחריות מלאה', 'כולם', 'תמיד'];
 // Facts that may appear as numbers because facts.ts owns them (membership price, trial length).
 // They are read from the same code constants the pages use, so a change of the trial or the
 // price can never leave a stale hand-typed number passing this lint.
 const BASE_FACTS = loadModule('src/lib/seo/facts.ts', { env: { SITE_INDEXABLE: 'true' } }).membershipFacts({});
-const ALLOWED_NUMBER_SNIPPETS = [`${BASE_FACTS.trialDays} ימי ניסיון`, `${BASE_FACTS.trialDays} ימי`, BASE_FACTS.priceLabel, String(BASE_FACTS.priceIls)];
+// The agency-page landing states two durations that headhunters/constants.ts owns: the fast-track window and the rename cooldown.
+const HEADHUNTER = loadModule('src/lib/headhunters/constants.ts', { env: { SITE_INDEXABLE: 'true' } });
+const ALLOWED_NUMBER_SNIPPETS = [
+  `${BASE_FACTS.trialDays} ימי ניסיון`, `${BASE_FACTS.trialDays} ימי`, BASE_FACTS.priceLabel, String(BASE_FACTS.priceIls),
+  `${HEADHUNTER.HEADHUNTER_FAST_TRACK_HOURS} שעות`, `${HEADHUNTER.HEADHUNTER_RENAME_COOLDOWN_DAYS} ימים`,
+];
 const UNIT_AFTER_DIGITS = /\d[\d.,]*\s*(?:ימים|יום|שבועות|שבוע|חודשים|חודש|שנים|שנה|שעות|שעה|דקות|דקה|אחוז|%|₪|ש״ח|שקלים|דולר|אירו|\$|€)/;
 const CURRENCY_BEFORE_DIGITS = /(?:₪|\$|€)\s*\d/;
 const NUMBER_WORD_UNIT = /(?:שני|שניים|שתי|שתיים|שלושה|שלוש|ארבעה|ארבע|חמישה|חמש|שישה|שש|שבעה|שבע|שמונה|תשעה|תשע|עשרה|עשר|עשרים)\s+(?:ימים|שבועות|חודשים|שנים|שעות|דקות)/;
@@ -73,6 +78,9 @@ function collectInfo() {
   }
   out.push({ name: 'about', content: mod.aboutContent(), kind: 'page' });
   out.push({ name: 'how-it-works', content: mod.howItWorksContent(), kind: 'page' });
+  // The public page of /profile/headhunter (the free agency page): same contract as the other information pages.
+  const landing = path.join(projectRoot, 'src/lib/seo/headhunter-content.ts');
+  if (existsSync(landing)) out.push({ name: 'headhunter landing', content: loadModule('src/lib/seo/headhunter-content.ts', { env: { SITE_INDEXABLE: 'true' } }).headhunterLandingContent(), kind: 'page' });
   return out;
 }
 function collectCategoryFaq() {

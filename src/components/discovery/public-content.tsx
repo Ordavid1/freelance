@@ -13,8 +13,9 @@ export function Questions({ items }: { items: Question[] }) {
 export function DiscoveryLinks() {
   return <nav className="discovery-links" aria-label="מידע על Freelance Place"><Link href="/">פרויקטים ומרחב העבודה</Link><Link href="/alternatives/xplace">אלטרנטיבה ל־XPlace.com</Link><Link href="/guides/project-brief">איך כותבים בריף לפרויקט?</Link><Link href="/privacy">מדיניות פרטיות</Link><Link href="/terms">תנאי שימוש</Link>{categories.map((category) => <Link key={category.slug} href={`/categories/${category.slug}`}>{category.name}</Link>)}</nav>;
 }
-export function PublicHeader() {
-  return <header className="discovery-header"><Link href="/" aria-label="Freelance Place — דף הבית"><Image src="/freelance-place-logo.svg" width={52} height={52} alt="Freelance Place" /></Link><span lang="en" dir="ltr">Freelance Place</span><SupportHeaderActions><Link href="/signin">כניסה לחשבון</Link></SupportHeaderActions></header>;
+// `signInHref` lets a page send the visitor back to itself after signing in (see signInHref in lib/auth/safe-next.ts).
+export function PublicHeader({ signInHref = '/signin' }: { signInHref?: string }) {
+  return <header className="discovery-header"><Link href="/" aria-label="Freelance Place — דף הבית"><Image src="/freelance-place-logo.svg" width={52} height={52} alt="Freelance Place" /></Link><span lang="en" dir="ltr">Freelance Place</span><SupportHeaderActions><Link href={signInHref}>כניסה לחשבון</Link></SupportHeaderActions></header>;
 }
 // Both receive discoverable projects only (see publication.ts). With none to list, neither renders:
 // a heading or an empty ItemList with nothing under it adds no value for readers or crawlers.

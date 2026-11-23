@@ -104,7 +104,7 @@ test('preview environment blocks crawling and production keeps render assets cra
 });
 
 test('canonical host redirects preserve path/query and account or alternate hosts are noindex', () => {
-  const { proxy } = load('src/proxy.ts', { 'next/server': { NextResponse }, '@/lib/seo/site': site, '@/lib/security/csp': loadModule('src/lib/security/csp.ts') });
+  const { proxy } = load('src/proxy.ts', { 'next/server': { NextResponse }, '@/lib/seo/site': site, '@/lib/security/csp': loadModule('src/lib/security/csp.ts'), '@/lib/auth/session-cookie': load('src/lib/auth/session-cookie.ts') });
   const request = (host, path) => new NextRequest(`https://${host}${path}`, { headers: { host } });
   const redirect = proxy(request('www.freelance-place.com', '/alternatives/xplace?utm_source=test'));
   assert.equal(redirect.status, 308);
@@ -178,7 +178,7 @@ test('sitemap failures propagate and preview never touches the database', async 
   const preview = load('src/lib/seo/site.ts', {}, {});
   const route = load('src/app/sitemap.ts', {
     '@/lib/seo/site': preview, '@/lib/seo/registry': registry,
-    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
+    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
   });
   assert.equal((await route.default()).length, 0);
 });
@@ -187,7 +187,7 @@ test('sitemap uses source modification times and only real public/editorial page
   const updatedAt = new Date('2026-11-08T12:00:00Z');
   const route = load('src/app/sitemap.ts', {
     '@/lib/seo/site': site, '@/lib/seo/registry': registry,
-    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [] }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
+    '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
   });
   const entries = await route.default();
   assert.equal(entries.length, content.editorialPaths.length + 1);

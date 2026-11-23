@@ -1,8 +1,9 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { adminAuth } from './firebase-admin';
+import { SESSION_COOKIE } from './session-cookie';
 
-export const SESSION_COOKIE = 'fz_session';
+export { SESSION_COOKIE };
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
 export function publicAppOrigin(request: Request): string {

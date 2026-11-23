@@ -9,7 +9,8 @@ import { HANDOFF_PATHS, HANDOFF_QUERY_PARAM, isHandoffToken } from '../imports/x
 export function safeNextPath(next: string | null | undefined): string {
   if (typeof next !== 'string') return '/';
   if (next === HANDOFF_PATHS.profile) return HANDOFF_PATHS.profile;
-  // The headhunter page is private and sends signed-out visitors to sign in; they come back to it, with no query.
+  // The headhunter page's public landing links signed-out visitors to sign in; they come back to it (where the signed-in view is
+  // the apply form), with no query.
   if (next === HEADHUNTER_EDITOR_PATH) return HEADHUNTER_EDITOR_PATH;
   // Compare the raw path/query rather than normalizing an attacker-controlled URL.
   // Always build the result from constants; never send the supplied URL to navigation.

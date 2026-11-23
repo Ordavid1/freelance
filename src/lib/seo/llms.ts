@@ -10,11 +10,13 @@ import { llmsComparisonLines } from './comparison';
 import { getComparisonQuestions, getHomeQuestions } from './content';
 import { BRAND, contactFacts, membershipAnswer, membershipFacts, type MembershipFacts } from './facts';
 import { guides } from './guides';
+import { headhunterLandingContent } from './headhunter-content';
 import { aboutContent, faqContent, howItWorksContent, pricingContent, type FaqContent, type InfoContent } from './info-content';
 import { indexablePages, pageByPath } from './registry';
 import { absoluteUrl, summarize } from './site';
 import { skills } from './skills';
 import type { GuideSection, Question, SeoPage } from './types';
+import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
 import { minisiteUrl } from '@/lib/headhunters/urls';
 
 export const LLMS_HEADERS = {
@@ -124,6 +126,7 @@ function infoBlocks(facts: MembershipFacts): string[] {
     { path: '/about', content: () => aboutContent() },
     { path: '/how-it-works', content: () => howItWorksContent() },
     { path: '/faq', content: () => faqContent(facts) },
+    { path: HEADHUNTER_EDITOR_PATH, content: () => headhunterLandingContent() },
   ];
   return pages.filter(({ path }) => listed(path)).flatMap(({ path, content }) => {
     const page = content();

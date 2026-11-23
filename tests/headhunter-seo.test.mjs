@@ -225,11 +225,11 @@ test('indexableHeadhunterEntries: the single public-state predicate decides', ()
   }
 });
 
-function loadSitemap({ agencies, projects = [], indexing = 'true' }) {
+function loadSitemap({ agencies, projects = [], indexing = 'true', landing = true }) {
   const sitemapEnv = { ...env, SITE_INDEXABLE: indexing };
   return loadModule('src/app/sitemap.ts', { env: sitemapEnv, stubs: {
     '@/lib/seo/projects': { sitemapProjects: async () => projects },
-    '@/lib/seo/headhunters': { indexableHeadhunterPages: agencies },
+    '@/lib/seo/headhunters': { indexableHeadhunterPages: agencies, headhunterLandingServed: async () => landing },
   } });
 }
 
