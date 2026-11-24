@@ -28,7 +28,7 @@
     "@google/genai": "^1.30.0",
     "@nangohq/frontend": "^0.72.3",
     "email-reply-parser": "^2.3.9",
-    "firebase-admin": "14.5.0",
+    "firebase-admin": "14.5.1",
     "google-auth-library": "^11.3.4",
     "html-to-text": "^10.0.1",
     "next": "^16.2.9",
