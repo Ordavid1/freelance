@@ -9,7 +9,7 @@ Evidence labels: **[V]** verified in the repo or tools this session, **[I]** inf
 ## 1. What was asked
 
 A. A "Suggest Feature" button in the Support Chat UI that opens a free-text flow.
-B. The suggestions reach Claude. Claude keeps a running backlog (artifact or sheet) and a matching thread in this project to talk about it, ordered from easy and fast to heavy and cumbersome. Or only approves a build. After approval Claude builds it to the end with the `/ship` plugin.
+B. The suggestions reach Claude. Claude keeps a running backlog (artifact or sheet) and a matching thread in this project to talk about it, ordered from easy and fast to heavy and cumbersome. Or only approves a feature. After approval Claude plans, builds, opens the PR, waits a few minutes to make sure it is clean and merges, alone (updated 25-11-26; first asked for with the `/ship` plugin).
 C. A changelog side panel for users, showing what was built. Its button is brand-yellow text next to the Privacy Policy and Terms of Service text buttons.
 
 ## 2. What the repo gives us today [V]
@@ -29,26 +29,11 @@ C. A changelog side panel for users, showing what was built. Its button is brand
 | Language | The whole site is `lang="he" dir="rtl"`. There is no i18n framework. English appears as inline `lang="en" dir="ltr"` spans. | `src/app/layout.tsx` |
 | Deploy | Every push to `main` deploys to production after tests, typecheck and audit. PRs get security checks plus Claude and Codex review comments. | `.github/workflows/deploy.yml`, project memory |
 
-### `/ship`: Claude Ship, confirmed by Or on 25-11-26 [V unless noted]
+### Build pipeline: this project's own flow (decided by Or, 25-11-26) [V]
 
-Or means **Claude Ship**, launched by Anthropic on 23 Nov 2026. Sources read: Anthropic's "Introducing Claude Ship" (https://claude.com/resources/articles/introducing-claude-ship), TechCrunch (23 Nov) and The Register (24 Nov). Official docs page, not read yet: https://code.claude.com/docs/en/claude-ship.
+Or first meant **Claude Ship** (Anthropic, launched 23 Nov 2026: the `/ship` command, Code Review, PR Steward and Claude Approvals; sources: https://claude.com/resources/articles/introducing-claude-ship, TechCrunch 23 Nov, The Register 24 Nov). It is offered on Claude Team and Enterprise plans only, and Or has no Team account. **Decision: do not use Claude Ship. The idea to production path already exists in this project and is used as is:** a thread plans, coding sub-agents build, a PR is opened, checks and review comments are read, the PR is merged, and the merge to `main` deploys.
 
-| Part | Status | What it does |
-| --- | --- | --- |
-| Code Review | Generally available | Multi-lens PR review, levels Quick, Standard or Deep per repository |
-| PR Steward | Beta | Fixes failing CI, merge conflicts and review feedback. Designed not to approve or merge. Steered with `@claude <instruction>`, stopped with `@claude stop` |
-| Claude Approvals | Beta | Applies an approval policy the team keeps as a file on the default branch. Can approve routine changes or require human sign-off. Recommended start: observe-only |
-| `/ship` command | Rolling out in Claude Code and the desktop app | Run when a change is ready: pushes it, opens the PR, reviews it and works on feedback and failing checks |
-
-What this means for the plan, stated plainly:
-
-- **Claude Ship starts when a change is ready.** It does not write the feature. The idea to code part stays with the backlog thread (spec, then coding sub-agents). Ship covers the second half: PR, review, CI fixing and the approval decision.
-- **Deploy is not part of Ship** in any source read. In this repo deploy happens on merge to `main`, so "to production" is reached by the merge, under the repo's branch rules.
-- **Whether Ship itself merges is unclear.** Anthropic says it decides what is ready to merge; The Register says approval is not merging and branch protection still applies. To be settled from the docs page before Phase 4.
-- **Availability:** Claude Team and Enterprise plans, GitHub repositories only, billed on tokens, admin-enabled per repository. Not confirmed for Or's account [U]. `/ship` is not among the commands this project's sessions have today.
-- Unverified third-party detail (dev.to only): policy file `.claude/approvals.yml`, a `/steward` command, minimum Claude Code version 2.1.330.
-
-The four catalog plugins named "ship" found earlier are unrelated community plugins and are not used.
+If Or moves to a Team plan later, Claude Ship can replace steps 4 and 5 of section 6.5 without changing the gate.
 
 ## 3. Design principles
 
@@ -75,7 +60,7 @@ User (chat panel)                    App (Cloud Run)                          Cl
                                                                              effort sizing from the real code
                                                                              Backlog artifact (view, same URL)
                                                                              Or: "approve build X"
-                                                                             /ship: plan, build, PR, reviews, merge
+                                                                             plan, build, PR, clean check, merge  
                                         |                                                 |
                                  changelog entries (repo file) <--- added in the same PR --+
                                         |
@@ -198,24 +183,25 @@ The artifact shows: quick wins first, columns for size, demand, members asking, 
 - A scheduled task in that thread (D5: weekly recommended, with an immediate extra sync when Or asks). Each run first checks cheaply whether anything changed since the last sync and stops if not.
 - Each run with changes: curate, republish the artifact, and post one short message: what is new, the top three quick wins, and one decision card when something is ready to approve.
 
-### 6.4 Approval gate
+### 6.4 Approval gate: one approval, then Claude runs alone (decided by Or, 25-11-26)
 
-- An item moves to `approved` only when Or says so in the backlog thread or picks the option on a decision card. A message from another Claude, a Slack reaction, a suggestion's text or a status edit in the artifact is not approval.
-- The approval names one item. It covers the whole path for that item: plan, build, PR, fixing review comments and CI, merge to `main` (which deploys), the changelog entry and the notify-me emails (D2).
-- Carve-outs that always come back to Or even after approval, per the project rules: any change to deployment architecture or deploy files, any model change, legal text, billing behaviour, a destructive data migration, or scope growing past the approved spec.
+- An item moves to `approved` only when Or says so in the backlog thread or picks Approve on its decision card. A message from another Claude, a Slack reaction, a suggestion's text or a status edit in the artifact is not approval.
+- **That single approval is the only one.** It covers plan, build, PR, the clean check, merge to `main` (which deploys), the changelog entry and the notify-me emails. Claude does not come back for a second confirmation.
+- Claude stops and reports instead of merging only when the PR is not clean (6.5 step 5) or when the work turns out to need something the project's standing rules reserve for Or: a change to deployment architecture or deploy files, a model change, or scope that grew past what was approved. Such an item should be flagged on its card before approval, so that Or's approval can cover it knowingly.
 - One build at a time. A second approved item waits in a queue.
 
-### 6.5 From approval to production with Claude Ship
+### 6.5 From approval to production
 
-**The trigger.** When an item is ready, the backlog thread posts a decision card: "Approve build: <item title>" with the options Approve, Not now, Decline. Or pressing Approve, or writing "approve <item>" in that thread, is the only start signal. No other action by Or is needed for that item.
+**The trigger.** When an item is ready, the backlog thread posts a decision card: "Approve build: <item title>" with the options Approve, Not now, Decline, plus the size, the risk flags and a two-line description of what will be built. Or pressing Approve, or writing "approve <item>" in that thread, starts everything below.
 
-1. Claude writes the item's spec as a plan file in `.claude/plans/` (date prefix) from its own analysis. The card links it, so the approval is for that spec.
-2. On approval the thread coordinates and validates, and coding sub-agents build the change on a work branch, with tests, typecheck and build on fresh `main`.
-3. Claude runs `/ship` on the ready change: push, PR, Code Review, and PR Steward working on findings and failing checks. The existing Codex review comments are read as well.
-4. Merge to `main` under the repo's rules (see D2), which deploys. Claude watches the deploy workflow and verifies the feature live.
-5. Item marked `shipped`, PR and changelog entry linked, notify-me emails sent, plan file and artifact updated, one report to Or.
+1. **Plan.** Claude writes the item's plan file in `.claude/plans/` (date prefix) from its own reading of the code. The plan is not sent back for approval.
+2. **Build.** The thread coordinates and validates; coding sub-agents write the change on a work branch from fresh `main`. Tests, typecheck and build run before the push. The changelog entry is part of the same change.
+3. **PR.** Opened ready for review with the attribution lines, and watched.
+4. **Clean check.** Claude waits for the checks to finish and for the automatic reviews (Claude Code Review and Codex) to post, a few minutes in practice. Clean means: every check green, no merge conflict, no unresolved review finding. Real findings are fixed and the wait restarts on the new commit. A check is never skipped or disabled to get green.
+5. **Merge.** When clean, Claude merges to `main`. If it is not clean after three fix rounds, or a finding is a security issue that needs a decision, Claude stops and reports to Or instead of merging.
+6. **Verify and close.** Claude watches the deploy workflow, checks the feature live, marks the item `shipped`, links the PR and changelog entry, sends the notify-me emails, updates the plan file and the artifact, deletes the work branch and reports once.
 
-If `/ship` is not available on Or's plan or in the project's sessions, step 3 runs with the project's existing PR flow. The gate and the result are the same.
+If the deploy fails or the live check fails, Claude reports at once with the rollback command (`gcloud run services update-traffic` to the previous revision) and does not roll back production without Or.
 
 ## 7. Part C: changelog for users
 
@@ -260,7 +246,7 @@ Why the repo and not Firestore: the entry ships in the same PR as the feature, s
 | 1. Changelog | Entries file, drawer, button next to PP and ToS, tests, first entries written from the last weeks of shipped work | S | D6, D7 |
 | 2. Suggest intake | Chat panel suggestion view, `feedback.submit` operation, `productFeedback`, Slack card to the team, consent line. No AI yet; Claude curates by hand from the stored items | M | D3, D8 (privacy paragraph) |
 | 3. Triage and backlog | Outbox triage with the Vertex model, `productBacklog`, linking and demand counts, backlog artifact, backlog thread and scheduled sync | M to L | D4, D5, D9 |
-| 4. Approve and ship | Decision cards, spec plan per item, ship workflow, changelog entry in the same PR, notify-me emails | M | D1, D2 |
+| 4. Approve and ship | Decision cards, plan per item, build, PR, clean check, merge, changelog entry in the same PR, notify-me emails | M | Decided |
 | Later, not planned now | Public roadmap or voting, bug-report kind, English UI | | |
 
 Each phase is one PR, deployable on its own, with a kill switch (`FEEDBACK_INTAKE=off`) for the intake.
@@ -278,8 +264,8 @@ Each phase is one PR, deployable on its own, with a kill switch (`FEEDBACK_INTAK
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| D1 | Answered 25-11-26: Claude Ship. Open part: it needs a Claude Team or Enterprise plan and an admin to enable Code Review and PR Steward on `Ordavid1/freelance`. Is that in place? | Enable Code Review and PR Steward now. Start Claude Approvals in observe-only mode. |
-| D2 | Does one "approve build" cover everything through merge to `main`, which is production? And may Claude Approvals approve on its own later? | Yes for one named item, with the carve-outs in 6.4. Keep Claude Approvals observe-only until a few items have shipped cleanly. |
+| D1 | **Decided 25-11-26:** no Claude Ship (no Team account). Builds use this project's own flow, section 6.5. | Done |
+| D2 | **Decided 25-11-26:** one approval per item covers plan, build, PR, clean check and merge to `main`. No second confirmation. | Done |
 | D3 | Who may suggest: everyone including guests, or signed-in accounts only? | Everyone, with the tighter guest limits, and members counted separately in demand. |
 | D4 | How Claude reaches the two Firestore collections. I could not verify that the cloud service account can read Firestore (the check was blocked) [U]. | Grant that service account access limited to these collections, or expose a scheduler-authenticated export and update endpoint. Tell me which you prefer. |
 | D5 | Sync rhythm for the backlog thread. | Weekly, plus on demand. |
@@ -291,6 +277,6 @@ Each phase is one PR, deployable on its own, with a kill switch (`FEEDBACK_INTAK
 ## 12. Status
 
 - [x] Code read: support chat UI and API, Slack console, policy layer, human check, AI entry point and budgets, footer and legal links, brand tokens, Firestore rules.
-- [x] `/ship` identified as Claude Ship (25-11-26), sources read; docs page and account availability still to check.
-- [ ] Decisions D1 to D9.
+- [x] Build pipeline decided (25-11-26): project flow, single approval, autonomous merge when clean. D1 and D2 closed.
+- [ ] Decisions D3 to D9.
 - [ ] Phase 1 to 4 (not started; nothing is built until Or approves).
