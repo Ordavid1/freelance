@@ -18,3 +18,10 @@ export const isEmploymentType = (value: unknown): value is EmploymentType => typ
 
 /** Read side: a stored value that is missing or unknown is a freelance project, so old documents need no migration. */
 export const employmentTypeOf = (project: { employmentType?: unknown }): EmploymentType => (isEmploymentType(project.employmentType) ? project.employmentType : DEFAULT_EMPLOYMENT_TYPE);
+
+/** Employee jobs take a plain application message: no quote, delivery time or pricing model. */
+export const requiresQuote = (type: EmploymentType) => type === 'freelance';
+export const APPLICATION_COPY: Record<EmploymentType, { heading: string; submit: string; sent: string; placeholder: string; hint: string; offerLabel: string; fieldLabel: string }> = {
+  freelance: { heading: 'ההצעה שלך מתחילה כאן', submit: 'שליחת הצעה', sent: 'ההצעה נשלחה ונשמרה בפרויקט.', placeholder: 'מה אהבת בפרויקט, ומה תרצה/י ליצור יחד?', hint: 'ההצעה תישלח לבעל/ת הפרויקט לאחר אישור.', offerLabel: 'ההצעה ששלחת', fieldLabel: 'כמה מילים על הגישה שלך' },
+  employee: { heading: 'הגשת מועמדות', submit: 'שליחת מועמדות', sent: 'המועמדות נשלחה ונשמרה בפרויקט.', placeholder: 'ספרו בקצרה על הניסיון שלכם ולמה המשרה מתאימה לכם.', hint: 'המועמדות תישלח למפרסם/ת המשרה לאחר אישור.', offerLabel: 'המועמדות ששלחת', fieldLabel: 'כמה מילים עליכם ועל הניסיון שלכם' },
+};
