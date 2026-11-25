@@ -6,7 +6,7 @@ import { applyProjectCreated, invalidateAfterCounter, readHeadhunterForCounter, 
 import { liveMinisiteHandle, minisiteAfterCounter } from '@/lib/headhunters/pings';
 import { listFeedProjects, toPublicProject } from '@/lib/db/projects';
 import { onProjectClosed, onProjectPublished, type ProjectEventRecord } from '@/lib/projects/events';
-import { validateImportProvenance, validateProjectInput } from '@/lib/projects/validation';
+import { validateImportProvenance, validateProjectInput, type ProjectInput } from '@/lib/projects/validation';
 import { importErrorResponse, ImportError } from '@/lib/imports/errors';
 import { isXPlaceImportEnabled } from '@/lib/imports/flag';
 import type { ProjectImportSource } from '@/lib/imports/types';
@@ -36,12 +36,12 @@ export const POST = route('project.create', { body: { type: 'json', maxBytes: 24
   const body = payload as Record<string, unknown> | null;
   const input = validateProjectInput(body);
   if (!input.ok) return NextResponse.json({ error: input.error }, { status: 400 });
-  const { title, category, description, budget, deadline, skills } = input.value;
+  const { title, category, description, budget, deadline, skills, employmentType } = input.value;
   const slug = randomUUID();
   if (body?.import !== undefined) return publishImportedProject(user, slug, body.import, input.value);
   // Built field by field: client input can never set sample/seed/status markers.
   const record = {
-    title, category, description, budget, deadline, skills,
+    title, category, description, budget, deadline, skills, employmentType,
     ownerUid: user.uid, clientName: user.name || user.email?.split('@')[0] || 'לקוח/ה', status: 'open', proposals: 0,
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   };
@@ -70,7 +70,7 @@ type ImportOutcome = { rejected: { status: number; body: Record<string, unknown>
 
 // Imported projects are created, together with a missing publisher profile name, in ONE transaction:
 // either the project (and the profile name) exist afterwards or nothing was written.
-async function publishImportedProject(user: ImportUser, slug: string, rawImport: unknown, input: { title: string; category: string; description: string; budget: string; deadline: string; skills: string[] }) {
+async function publishImportedProject(user: ImportUser, slug: string, rawImport: unknown, input: ProjectInput) {
   if (!isXPlaceImportEnabled()) return importErrorResponse(new ImportError('IMPORT_DISABLED'));
   const checked = validateImportProvenance(rawImport);
   if (!checked.ok) {

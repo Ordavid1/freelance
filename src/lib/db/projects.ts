@@ -8,10 +8,11 @@ import { isDiscoverableProject, isListableProject, isSyntheticProject } from '@/
 import { HEADHUNTERS_TAG, HEADHUNTER_CLOSED_LIMIT, HEADHUNTER_PAGE_SIZE, HEADHUNTER_PROJECT_READ_LIMIT, headhunterTag } from '@/lib/headhunters/constants';
 import { getHeadhunterConfig, getPublicHeadhunters } from '@/lib/db/headhunters';
 import { SAMPLE_CLIENT_HISTORY } from '@/lib/projects/presentation';
+import { employmentTypeOf, type EmploymentType } from '@/lib/projects/employment';
 
 export type ProjectDocument = {
   title?: string; category?: string; description?: string; budget?: string; deadline?: string;
-  clientName?: string; ownerUid?: string; unreal?: boolean; owner?: { kind?: string; name?: string; persona?: string }; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean;
+  clientName?: string; ownerUid?: string; unreal?: boolean; owner?: { kind?: string; name?: string; persona?: string }; skills?: string[]; status?: string; proposals?: number; createdAt?: unknown; visibility?: string; sample?: boolean; employmentType?: EmploymentType;
 };
 
 export function toPublicProject(slug: string, record: ProjectDocument): Project {
@@ -24,6 +25,7 @@ export function toPublicProject(slug: string, record: ProjectDocument): Project 
     description: record.description || '',
     budget: record.budget || 'התקציב בשיחה',
     deadline: record.deadline || 'גמיש',
+    employmentType: employmentTypeOf(record),
     posted: 'פרויקט חדש',
     client: name,
     clientHistory: record.sample === true ? SAMPLE_CLIENT_HISTORY : 'פרויקט ראשון ב־Freelance Place',

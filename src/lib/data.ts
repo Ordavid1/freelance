@@ -1,7 +1,8 @@
+import type { EmploymentType } from '@/lib/projects/employment';
 import type { PublicHeadhunterTag } from '@/lib/headhunters/types';
 export type Project = {
   slug: string; title: string; category: string; description: string; budget: string;
-  deadline: string; posted: string; client: string; clientHistory: string;
+  deadline: string; employmentType?: EmploymentType; posted: string; client: string; clientHistory: string;
   skills: string[]; status?: string; createdAt?: number; updatedAt?: number; fit: string; activity: string; proposals: number; featured?: boolean; sample?: boolean; ownerKind?: 'ai-agent'; ownerPersona?: string;
   /** Set by the server readers for projects of a live headhunter (derived from the owner, never stored on the project). */
   headhunter?: PublicHeadhunterTag;

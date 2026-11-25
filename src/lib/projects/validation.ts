@@ -2,8 +2,9 @@ import { parseXPlaceUrl } from '../imports/xplace/urls.ts';
 import type { ImportCapture, ProjectImportProvenance, XPlaceTarget } from '../imports/types.ts';
 import { cleanText } from '../imports/xplace/clean.ts';
 import { projectSkills } from './skills.ts';
+import { DEFAULT_EMPLOYMENT_TYPE, EMPLOYMENT_ERROR, isEmploymentType, type EmploymentType } from './employment.ts';
 // Shared project-input validation (no server-only imports so scripts can use it).
-export type ProjectInput = { title: string; category: string; description: string; budget: string; deadline: string; skills: string[] };
+export type ProjectInput = { title: string; category: string; description: string; budget: string; deadline: string; skills: string[]; employmentType: EmploymentType };
 export type ProjectInputResult = { ok: true; value: ProjectInput } | { ok: false; error: string };
 
 export const PROJECT_CONTENT_ERROR = 'נדרשת כותרת ותיאור מלא של הפרויקט.';
@@ -17,6 +18,8 @@ export function validateProjectInput(body: unknown): ProjectInputResult {
   if (typeof input.category !== 'string' || typeof input.budget !== 'string' || input.budget.length > 100 || typeof input.deadline !== 'string' || input.deadline.length > 100 || !Array.isArray(input.skills) || input.skills.length > 20 || input.skills.some((skill) => typeof skill !== 'string' || skill.length > 60)) {
     return { ok: false, error: PROJECT_DETAILS_ERROR };
   }
+  // Optional so older clients and imports keep working; when sent it must be a known type, otherwise it is freelance.
+  if (input.employmentType !== undefined && !isEmploymentType(input.employmentType)) return { ok: false, error: EMPLOYMENT_ERROR };
   return {
     ok: true,
     value: {
@@ -25,6 +28,7 @@ export function validateProjectInput(body: unknown): ProjectInputResult {
       description: input.description.trim(),
       budget: input.budget.trim(),
       deadline: input.deadline.trim(),
+      employmentType: input.employmentType ?? DEFAULT_EMPLOYMENT_TYPE,
       skills: projectSkills({ title: input.title as string, description: input.description as string, skills: input.skills as string[] }),
     },
   };

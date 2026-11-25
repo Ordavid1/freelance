@@ -106,8 +106,9 @@ test('discovery ProjectCardList: LIVE on open projects with and without a headhu
   const render = (projects) => renderToStaticMarkup(createElement(ProjectCardList, { projects, skills: [] }));
   const html = render([open, openTagged, closedReal, archived]);
   assert.equal(live(html), 2);
-  assert.match(html, /<p class="disc-card-tags"><span class="live-badge"[^>]*>.*?<\/span><a href="\/ofek-hr" class="hh-tag"/);
-  assert.equal((html.match(/class="disc-card-tags"/g) ?? []).length, 2);
+  assert.match(html, /<p class="disc-card-tags"><span class="live-badge"[^>]*>.*?<\/span><span class="employment-badge employment-freelance">פרילנס<\/span><a href="\/ofek-hr" class="hh-tag"/);
+  // Every card carries the employment label, so every card has a tags row.
+  assert.equal((html.match(/class="disc-card-tags"/g) ?? []).length, 4);
 });
 
 function detail(current) {

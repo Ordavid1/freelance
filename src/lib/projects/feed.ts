@@ -2,15 +2,16 @@
 // the personal KPI tiles and the tag-filter button, so the numbers on one screen can
 // never disagree because each widget filtered a different list.
 import { projectSkillMatch } from './skills';
+import { EMPLOYMENT_LABELS, employmentTypeOf, type EmploymentFilter, type EmploymentType } from './employment';
 
 export type FeedProject = {
   slug: string; title: string; description: string; skills: string[]; status?: string;
-  createdAt?: number; posted: string;
+  createdAt?: number; posted: string; employmentType?: EmploymentType;
 };
 export type FeedStatus = 'all' | 'open' | 'closed';
 export type FeedPeriod = 'all' | '24h' | '72h' | 'week' | 'fortnight' | 'month';
 export type FeedCriteria = {
-  status?: FeedStatus; period?: FeedPeriod; query?: string;
+  status?: FeedStatus; period?: FeedPeriod; query?: string; employment?: EmploymentFilter;
   /** Keep only projects matching the freelancer's profile skills. */
   matchTags?: boolean; tags?: readonly string[]; includeAdjacent?: boolean; now?: number;
 };
@@ -40,13 +41,14 @@ export function feedUniverse<T extends { slug: string }>(...lists: readonly (rea
 }
 
 export function filterFeed<T extends FeedProject>(projects: readonly T[], criteria: FeedCriteria = {}): T[] {
-  const { status = 'all', period = 'all', query = '', matchTags = false, tags = [], includeAdjacent = true, now = Date.now() } = criteria;
+  const { status = 'all', period = 'all', employment = 'all', query = '', matchTags = false, tags = [], includeAdjacent = true, now = Date.now() } = criteria;
   const needle = query.toLowerCase();
   return projects.filter((project) => {
     if (status !== 'all' && projectStatus(project) !== status) return false;
+    if (employment !== 'all' && employmentTypeOf(project) !== employment) return false;
     if (period !== 'all' && now - projectDate(project, now) > PERIOD_MS[period]) return false;
     if (matchTags && projectSkillMatch(project, tags, includeAdjacent).kind === 'none') return false;
-    return !needle || `${project.title} ${project.description} ${project.skills.join(' ')}`.toLowerCase().includes(needle);
+    return !needle || `${project.title} ${project.description} ${project.skills.join(' ')} ${EMPLOYMENT_LABELS[employmentTypeOf(project)]}`.toLowerCase().includes(needle);
   });
 }
 

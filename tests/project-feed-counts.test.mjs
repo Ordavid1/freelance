@@ -33,3 +33,12 @@ test('with the open status the tag count can never exceed the available count', 
 test('universe merges lists without duplicate slugs', () => {
   assert.equal(feedUniverse(feed, [mk('a', []), mk('z', [])]).map(p => p.slug).join(), ['a', 'b', 'c', 'd', 'e', 'z'].join());
 });
+
+test('employment filter keeps one type; legacy projects without the field are freelance', () => {
+  const mixed = [mk('f1', []), mk('f2', [], { employmentType: 'freelance' }), mk('e1', [], { employmentType: 'employee' }), mk('x', [], { employmentType: 'bogus' })];
+  assert.equal(filterFeed(mixed, { employment: 'employee', now: NOW }).map(p => p.slug).join(), 'e1');
+  assert.equal(filterFeed(mixed, { employment: 'freelance', now: NOW }).map(p => p.slug).join(), 'f1,f2,x');
+  assert.equal(filterFeed(mixed, { employment: 'all', now: NOW }).length, 4);
+  assert.equal(filterFeed(mixed, { employment: 'employee', status: 'closed', now: NOW }).length, 0);
+  assert.equal(filterFeed(mixed, { query: 'שכיר', now: NOW }).map(p => p.slug).join(), 'e1');
+});

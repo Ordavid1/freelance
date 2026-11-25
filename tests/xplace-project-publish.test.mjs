@@ -46,7 +46,7 @@ test('without `import` the existing path is unchanged (no importSource, same cli
   assert.equal(response.status, 201);
   const [[id, record]] = imported(db);
   assert.equal(id, 'slug-1');
-  assert.deepEqual(Object.keys(record).sort(), ['budget', 'category', 'clientName', 'createdAt', 'deadline', 'description', 'ownerUid', 'proposals', 'skills', 'status', 'title', 'updatedAt'].sort());
+  assert.deepEqual(Object.keys(record).sort(), ['budget', 'category', 'clientName', 'createdAt', 'deadline', 'description', 'employmentType', 'ownerUid', 'proposals', 'skills', 'status', 'title', 'updatedAt'].sort());
   assert.equal(record.clientName, 'Account Name');
   assert.equal(published.length, 1);
   // The policy layer checks account state before it spends the account's budget.
