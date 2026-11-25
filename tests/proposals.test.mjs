@@ -12,6 +12,7 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
   const records = { proposals: new Map(proposals.map((record) => [record.id, record.data])), 'demo-proposals': new Map(demos.map((record) => [record.id, record.data])) };
   const collections = new Map();
   const database = {
+    async runTransaction(callback) { return callback({ get: (ref) => ref.get(), create: (ref, data) => { ref.create(data); }, update() {} }); },
     collection(name) {
       if (!collections.has(name)) collections.set(name, {
         where(field, _operator, value) {
@@ -30,6 +31,7 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
         },
         doc(id) {
           return {
+            collection() { return { doc: () => ({ create: async () => {} }) }; },
             async get() {
               const data = projects[id];
               return { exists: Boolean(data), get: (field) => data?.[field] };
@@ -50,6 +52,7 @@ function proposalRoute({ proposals = [], demos = [], projects = {}, user = { uid
     },
   };
   const stubs = {
+    '@/lib/projects/employment': loadModule('src/lib/projects/employment.ts'),
     '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null, assertContactAllowed: async () => {}, ContactUnavailable: class extends Error {} },
     '@/lib/security/request-body': loadModule('src/lib/security/request-body.ts'),
     '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
@@ -136,4 +139,27 @@ test('a Firestore sample project is routed to the private practice collection an
   assert.equal(response.body.demo, true);
   assert.equal(records.proposals.size, 0);
   assert.equal([...records['demo-proposals'].values()][0].projectTitle, 'Stored sample');
+});
+
+test('an employee project takes a message-only application; a freelance project still requires the quote', async () => {
+  const projects = { 'job-1': { status: 'open', ownerUid: 'client-1', title: 'משרה', employmentType: 'employee' }, 'gig-1': { status: 'open', ownerUid: 'client-1', title: 'פרויקט' } };
+  const message = 'A detailed application message about my experience.';
+  const send = (route, body) => route.POST(new Request('https://local.test/api/marketplace/proposals', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+  const job = proposalRoute({ projects });
+  const created = await send(job, { projectSlug: 'job-1', message });
+  assert.equal(created.status, 201);
+  const [stored] = [...job.records.proposals.values()];
+  assert.equal(stored.employmentType, 'employee');
+  assert.equal(stored.amount, 0);
+  assert.equal(stored.delivery, '');
+  // Quote fields sent for an employee job are ignored, never stored.
+  const ignored = proposalRoute({ projects });
+  assert.equal((await send(ignored, { projectSlug: 'job-1', message, amount: 99, delivery: 'x'.repeat(5), pricingType: 'hourly' })).status, 201);
+  assert.equal([...ignored.records.proposals.values()][0].amount, 0);
+  // The client cannot turn a freelance project into a quote-less one.
+  const gig = proposalRoute({ projects });
+  assert.equal((await send(gig, { projectSlug: 'gig-1', message })).status, 400);
+  assert.equal(gig.records.proposals.size, 0);
+  assert.equal((await send(gig, { projectSlug: 'gig-1', message, amount: 500, delivery: 'שבועיים', pricingType: 'fixed' })).status, 201);
+  assert.equal([...gig.records.proposals.values()][0].employmentType, 'freelance');
 });
