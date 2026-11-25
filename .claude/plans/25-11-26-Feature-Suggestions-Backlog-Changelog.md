@@ -29,18 +29,26 @@ C. A changelog side panel for users, showing what was built. Its button is brand
 | Language | The whole site is `lang="he" dir="rtl"`. There is no i18n framework. English appears as inline `lang="en" dir="ltr"` spans. | `src/app/layout.tsx` |
 | Deploy | Every push to `main` deploys to production after tests, typecheck and audit. PRs get security checks plus Claude and Codex review comments. | `.github/workflows/deploy.yml`, project memory |
 
-### `/ship` plugin: what it actually is [V]
+### `/ship`: Claude Ship, confirmed by Or on 25-11-26 [V unless noted]
 
-No plugin named ship is enabled in this project's sessions today (plugin list is empty for ship, and no `/ship` command is on disk). The plugin catalog has **four different plugins called "ship"**, none enabled:
+Or means **Claude Ship**, launched by Anthropic on 23 Nov 2026. Sources read: Anthropic's "Introducing Claude Ship" (https://claude.com/resources/articles/introducing-claude-ship), TechCrunch (23 Nov) and The Register (24 Nov). Official docs page, not read yet: https://code.claude.com/docs/en/claude-ship.
 
-| Catalog plugin | Author | What it does | Fit |
-| --- | --- | --- | --- |
-| `ship` 5.1.0 | Avi Fenesh | "Complete PR workflow from commit to production with validation". Commands `/ship`, `/ship-ci-review-loop`, `/ship-deployment`, `/release`. | Closest to "build through the end" for a repo where merge to main is the deploy. |
-| `Ship` 0.10.5 (beta) | Vadim S. | Gated idea to production pipeline: research, spec, build, layered QA with an expert panel, prod prep, provision, deploy, monitor. Owner sign-off gates. | Heavier. Has provision and deploy phases that could collide with the rule not to touch deployment architecture. |
-| `ship` 0.1.0 | Rahul Keerthi | Think, build, ship workflow skills. | Light process helper, no CI loop. |
-| `ship` 3.0.0 | ShipStatic | Deploys static sites. | Not relevant. |
+| Part | Status | What it does |
+| --- | --- | --- |
+| Code Review | Generally available | Multi-lens PR review, levels Quick, Standard or Deep per repository |
+| PR Steward | Beta | Fixes failing CI, merge conflicts and review feedback. Designed not to approve or merge. Steered with `@claude <instruction>`, stopped with `@claude stop` |
+| Claude Approvals | Beta | Applies an approval policy the team keeps as a file on the default branch. Can approve routine changes or require human sign-off. Recommended start: observe-only |
+| `/ship` command | Rolling out in Claude Code and the desktop app | Run when a change is ready: pushes it, opens the PR, reviews it and works on feedback and failing checks |
 
-I cannot tell which one Or means. See decision D1. Until one is enabled, the same result is reachable with what this project already does (coordinator thread plans, coding sub-agents build, PR, review comments, merge, deploy on main).
+What this means for the plan, stated plainly:
+
+- **Claude Ship starts when a change is ready.** It does not write the feature. The idea to code part stays with the backlog thread (spec, then coding sub-agents). Ship covers the second half: PR, review, CI fixing and the approval decision.
+- **Deploy is not part of Ship** in any source read. In this repo deploy happens on merge to `main`, so "to production" is reached by the merge, under the repo's branch rules.
+- **Whether Ship itself merges is unclear.** Anthropic says it decides what is ready to merge; The Register says approval is not merging and branch protection still applies. To be settled from the docs page before Phase 4.
+- **Availability:** Claude Team and Enterprise plans, GitHub repositories only, billed on tokens, admin-enabled per repository. Not confirmed for Or's account [U]. `/ship` is not among the commands this project's sessions have today.
+- Unverified third-party detail (dev.to only): policy file `.claude/approvals.yml`, a `/steward` command, minimum Claude Code version 2.1.330.
+
+The four catalog plugins named "ship" found earlier are unrelated community plugins and are not used.
 
 ## 3. Design principles
 
@@ -197,17 +205,17 @@ The artifact shows: quick wins first, columns for size, demand, members asking, 
 - Carve-outs that always come back to Or even after approval, per the project rules: any change to deployment architecture or deploy files, any model change, legal text, billing behaviour, a destructive data migration, or scope growing past the approved spec.
 - One build at a time. A second approved item waits in a queue.
 
-### 6.5 How `/ship` is invoked
+### 6.5 From approval to production with Claude Ship
 
-Planned flow once D1 is settled:
+**The trigger.** When an item is ready, the backlog thread posts a decision card: "Approve build: <item title>" with the options Approve, Not now, Decline. Or pressing Approve, or writing "approve <item>" in that thread, is the only start signal. No other action by Or is needed for that item.
 
-1. Claude writes the item's spec as a plan file in `.claude/plans/` (date prefix), built from its own analysis. The spec is what Or approves.
-2. In the backlog thread Claude runs the chosen ship workflow on that plan. Per the project rules the thread acts as coordinator and plan validator, and sub-agents write the code.
-3. PR opened ready for review with the attribution lines. Claude reads the Claude Code Review and Codex comments and fixes real findings before merging.
-4. Merge to `main`, watch the deploy workflow, verify the feature live.
-5. Mark the item `shipped`, link the PR and changelog entry, send notify-me emails, update the plan file and the artifact, report in one message.
+1. Claude writes the item's spec as a plan file in `.claude/plans/` (date prefix) from its own analysis. The card links it, so the approval is for that spec.
+2. On approval the thread coordinates and validates, and coding sub-agents build the change on a work branch, with tests, typecheck and build on fresh `main`.
+3. Claude runs `/ship` on the ready change: push, PR, Code Review, and PR Steward working on findings and failing checks. The existing Codex review comments are read as well.
+4. Merge to `main` under the repo's rules (see D2), which deploys. Claude watches the deploy workflow and verifies the feature live.
+5. Item marked `shipped`, PR and changelog entry linked, notify-me emails sent, plan file and artifact updated, one report to Or.
 
-If no ship plugin is enabled, steps 2 to 4 run with the project's existing way of working. The gate and the result are the same.
+If `/ship` is not available on Or's plan or in the project's sessions, step 3 runs with the project's existing PR flow. The gate and the result are the same.
 
 ## 7. Part C: changelog for users
 
@@ -270,8 +278,8 @@ Each phase is one PR, deployable on its own, with a kill switch (`FEEDBACK_INTAK
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| D1 | Which "ship" plugin do you mean? Four exist in the catalog and none is enabled in this project. | Avi Fenesh's `ship` 5.1.0 (it has the real `/ship` command and a CI and review loop that matches our PR to main flow). Please enable the one you mean for this project. |
-| D2 | Does one "approve build" cover everything through merge to `main`, which is production? | Yes for one named item, with the carve-outs in 6.4. |
+| D1 | Answered 25-11-26: Claude Ship. Open part: it needs a Claude Team or Enterprise plan and an admin to enable Code Review and PR Steward on `Ordavid1/freelance`. Is that in place? | Enable Code Review and PR Steward now. Start Claude Approvals in observe-only mode. |
+| D2 | Does one "approve build" cover everything through merge to `main`, which is production? And may Claude Approvals approve on its own later? | Yes for one named item, with the carve-outs in 6.4. Keep Claude Approvals observe-only until a few items have shipped cleanly. |
 | D3 | Who may suggest: everyone including guests, or signed-in accounts only? | Everyone, with the tighter guest limits, and members counted separately in demand. |
 | D4 | How Claude reaches the two Firestore collections. I could not verify that the cloud service account can read Firestore (the check was blocked) [U]. | Grant that service account access limited to these collections, or expose a scheduler-authenticated export and update endpoint. Tell me which you prefer. |
 | D5 | Sync rhythm for the backlog thread. | Weekly, plus on demand. |
@@ -283,6 +291,6 @@ Each phase is one PR, deployable on its own, with a kill switch (`FEEDBACK_INTAK
 ## 12. Status
 
 - [x] Code read: support chat UI and API, Slack console, policy layer, human check, AI entry point and budgets, footer and legal links, brand tokens, Firestore rules.
-- [x] `/ship` checked in the plugin catalog.
+- [x] `/ship` identified as Claude Ship (25-11-26), sources read; docs page and account availability still to check.
 - [ ] Decisions D1 to D9.
 - [ ] Phase 1 to 4 (not started; nothing is built until Or approves).
