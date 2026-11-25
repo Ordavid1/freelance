@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { HeadhunterTag } from '@/components/headhunter-tag';
 import { LiveBadge } from '@/components/live-badge';
+import { EmploymentBadge } from '@/components/employment-badge';
+import { employmentTypeOf } from '@/lib/projects/employment';
 import { isOpenProject } from '@/lib/projects/feed';
 import type { Project } from '@/lib/data';
 import { categoryForProject } from '@/lib/seo/categories';
@@ -11,7 +13,7 @@ import { indexableSkills } from '@/lib/seo/skills';
 import type { Skill } from '@/lib/seo/types';
 import './taxonomy.css';
 
-type CardProject = Pick<Project, 'slug' | 'title' | 'category' | 'budget' | 'description' | 'skills' | 'headhunter' | 'status'>;
+type CardProject = Pick<Project, 'slug' | 'title' | 'category' | 'budget' | 'description' | 'skills' | 'headhunter' | 'status' | 'employmentType'>;
 
 // Crawlable project cards for public lists. Every title is a real link to /projects/<slug>;
 // the category chip links to its category page and each skill tag links to a skill page when
@@ -24,7 +26,7 @@ export function ProjectCardList({ projects, skills, headingLevel = 3 }: { projec
     const category = categoryForProject(project);
     const tags = projectSkillTags(project, catalogue);
     return <li className="disc-card" key={project.slug}>
-      {(isOpenProject(project) || project.headhunter) && <p className="disc-card-tags">{isOpenProject(project) && <LiveBadge />}{project.headhunter && <HeadhunterTag headhunter={project.headhunter} />}</p>}
+      <p className="disc-card-tags">{isOpenProject(project) && <LiveBadge />}<EmploymentBadge type={employmentTypeOf(project)} />{project.headhunter && <HeadhunterTag headhunter={project.headhunter} />}</p>
       <Heading className="disc-card-title"><Link href={projectPath(project.slug)}>{project.title}</Link></Heading>
       <p className="disc-card-meta">{project.category} · {project.budget}</p>
       <p className="disc-card-excerpt">{summarize(project.description, 150)}</p>
