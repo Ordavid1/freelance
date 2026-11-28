@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule } from './helpers/load-ts.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 
 // WP5: share metadata, the generated share card, the sitemap and llms-full sources, JSON-LD and IndexNow for minisites.
 
@@ -230,6 +231,7 @@ function loadSitemap({ agencies, projects = [], indexing = 'true', landing = tru
   return loadModule('src/app/sitemap.ts', { env: sitemapEnv, stubs: {
     '@/lib/seo/projects': { sitemapProjects: async () => projects },
     '@/lib/seo/headhunters': { indexableHeadhunterPages: agencies, headhunterLandingServed: async () => landing },
+    ...switchStub(),
   } });
 }
 

@@ -15,6 +15,7 @@ const PLANNED_GUIDE_SLUGS = [
 ];
 const STATIC_PATHS = ['/', '/pricing', '/about', '/how-it-works', '/faq', '/glossary', '/guides', '/skills', '/projects', '/alternatives/xplace', '/guides/project-brief', '/privacy', '/terms', '/profile/headhunter'];
 
+const OWN_ENDPOINT = loadModule('src/lib/seo/site.ts', { env: { SITE_INDEXABLE: 'true' } }).absoluteUrl('/mcp');
 const BANNED_PHRASES = ['הכי טוב', 'מס׳ 1', 'מספר 1', 'מוביל', 'מובטח', 'מבטיחים', '100%', 'ללא סיכון', 'אחריות מלאה', 'כולם', 'תמיד'];
 // Facts that may appear as numbers because facts.ts owns them (membership price, trial length).
 // They are read from the same code constants the pages use, so a change of the trial or the
@@ -78,6 +79,8 @@ function collectInfo() {
   }
   out.push({ name: 'about', content: mod.aboutContent(), kind: 'page' });
   out.push({ name: 'how-it-works', content: mod.howItWorksContent(), kind: 'page' });
+  // The public MCP server's page (registered behind the mcp runtime switch): same contract as the other information pages.
+  out.push({ name: 'ai', content: mod.aiContent(), kind: 'page' });
   // The public page of /profile/headhunter (the free agency page): same contract as the other information pages.
   const landing = path.join(projectRoot, 'src/lib/seo/headhunter-content.ts');
   if (existsSync(landing)) out.push({ name: 'headhunter landing', content: loadModule('src/lib/seo/headhunter-content.ts', { env: { SITE_INDEXABLE: 'true' } }).headhunterLandingContent(), kind: 'page' });
@@ -117,7 +120,8 @@ function lintText(where, text, problems) {
   if (/[א-ת][A-Za-z]/.test(text)) problems.push(`${where}: Latin text attached to a Hebrew letter, use the maqaf ־ (e.g. ב־Figma): "${text.slice(0, 80)}"`);
   if (/[א-ת]-[A-Za-z]/.test(text)) problems.push(`${where}: use the Hebrew maqaf ־ instead of "-" before Latin text: "${text.slice(0, 80)}"`);
   if (/[א-ת]"[א-ת]/.test(text)) problems.push(`${where}: use gershayim ״ instead of an ASCII quote inside a Hebrew word: "${text.slice(0, 80)}"`);
-  if (/https?:\/\//.test(text)) problems.push(`${where}: URLs belong in "sources" (with a check date), not in text`);
+  // The page about the MCP server shows the server's own address, which is its subject and not an outside source.
+  if (/https?:\/\//.test(text.split(OWN_ENDPOINT).join(' '))) problems.push(`${where}: URLs belong in "sources" (with a check date), not in text`);
   if (/\s{2,}/.test(text) || text !== text.trim()) problems.push(`${where}: stray whitespace`);
 }
 

@@ -3,7 +3,7 @@
 
 /** Every top-level segment the app or `public/` serves, lower-case. */
 export const RESERVED_ROUTE_SEGMENTS: readonly string[] = [
-  'about', 'alternatives', 'api', 'categories', 'faq', 'glossary', 'guides', 'how-it-works', 'membership', 'messages',
+  'about', 'ai', 'alternatives', 'api', 'categories', 'faq', 'glossary', 'guides', 'how-it-works', 'mcp', 'membership', 'messages',
   'pricing', 'privacy', 'profile', 'projects', 'signin', 'skills', 'terms',
   'sitemap', 'robots', 'llms', 'llms-full', 'opengraph-image', 'twitter-image', 'icon', 'apple-icon', 'favicon', 'manifest',
   'freelance-place-logo', 'headhunter-showcase', '_next', '__',

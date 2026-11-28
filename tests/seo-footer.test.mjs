@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const load = (entry, env = { SITE_INDEXABLE: 'true' }) => loadModule(entry, { env: { SITE_INDEXABLE: 'true', ...env } });
@@ -11,10 +12,10 @@ const factsModule = load('src/lib/seo/facts.ts');
 const registry = load('src/lib/seo/registry.ts');
 
 // The shared loader's next/link stub lacks __esModule, so default imports resolve to the wrapper object; use a proper module stub for rendering.
-const linkStub = { 'next/link': { __esModule: true, default: ({ href, children }) => createElement('a', { href }, children) } };
+const linkStub = { 'next/link': { __esModule: true, default: ({ href, children }) => createElement('a', { href }, children) }, ...switchStub() };
 const footer = loadModule('src/components/site-footer.tsx', { stubs: linkStub, env: { SITE_INDEXABLE: 'true' } });
 
-test('footer renders every link group from the registry with resolvable links and no empty groups', () => {
+test('footer renders every link group from the registry with resolvable links and no empty groups', async () => {
   const groups = footer.footerGroups();
   const known = new Set(registry.allPages().map((page) => page.path));
   assert.ok(registry.indexablePages().some((page) => page.kind === 'skill'), 'the catalogue holds at least one indexable skill page (wordpress is the reference entry)');
@@ -27,7 +28,7 @@ test('footer renders every link group from the registry with resolvable links an
       else assert.ok(known.has(link.href), `${link.href} is a registry path`);
     }
   }
-  const html = renderToStaticMarkup(footer.SiteFooter());
+  const html = renderToStaticMarkup(await footer.SiteFooter());
   assert.match(html, /^<footer class="site-footer">/);
   for (const href of ['/categories/design', '/guides/project-brief', '/alternatives/xplace', '/privacy', '/terms', `mailto:${factsModule.contactFacts().email}`]) {
     assert.ok(html.includes(`href="${href}"`), href);

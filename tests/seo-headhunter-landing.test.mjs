@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { NextRequest, NextResponse } from 'next/server.js';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 import {
   ORIGIN, assertInOrder, assertStructuredDataPolicy, assertUniqueNodeIds, assertWellFormed, count, createElement, decode, detailsFaq,
   faqPairs, headings, jsonLd, jsonTypes, load, ofType, plain, render,
@@ -273,6 +274,7 @@ test('copy: the page links only to pages that exist, and the related list is wit
 // ---------------------------------------------------------------------------------------------
 
 const loadSitemap = (served, indexable = 'true') => loadModule('src/app/sitemap.ts', { env: { ...env, SITE_INDEXABLE: indexable }, stubs: {
+  ...switchStub(),
   '@/lib/seo/projects': { sitemapProjects: async () => [] },
   '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: typeof served === 'function' ? served : async () => served },
 } });
@@ -319,12 +321,12 @@ test('llms.txt and llms-full.txt list the landing, and its text matches the page
   for (const { question, answer } of content.faq) assert.ok(block.includes(answer), `FAQ: ${question}`);
 });
 
-test('footer and related links: the landing is one click from every page and from the pricing page', () => {
+test('footer and related links: the landing is one click from every page and from the pricing page', async () => {
   const linkStub = { 'next/link': { __esModule: true, default: ({ href, children }) => createElement('a', { href }, children) } };
-  const footer = loadModule('src/components/site-footer.tsx', { stubs: linkStub, env });
+  const footer = loadModule('src/components/site-footer.tsx', { stubs: { ...linkStub, ...switchStub() }, env });
   const product = footer.footerGroups().find((group) => group.id === 'product');
   assert.deepEqual(plain(product.links.find((link) => link.href === PATH)), { href: PATH, label: 'לסוכנויות גיוס' });
-  assert.ok(render(footer.SiteFooter()).includes(`href="${PATH}"`));
+  assert.ok(render(await footer.SiteFooter()).includes(`href="${PATH}"`));
   const facts = load('src/lib/seo/facts.ts').membershipFacts({});
   const pricing = load('src/lib/seo/info-content.ts').pricingContent({ ...facts, billingAvailable: true });
   assert.ok(pricing.related.includes(PATH), 'the pricing page, where a recruiter looks for the price, points at it');

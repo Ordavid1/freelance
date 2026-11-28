@@ -9,6 +9,7 @@ import { hubPages } from './hubs';
 import { infoPages } from './info-pages';
 import { skillCompleteness, skills } from './skills';
 import { absoluteUrl, pageMetadata } from './site';
+import type { RuntimeFeature } from '@/lib/security/runtime-switch';
 import type { SeoPage } from './types';
 
 const corePages: SeoPage[] = [
@@ -70,7 +71,16 @@ const skillPages: SeoPage[] = skills.map((skill) => ({
 const pages: SeoPage[] = [...corePages, ...categoryPages, ...guidePages, ...skillPages, ...hubPages, ...infoPages];
 
 export function allPages(): SeoPage[] { return pages; }
-export function indexablePages(): SeoPage[] { return pages.filter((page) => page.indexable !== false); }
+const NO_FEATURES: ReadonlySet<RuntimeFeature> = new Set();
+// The pages every list may show. A page behind a runtime switch is listed only when its feature is in `served`, so a caller
+// that does not know the switches (the default) can never list one: safe by default.
+export function indexablePages(served: ReadonlySet<RuntimeFeature> = NO_FEATURES): SeoPage[] {
+  return pages.filter((page) => page.indexable !== false && (page.requiresFeature === undefined || served.has(page.requiresFeature)));
+}
+// Every feature some registered page requires, derived from the registry.
+export function requiredFeatures(): RuntimeFeature[] {
+  return [...new Set(pages.flatMap((page) => (page.requiresFeature ? [page.requiresFeature] : [])))];
+}
 export function pageByPath(path: string): SeoPage | undefined { return pages.find((page) => page.path === path); }
 export function requirePage(path: string): SeoPage {
   const page = pageByPath(path);

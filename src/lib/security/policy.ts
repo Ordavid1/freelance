@@ -2,6 +2,7 @@ import 'server-only';
 import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import type { AuthenticatedUser } from '@/lib/auth/session';
 import { clientIp, UNKNOWN_CLIENT } from '@/lib/security/client-ip';
+import { enforceOperationBudgets } from '@/lib/security/budgets';
 import { humanCheckEnabled, verifyHumanCheck } from '@/lib/security/human-check';
 import { operationFor } from '@/lib/security/operations';
 import type { AuthKind, ErrorBodies, Operation, OperationId } from '@/lib/security/operations';
@@ -19,7 +20,7 @@ import { readFormBody, readJsonBody, readRawBody } from '@/lib/security/request-
 //   4. account state  `active` operations refuse restricted and suspended accounts
 //   5. membership     operations that need marketplace access
 //   6. human check    only when a provider is configured (human-check.ts)
-//   7. budgets        per-account limit, per-address limit (callers without an account), site-wide budget
+//   7. budgets        burst limit per address (every caller), per-account limit, per-address limit (callers without an account), site-wide budget (budgets.ts, shared with the MCP adapter)
 //   8. body           read with a hard byte cap: json | form | raw
 //
 // Heavy modules (Firestore-backed policies, the OIDC client) are loaded when an operation needs them.
@@ -76,24 +77,6 @@ async function verifyScheduler(request: Request, auth: Extract<Operation['auth']
     const token = ticket.getPayload();
     if (token?.email !== expected || token.email_verified !== true) throw new Error('Caller is not the expected service account');
   } catch { return deny(errors?.unauthorized ?? { error: 'UNAUTHORIZED' }, 401); }
-  return null;
-}
-
-async function spendBudgets(operation: Operation, user: AuthenticatedUser | null, ip: string): Promise<Response | null> {
-  if (!operation.limit && !operation.anonymousLimit && !operation.globalBudget) return null;
-  const { enforceActionLimit, enforceAnonymousLimit, enforceGlobalBudget } = await import('@/lib/security/rate-limit');
-  if (operation.limit && user) {
-    const limited = await enforceActionLimit(user.uid, operation.limit);
-    if (limited) return limited;
-  }
-  if (operation.anonymousLimit && !user) {
-    const limited = await enforceAnonymousLimit(ip, operation.anonymousLimit);
-    if (limited) return limited;
-  }
-  if (operation.globalBudget) {
-    const limited = await enforceGlobalBudget(operation.globalBudget);
-    if (limited) return limited;
-  }
   return null;
 }
 
@@ -175,9 +158,9 @@ export function route<Id extends OperationId, B extends BodySpec | undefined = u
     let charge = async (): Promise<Response | null> => null;
     if (options.deferBudgets) {
       let spent = false;
-      charge = async () => spent ? null : (spent = true, spendBudgets(operation, user, ip));
+      charge = async () => spent ? null : (spent = true, enforceOperationBudgets(operation, user, ip));
     } else {
-      const denied = await spendBudgets(operation, user, ip);
+      const denied = await enforceOperationBudgets(operation, user, ip);
       if (denied) return denied;
     }
 

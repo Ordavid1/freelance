@@ -119,6 +119,17 @@ export function getOpenProject(slug: string): Promise<Project | null> {
   }, ['public-project', slug], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', `project:${slug}`, HEADHUNTERS_TAG] })();
 }
 
+// For the MCP server and other answer-engine surfaces: the same cached read as getOpenProject, but the
+// discoverability predicate (open, listable, NOT a showcase project) is applied to the stored record, so a showcase
+// slug answers null instead of relying on the shape of the public model.
+export function getDiscoverableProject(slug: string): Promise<Project | null> {
+  return unstable_cache(async (): Promise<Project | null> => {
+    const snapshot = await firestore().collection('projects').doc(slug).get();
+    if (!snapshot.exists || !isDiscoverableProject(snapshot.data() || {})) return null;
+    return (await withHeadhunterTags([toEntry(snapshot)]))[0];
+  }, ['public-discoverable-project', slug], { revalidate: PUBLIC_PROJECT_REVALIDATE_SECONDS, tags: ['projects', `project:${slug}`, HEADHUNTERS_TAG] })();
+}
+
 export type HeadhunterProjects = {
   /** Open projects of this owner (all pages). */
   openCount: number;

@@ -3,6 +3,7 @@
 import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
 import { categories } from './categories';
 import { contactFacts, membershipAnswer, type MembershipFacts } from './facts';
+import { absoluteUrl } from './site';
 import type { GuideSection, Question } from './types';
 
 export type InfoContent = {
@@ -372,5 +373,88 @@ export function faqContent(facts: MembershipFacts): FaqContent {
       },
     ],
     related: ['/pricing', '/how-it-works', '/about', '/terms', '/privacy', '/guides'],
+  };
+}
+
+// /ai: the public MCP server. The page exists only while the 'mcp' runtime switch is on (registry `requiresFeature`), and it
+// describes exactly the tools the server registers. It names no AI product and claims no compatibility or directory listing,
+// because client support for MCP varies and changes. Signed-in actions are mentioned as planned, without dates or features.
+export function aiContent(): InfoContent {
+  const endpoint = absoluteUrl('/mcp');
+  return {
+    h1: 'חיבור עוזרי AI ל־Freelance Place: שרת MCP ציבורי',
+    summary: `Freelance Place מפעיל שרת MCP ציבורי לקריאה בלבד. עוזר AI שמחובר אליו יכול לחפש פרויקטים פתוחים ולקרוא מדריכים ועובדות על השירות, בלי הרשמה ובלי מפתח. כתובת השרת: ${endpoint}`,
+    sections: [
+      {
+        id: 'what-is',
+        heading: 'מה זה שרת ה־MCP של Freelance Place?',
+        answer: 'שרת MCP (Model Context Protocol) ציבורי שמאפשר לעוזרי AI לקרוא מידע מ־Freelance Place ישירות. הוא לקריאה בלבד, ואין צורך בהתחברות או במפתח.',
+        list: {
+          items: [
+            `כתובת השרת, להעתקה: ${endpoint}`,
+            'פרוטוקול: streamable HTTP.',
+            'גישה: ציבורית, בלי התחברות ובלי מפתח.',
+            'הרשאות: קריאה בלבד.',
+            'הכתובת מיועדת לעוזרי AI ולתוכנות, ולא לגלישה בדפדפן.',
+          ],
+        },
+      },
+      {
+        id: 'what-it-can-do',
+        heading: 'מה עוזר AI יכול לעשות דרך השרת?',
+        answer: 'לחפש ולקרוא פרויקטים פתוחים, לעבור על תחומים, כישורים ומדריכים, לקבל עובדות על השירות ולראות עמודי סוכנויות ציבוריים.',
+        list: {
+          items: [
+            'search_projects ו־get_project: חיפוש וקריאה של פרויקטים פתוחים בלבד.',
+            'list_categories ו־list_skills: התחומים והכישורים שבאתר.',
+            'list_guides ו־get_guide: רשימת המדריכים וקריאת מדריך.',
+            'get_platform_facts: עובדות על השירות, כולל המחיר, תקופת הניסיון ומה שאינו מוצע.',
+            'list_agencies: עמודי הסוכנויות הציבוריים.',
+          ],
+        },
+      },
+      {
+        id: 'what-it-cannot-do',
+        heading: 'מה אי אפשר לעשות דרך השרת?',
+        answer: 'אי אפשר להגיש הצעות, לפרסם פרויקטים, לקרוא הודעות או לראות פרופילים ופרטי חשבון. את הפעולות האלה עושים באתר עצמו.',
+        paragraphs: [
+          'פרסום פרויקט, הגשת הצעה וניהול שיחות נעשים באתר, אחרי התחברות.',
+          'אנחנו מתכננים לאפשר בעתיד גם פעולות של משתמשים מחוברים. אין כרגע מועד לכך, ואין התחייבות לפעולה מסוימת.',
+        ],
+      },
+      {
+        id: 'how-to-connect',
+        heading: 'איך מחברים עוזר AI לשרת?',
+        answer: 'בעוזר AI שתומך בחיבור של שרת MCP מרוחק, מוסיפים מחבר מותאם אישית (custom connector) עם כתובת השרת. אין צורך בהתחברות.',
+        list: {
+          ordered: true,
+          items: [
+            'ודאו שעוזר ה־AI שלכם תומך בחיבור של שרת MCP מרוחק.',
+            `הוסיפו מחבר מותאם אישית והדביקו בו את הכתובת: ${endpoint}`,
+            'אין צורך להתחבר או להזין מפתח. אחרי החיבור העוזר יכול להשתמש בכלים שלמעלה.',
+          ],
+        },
+        paragraphs: ['עוזרים שונים תומכים ב־MCP בהיקף שונה, ולכן ייתכן שחלק מהכלים לא יהיו זמינים בכל עוזר.'],
+      },
+      {
+        id: 'content-notes',
+        heading: 'מה כדאי לדעת על התוכן ועל השימוש?',
+        answer: 'טקסטים של פרויקטים נכתבים על ידי משתמשים, והצגתם אינה המלצה של Freelance Place. הבקשות לשרת מוגבלות בקצב.',
+        list: {
+          items: [
+            'תיאורי הפרויקטים נכתבים על ידי משתמשי האתר. עוזר AI עשוי להציג אותם, אבל הצגת פרויקט אינה המלצה עליו או על מי שפרסם אותו.',
+            'הבקשות לשרת מוגבלות בקצב. בקשות רבות מדי בזמן קצר עלולות להידחות, ואז צריך לנסות שוב מאוחר יותר.',
+            'השרת אינו חושף נתוני חשבון או הודעות של משתמשים.',
+          ],
+        },
+      },
+    ],
+    faq: [
+      { question: 'מה זה MCP?', answer: 'MCP (Model Context Protocol) הוא פרוטוקול פתוח שמאפשר לעוזרי AI להתחבר למקורות מידע ולכלים חיצוניים. ב־Freelance Place הוא משמש לקריאת מידע ציבורי בלבד.' },
+      { question: 'האם צריך להתחבר או לשלם כדי להשתמש בשרת?', answer: 'לא. השרת ציבורי, בלי התחברות ובלי מפתח, והקריאה ממנו אינה כרוכה בתשלום ל־Freelance Place. לעוזר ה־AI שבו משתמשים עשויים להיות תנאים ועלויות משלו.' },
+      { question: 'האם עוזר AI יכול להגיש הצעה או לפרסם פרויקט בשמי?', answer: 'לא. השרת לקריאה בלבד ואין בו גישה לחשבון. הגשת הצעה ופרסום פרויקט נעשים באתר.' },
+      { question: 'האם השרת מציג פרויקטים סגורים או פרטיים?', answer: 'לא. השרת מציג רק פרויקטים שפתוחים לקבלת הצעות.' },
+    ],
+    related: ['/how-it-works', '/projects', '/pricing', '/guides', '/faq', '/terms'],
   };
 }

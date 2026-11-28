@@ -5,6 +5,7 @@
 // A route handler cannot be written without an entry here: `route(operationId, ...)` in policy.ts is the
 // only way to export an HTTP method (tests/security-route-policy.test.mjs fails otherwise).
 import type { ActionKey, AnonymousAction, BudgetFeature } from '@/lib/security/rate-limit';
+import type { BurstAction } from '@/lib/security/burst-limit';
 import type { HumanCheckAction } from '@/lib/security/human-check';
 import { HEADHUNTER_API_ERRORS } from '@/lib/headhunters/messages';
 
@@ -20,8 +21,8 @@ export type Auth =
   /** Cloud Scheduler / Pub/Sub push: an OIDC token whose email equals `process.env[emailEnv]`, audience = public origin + `audiencePath`. */
   | { kind: 'scheduler'; emailEnv: string; audiencePath: `/${string}` };
 
-/** JSON bodies of the denials the adapter produces itself, for routes whose clients rely on a specific shape. */
-export type ErrorBodies = Partial<Record<'unauthenticated' | 'origin' | 'forbidden' | 'notConfigured' | 'unauthorized' | 'bodyTooLarge' | 'bodyInvalid', unknown>>;
+/** JSON bodies of the denials the adapter produces itself (the budget step's 429 included), for routes whose clients rely on a specific shape. */
+export type ErrorBodies = Partial<Record<'unauthenticated' | 'origin' | 'forbidden' | 'notConfigured' | 'unauthorized' | 'bodyTooLarge' | 'bodyInvalid' | 'rateLimited', unknown>>;
 
 type Shared = {
   /** Per-account budget key (`actionLimits`). Needs a signed-in account; for `optionalUser` it applies to signed-in callers. */
@@ -30,6 +31,13 @@ type Shared = {
   globalBudget?: BudgetFeature;
   /** Per-client-address budget (`anonymousLimits`) for callers without an account. */
   anonymousLimit?: AnonymousAction;
+  /**
+   * Per-instance, in-memory ceiling per client address (`burstLimits`), applied to every caller, signed in or not.
+   * Use it INSTEAD of `anonymousLimit` for high-frequency reads that cost less than a Firestore transaction
+   * (public, cached, read-only); it protects the instance, not the budget. Anything that spends money or writes
+   * data keeps the shared Firestore limits above.
+   */
+  burstLimit?: BurstAction;
   /** Requires marketplace membership (trial or paid). */
   membership?: true;
   /** Bot check run before any budget is spent, when the provider is configured. */
@@ -57,6 +65,14 @@ const SUPPORT: ErrorBodies = {
   bodyTooLarge: { error: 'ההודעה ארוכה מדי.', code: 'TOO_LARGE' }, bodyInvalid: { error: 'הבקשה אינה תקינה.', code: 'INVALID' },
 };
 const SESSION: ErrorBodies = { origin: { error: 'Invalid request origin.' } };
+// An MCP client parses JSON-RPC, so every denial the adapter makes in front of the MCP endpoint is a JSON-RPC error with a null id.
+const jsonRpcError = (code: number, message: string) => ({ jsonrpc: '2.0', error: { code, message }, id: null });
+const MCP: ErrorBodies = {
+  origin: jsonRpcError(-32000, 'Forbidden: this origin may not call the endpoint.'),
+  bodyInvalid: jsonRpcError(-32700, 'Parse error'),
+  bodyTooLarge: jsonRpcError(-32600, 'Invalid Request: the body is too large.'),
+  rateLimited: jsonRpcError(-32000, 'Rate limit reached. Retry after the number of seconds in the Retry-After header.'),
+};
 const scheduler = (emailEnv: string, audiencePath: `/${string}`, errors?: ErrorBodies) => ({ auth: { kind: 'scheduler' as const, emailEnv, audiencePath }, ...(errors ? { errors } : {}) });
 
 export const operations = {
@@ -140,6 +156,11 @@ export const operations = {
   'headhunter.update': { auth: { kind: 'user' }, account: 'active', limit: 'headhunter.edit', errors: HEADHUNTER },
   'headhunter.handle.check': { auth: { kind: 'user' }, account: 'any', limit: 'headhunter.handle', errors: HEADHUNTER },
   'headhunter.handle.rename': { auth: { kind: 'user' }, account: 'active', limit: 'headhunter.handle', errors: HEADHUNTER },
+
+  // MCP server for AI assistants (src/lib/mcp). Each tool call is authorised under its own operation below by the adapter in src/lib/mcp/policy.ts.
+  'mcp.transport': { auth: { kind: 'public', reason: 'MCP endpoint for AI assistants: JSON-RPC over HTTP with no cookies or other ambient credentials; every tool call is authorised separately under its own registry operation by the MCP adapter in src/lib/mcp/policy.ts.' }, burstLimit: 'mcp.request', errors: MCP },
+  'catalog.read': { auth: { kind: 'public', reason: 'Static public catalogue (categories, skills, guides, platform facts) already published on indexable pages and in llms.txt.' } },
+  'agency.list': { auth: { kind: 'public', reason: 'Indexable agency (headhunter) minisites: name, handle and open-project counts already shown on public pages; no contact data.' } },
 
   'seo.llms': { auth: { kind: 'public', reason: 'Public crawler/LLM discovery file.' } },
   'seo.llmsFull': { auth: { kind: 'public', reason: 'Public crawler/LLM discovery file.' } },

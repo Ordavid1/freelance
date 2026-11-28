@@ -11,6 +11,9 @@ const REVISED = '2026-11-23';
 // The agency-page landing was published later; bump `modified` below whenever its copy (headhunter-content.ts) changes.
 const AGENCY_PAGE_PUBLISHED = '2026-11-23';
 
+// The MCP page was published later; bump `modified` below whenever its copy (aiContent in info-content.ts) changes.
+const MCP_PUBLISHED = '2026-11-28';
+
 export const infoPages: SeoPage[] = [
   {
     path: '/how-it-works', kind: 'info',
@@ -39,6 +42,15 @@ export const infoPages: SeoPage[] = [
     description: 'מי מפעיל את Freelance Place, מי אחראי לתוכן ואיך מתקנים בו טעויות ואיך פונים אלינו. השירות עצמאי ואינו קשור ל־XPlace.',
     published: CREATED, modified: CREATED,
     llms: { section: 'Product', note: 'Who operates the service, independence from XPlace, editorial policy and contact.' },
+  },
+  {
+    // The public MCP server's page. The route answers 404 while the 'mcp' runtime switch is off, so the registry keeps it out of
+    // every list until the switch is on (requiresFeature; see servedFeatures() in served.ts).
+    path: '/ai', kind: 'info', requiresFeature: 'mcp',
+    title: 'חיבור עוזרי AI ל־Freelance Place: שרת MCP ציבורי',
+    description: 'שרת MCP ציבורי לקריאה בלבד: עוזר AI יכול לחפש פרויקטים פתוחים ולקרוא מדריכים ועובדות על השירות, בלי הרשמה. מה אפשר, מה אי אפשר ואיך מחברים.',
+    published: MCP_PUBLISHED, modified: MCP_PUBLISHED,
+    llms: { section: 'Product', note: 'Public read-only MCP server: endpoint, the tools it offers (open projects, categories, skills, guides, platform facts, agency pages), what it cannot do and how to connect a client.' },
   },
   {
     path: '/guides', kind: 'hub',

@@ -32,6 +32,26 @@ test('enabled by default: no variable and no document', async () => {
   assert.equal(await mod.featureEnabled('ai'), true);
 });
 
+test("'mcp' is off unless MCP_ENABLED is exactly 'true', and then does not read Firestore while off", async () => {
+  for (const env of [{}, { MCP_ENABLED: 'false' }, { MCP_ENABLED: 'TRUE' }, { MCP_ENABLED: '1' }, { MCP_ENABLED: '' }]) {
+    const { mod, reads } = setup({ env });
+    assert.equal(await mod.featureEnabled('mcp'), false, JSON.stringify(env));
+    assert.equal(reads(), 0);
+  }
+  assert.equal(await setup({ env: { MCP_ENABLED: 'true' } }).mod.featureEnabled('mcp'), true);
+});
+
+test("the Firestore document runtimeSwitches/mcp is the kill switch of an enabled 'mcp', and does not touch 'ai'", async () => {
+  const seed = { runtimeSwitches: { mcp: { enabled: false, reason: 'manual' } } };
+  assert.equal(await setup({ env: { MCP_ENABLED: 'true' }, seed }).mod.featureEnabled('mcp'), false);
+  assert.equal(await setup({ env: { MCP_ENABLED: 'true' }, seed }).mod.featureEnabled('ai'), true);
+  assert.equal(await setup({ env: { MCP_ENABLED: 'true' }, seed: { runtimeSwitches: { mcp: { enabled: true } } } }).mod.featureEnabled('mcp'), true);
+  assert.equal(await setup({ seed: { runtimeSwitches: { mcp: { enabled: true } } } }).mod.featureEnabled('mcp'), false, 'the document cannot turn it on');
+  const down = setup({ env: { MCP_ENABLED: 'true' }, readFails: true });
+  const warn = console.warn; console.warn = () => {};
+  try { assert.equal(await down.mod.featureEnabled('mcp'), true, 'an outage keeps the environment value'); } finally { console.warn = warn; }
+});
+
 test('the Firestore switch stops a feature the environment allows, and only an explicit false does', async () => {
   assert.equal(await setup({ seed: { runtimeSwitches: { ai: { enabled: false, reason: 'manual' } } } }).mod.featureEnabled('ai'), false);
   assert.equal(await setup({ seed: { runtimeSwitches: { ai: { enabled: true } } } }).mod.featureEnabled('ai'), true);
