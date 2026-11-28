@@ -1,17 +1,13 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
 import { ImportError, importErrorResponse } from '@/lib/imports/errors';
 import { isXPlaceImportEnabled, isXPlaceLinkImportEnabled } from '@/lib/imports/flag';
 import type { XPlaceProjectImport, XPlaceProjectImportResponse } from '../types';
 import { matchPublisher } from './publisher-match';
 
-export type ImportUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
-type LimitAction = 'import.xplace' | 'import.xplace.ingest';
+export type ImportUser = { uid: string; email: string | null; name: string | null };
 
 /** Thrown by a route's `run` step to answer with a specific response (and log status) instead of an ImportError. */
 export class ImportAbort extends Error {
@@ -29,10 +25,6 @@ export type ImportRouteSpec<T> = {
   kind: 'project' | 'ingest';
   /** `link`: the server fetches a pasted public link (needs the link flag). `ingest`: payload captured by the extension, no network. */
   source: 'link' | 'ingest';
-  maxBodyBytes: number;
-  action: LimitAction;
-  /** Hebrew 401 message. */
-  unauthenticatedMessage: string;
   /**
    * Validates the body after the attestation check and before the limiter. Throws ImportError.
    * `canonicalUrl` is only hashed for the log line.
@@ -44,20 +36,28 @@ export type ImportRouteSpec<T> = {
 
 const noStore = { 'Cache-Control': 'no-store' };
 
+/** The route's feature flag, as the policy layer's `gate`: the link route needs its own flag on top of the master one. */
+export function importGate(source: ImportRouteSpec<unknown>['source']): { ok: true } | { ok: false; response: Response } {
+  const enabled = source === 'link' ? isXPlaceLinkImportEnabled() : isXPlaceImportEnabled();
+  return enabled ? { ok: true } : { ok: false, response: importErrorResponse(new ImportError('IMPORT_DISABLED')) };
+}
+
+/** What the policy layer hands over once flag, origin, session, account state and body are settled. */
+export type ImportRouteContext = {
+  user: ImportUser;
+  body: Record<string, unknown>;
+  /** Spends the operation's budgets (per-account limit, site-wide budget); returns the response to send when one is exhausted. */
+  charge: () => Promise<Response | null>;
+};
+
 /**
- * The shared request pipeline of every XPlace import route, in one fixed order:
- * flag(s) -> same origin -> session -> JSON body -> attestation -> validation -> per-account limiter -> work.
+ * The shared pipeline of every XPlace import route. The request policy layer has already run, in its fixed
+ * order: flag -> same origin -> session -> account state -> JSON body. This adds the import's own steps:
+ * attestation -> validation -> budgets -> work. The budgets are spent last on purpose, so a request that is
+ * rejected as invalid never uses the per-account limit or the site-wide budget.
  * Every outcome is one `xplace_import` JSON log line (URL hash only; never the raw URL or the user id).
  */
-export async function handleImportRoute<T>(request: Request, spec: ImportRouteSpec<T>): Promise<Response> {
-  const enabled = spec.source === 'link' ? isXPlaceLinkImportEnabled() : isXPlaceImportEnabled();
-  if (!enabled) return importErrorResponse(new ImportError('IMPORT_DISABLED'));
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: spec.unauthenticatedMessage }, { status: 401 });
-  const parsedBody = await readJsonBody(request, spec.maxBodyBytes);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value;
+export async function handleImportRoute<T>({ user, body, charge }: ImportRouteContext, spec: ImportRouteSpec<T>): Promise<Response> {
   if (body.attested !== true) return importErrorResponse(new ImportError('ATTESTATION_REQUIRED'));
 
   let prepared: ReturnType<ImportRouteSpec<T>['prepare']>;
@@ -66,7 +66,7 @@ export async function handleImportRoute<T>(request: Request, spec: ImportRouteSp
   } catch (error) {
     return importErrorResponse(error instanceof ImportError ? error : new ImportError('INVALID_PAYLOAD'));
   }
-  const limited = await enforceActionLimit(user.uid, spec.action);
+  const limited = await charge();
   if (limited) return limited;
 
   const startedAt = Date.now();

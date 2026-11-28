@@ -1,13 +1,10 @@
 import { FieldValue } from 'firebase-admin/firestore';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { accountState, contactRef, contactStatus } from '@/lib/security/marketplace-policy';
-import { readJsonBody } from '@/lib/security/request-body';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
-export async function GET(request: Request) {
-  const user = await getCurrentUser(); if (!user) return json({ error: 'יש להתחבר לחשבון.' }, 401);
+export const GET = route('safety.read', {}, async ({ request, user }) => {
   try {
     const state = accountState((await firestore().collection('accountSecurity').doc(user.uid).get()).get('state'));
     const id = new URL(request.url).searchParams.get('conversationId');
@@ -19,13 +16,9 @@ export async function GET(request: Request) {
     const peer = data.clientUid === user.uid ? data.freelancerUid : data.clientUid;
     return json({ state, ...await contactStatus(user.uid, peer) });
   } catch { return json({ error: 'לא ניתן לטעון הרשאות כרגע.' }, 503); }
-}
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return json({ error: 'הבקשה נדחתה.' }, 403);
-  const user = await getCurrentUser(); if (!user) return json({ error: 'יש להתחבר לחשבון.' }, 401);
-  const limited = await enforceActionLimit(user.uid, 'safety.change'); if (limited) return limited;
-  const body = await readJsonBody(request, 2048); if (!body.ok) return body.response;
-  const { conversationId, blocked } = body.value;
+});
+export const POST = route('safety.block', { body: { type: 'json', maxBytes: 2048 } }, async ({ user, body }) => {
+  const { conversationId, blocked } = body;
   if (typeof conversationId !== 'string' || !/^[a-f0-9]{64}$/.test(conversationId) || typeof blocked !== 'boolean') return json({ error: 'פרטי הבקשה אינם תקינים.' }, 400);
   try {
     const db = firestore();
@@ -42,4 +35,4 @@ export async function POST(request: Request) {
     });
     return json({ ok: true });
   } catch (error) { return json({ error: error instanceof Error && error.message === 'NOT_FOUND' ? 'השיחה לא נמצאה.' : 'לא ניתן לעדכן חסימה כרגע.' }, error instanceof Error && error.message === 'NOT_FOUND' ? 404 : 503); }
-}
+});

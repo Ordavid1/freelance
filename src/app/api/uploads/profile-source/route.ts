@@ -1,19 +1,15 @@
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readFormBody } from '@/lib/security/request-body';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { userUploadsBucket } from '@/lib/db/storage';
+import { route } from '@/lib/security/policy';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 const MAX_BYTES = 8 * 1024 * 1024;
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות במסמכים.' }, { status: 401 });
+export const GET = route('upload.list', {}, async ({ user }) => {
   try {
     // Each account can store five files. Sort this bounded set locally so loading
     // sources does not depend on a separate status/createdAt composite index.
@@ -28,21 +24,13 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון את המסמכים כרגע.' }, { status: 503 });
   }
-}
+});
 
 function safeName(name: string) {
   return name.replace(/[\\/\u0000-\u001f\u007f]/g, '_').slice(-160) || 'source-file';
 }
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשמור מסמך.' }, { status: 401 });
-  const limited = await enforceActionLimit(user.uid, 'source.upload');
-  if (limited) return limited;
-  const parsedBody = await readFormBody(request, MAX_BYTES + 100_000);
-  if (!parsedBody.ok) return parsedBody.response;
-  const form = parsedBody.value;
+export const POST = route('upload.create', { body: { type: 'form', maxBytes: MAX_BYTES + 100_000 } }, async ({ user, body: form }) => {
   const file = form?.get('file');
   if (!(file instanceof File) || !file.size || file.size > MAX_BYTES) return NextResponse.json({ error: 'אפשר להעלות מסמך אחד עד 8MB.' }, { status: 400 });
   const extension = safeName(file.name).toLowerCase().split('.').pop();
@@ -90,12 +78,9 @@ export async function POST(request: Request) {
     if (error instanceof Error && error.message === 'SOURCE_STORAGE_LIMIT') return NextResponse.json({ error: 'מכסת האחסון לפרופיל היא 40MB.' }, { status: 413 });
     return NextResponse.json({ error: 'לא הצלחנו לשמור את המסמך.' }, { status: 503 });
   }
-}
+});
 
-export async function DELETE(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי למחוק מסמך.' }, { status: 401 });
+export const DELETE = route('upload.delete', {}, async ({ request, user }) => {
   const id = new URL(request.url).searchParams.get('id') || '';
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'מקור לא תקין.' }, { status: 400 });
   const ref = firestore().collection('users').doc(user.uid).collection('profileSources').doc(id);
@@ -110,4 +95,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא הצלחנו למחוק את המסמך.' }, { status: 503 });
   }
-}
+});

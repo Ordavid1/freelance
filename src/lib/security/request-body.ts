@@ -53,3 +53,8 @@ export async function readFormBody(request: Request, maxBytes: number): Promise<
     return { ok: true, value };
   } catch (error) { return failure(error); }
 }
+
+/** The exact bytes of a body, for callers that must verify a signature over them or parse them themselves. */
+export async function readRawBody(request: Request, maxBytes: number): Promise<Result<Uint8Array>> {
+  try { return { ok: true, value: await readBytes(request, maxBytes) }; } catch (error) { return failure(error); }
+}

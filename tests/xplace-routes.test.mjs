@@ -15,7 +15,7 @@ const errorsModule = loadModule('src/lib/imports/errors.ts');
 console.info = () => {};
 class FakeImportError extends Error {}
 function setup(kind, { enabled = true, linkEnabled = true, sameOrigin = true, currentUser = user, limit = null, importer, profileDoc, profileReadFails = false, env } = {}) {
-  const calls = { limiter: [], importer: [] };
+  const calls = { limiter: [], budget: [], importer: [] };
   const db = createFakeFirestore(profileDoc ? { profiles: { [user.uid]: profileDoc } } : {});
   if (profileReadFails) db.collection = () => ({ doc: () => ({ get: async () => { throw new Error('boom'); } }) });
   const fakeImport = async (target) => { calls.importer.push(target); return importer ? importer(target) : {}; };
@@ -26,7 +26,9 @@ function setup(kind, { enabled = true, linkEnabled = true, sameOrigin = true, cu
       'node:crypto': { createHash },
       '@/lib/auth/session': { getCurrentUser: async () => currentUser, isSameOrigin: () => sameOrigin },
       '@/lib/db/firestore': { firestore: () => db },
-      '@/lib/security/rate-limit': { enforceActionLimit: async (...args) => { calls.limiter.push(args); return limit; } },
+      '@/lib/security/rate-limit': { enforceActionLimit: async (...args) => { calls.limiter.push(args); return limit; }, enforceGlobalBudget: async (...args) => { calls.budget.push(args); return null; } },
+      // Account state has its own tests; here it must not read the (deliberately failing) fake database.
+      '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null },
       '@/lib/imports/errors': errorsModule,
       '@/lib/imports/xplace': { importXPlaceProject: fakeImport },
     },
@@ -198,7 +200,8 @@ test('/api/ai/profile accepts xplace, rejects other providers and more than four
     'next/server': { NextResponse }, 'node:crypto': { createHash, randomUUID: () => 'id' },
     '@/lib/auth/session': { isSameOrigin: () => true, getCurrentUser: async () => user },
     '@/lib/db/firestore': {}, '@/lib/db/storage': {},
-    '@/lib/security/rate-limit': { enforceActionLimit: async () => null },
+    '@/lib/security/rate-limit': { enforceActionLimit: async () => null, enforceGlobalBudget: async () => null },
+    '@/lib/security/marketplace-policy': { accountWriteDenied: async () => null },
     '@/lib/ai': { isVertexConfigured: () => false, safePublicUrl: () => true, generateWithVertex: async () => { throw new Error('unexpected'); } },
   }, env: {} });
   const run = async (sources) => {

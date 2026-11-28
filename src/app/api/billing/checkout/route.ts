@@ -1,7 +1,7 @@
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { billingUser, body, failure, json } from '@/lib/billing/http';
+import { failure, json } from '@/lib/billing/http';
 import { startCheckout } from '@/lib/billing/service';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
-export async function POST(request: Request) {
-  try { const user = await billingUser(request); const limited = await enforceActionLimit(user.uid, 'billing.checkout'); if (limited) return limited; const data = await body(request); return json(await startCheckout(user, data?.consent)); } catch (error) { return failure(error); }
-}
+export const POST = route('billing.checkout', { body: { type: 'json', maxBytes: 4096 } }, async ({ user, body }) => {
+  try { return json(await startCheckout(user, body.consent)); } catch (error) { return failure(error); }
+});

@@ -1,9 +1,10 @@
-import { billingUser, failure, json } from '@/lib/billing/http';
+import { failure, json } from '@/lib/billing/http';
 import { billingStatus, cancelSubscription } from '@/lib/billing/service';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
-export async function GET() {
-  try { return json(await billingStatus((await billingUser()).uid)); } catch (error) { return failure(error); }
-}
-export async function DELETE(request: Request) {
-  try { await cancelSubscription((await billingUser(request)).uid); return json({ cancelled: true }); } catch (error) { return failure(error); }
-}
+export const GET = route('billing.status', {}, async ({ user }) => {
+  try { return json(await billingStatus(user.uid)); } catch (error) { return failure(error); }
+});
+export const DELETE = route('billing.cancel', {}, async ({ user }) => {
+  try { await cancelSubscription(user.uid); return json({ cancelled: true }); } catch (error) { return failure(error); }
+});

@@ -11,6 +11,12 @@ let vertexConfigured = true;
 const validOutput = (patch = {}) => ({ category: 'sales', urgency: 'normal', language: 'he', summary: 'Asks about membership price.', needsHuman: false, reasons: [], draft: 'שלום! המחיר לחברות הוא ₪', ...patch });
 const generate = mock.fn(async () => validOutput());
 await mock.module('../src/lib/ai.ts', { namedExports: { generateWithVertex: generate, isVertexConfigured: () => vertexConfigured } });
+// Site-wide budget and kill switch (security/rate-limit.ts, security/runtime-switch.ts) are covered by their own tests.
+let budget = { status: 'ok' };
+const budgetCalls = [];
+await mock.module('../src/lib/security/rate-limit.ts', { namedExports: { consumeGlobalBudget: async feature => { budgetCalls.push(feature); return budget; } } });
+let switchEnabled = true;
+await mock.module('../src/lib/security/runtime-switch.ts', { namedExports: { featureEnabled: async () => switchEnabled && process.env.AI_GENERATION_ENABLED !== 'false' } });
 const { triageConversation, AiUnavailable } = await import('../src/lib/support/ai-triage.ts');
 
 const input = (patch = {}) => ({ channel: 'chat', name: 'Dana', page: '/projects', messages: [{ sender: 'visitor', text: 'כמה עולה החברות?' }], ...patch });
@@ -84,6 +90,27 @@ test('AiUnavailable when Vertex is not configured or AI generation is disabled, 
   try { await assert.rejects(triageConversation(input()), AiUnavailable); }
   finally { if (previous === undefined) delete process.env.AI_GENERATION_ENABLED; else process.env.AI_GENERATION_ENABLED = previous; }
   assert.equal(generate.mock.callCount(), before);
+});
+
+test('an exhausted or unreadable site-wide triage budget skips the draft gracefully, without calling the model', async () => {
+  vertexConfigured = true;
+  const before = generate.mock.callCount();
+  try {
+    for (const state of [{ status: 'exhausted', retryAfter: 60 }, { status: 'unavailable' }]) {
+      budget = state;
+      await assert.rejects(triageConversation(input()), AiUnavailable);
+    }
+  } finally { budget = { status: 'ok' }; }
+  assert.equal(generate.mock.callCount(), before);
+  assert.ok(budgetCalls.length >= 2 && budgetCalls.every(feature => feature === 'ai.supportTriage'));
+});
+
+test('the runtime kill switch stops triage before any budget is spent', async () => {
+  vertexConfigured = true;
+  const spent = budgetCalls.length;
+  switchEnabled = false;
+  try { await assert.rejects(triageConversation(input()), AiUnavailable); } finally { switchEnabled = true; }
+  assert.equal(budgetCalls.length, spent);
 });
 
 test('model failures propagate so the outbox can retry', async () => {

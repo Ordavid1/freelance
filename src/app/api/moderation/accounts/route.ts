@@ -1,15 +1,17 @@
 import { FieldValue } from 'firebase-admin/firestore';
+import { adminAuth } from '@/lib/auth/firebase-admin';
 import { isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { moderatorUid } from '@/lib/security/moderator';
 import { readJsonBody } from '@/lib/security/request-body';
+import { route } from '@/lib/security/policy';
 export const runtime = 'nodejs';
-export async function POST(request: Request) {
+export const POST = route('moderation.account.decide', {}, async ({ request }) => {
   if (!isSameOrigin(request)) return Response.json({ error: 'INVALID_ORIGIN' }, { status: 403 });
   const actor = await moderatorUid(); if (!actor) return Response.json({ error: 'RECENT_MFA_MODERATOR_REQUIRED' }, { status: 403 });
   const parsed = await readJsonBody(request, 4096); if (!parsed.ok) return parsed.response;
-  const { uid, state, reason, appealId } = parsed.value;
-  if (typeof uid !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(uid) || !['active', 'restricted', 'suspended'].includes(String(state)) || typeof state !== 'string' || !['spam', 'abuse', 'account_security', 'review_complete'].includes(String(reason)) || typeof reason !== 'string' || uid === actor) return Response.json({ error: 'INVALID_DECISION' }, { status: 400 });
+  const { uid, state, reason, appealId, revokeSessions } = parsed.value;
+  if (typeof uid !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(uid) || !['active', 'restricted', 'suspended'].includes(String(state)) || typeof state !== 'string' || !['spam', 'abuse', 'account_security', 'review_complete'].includes(String(reason)) || typeof reason !== 'string' || (revokeSessions !== undefined && typeof revokeSessions !== 'boolean') || uid === actor) return Response.json({ error: 'INVALID_DECISION' }, { status: 400 });
   try {
     if (appealId !== undefined && (typeof appealId !== 'string' || !/^[a-f0-9]{64}$/.test(appealId))) return Response.json({ error: 'INVALID_APPEAL' }, { status: 400 });
     const db = firestore();
@@ -25,10 +27,25 @@ export async function POST(request: Request) {
       tx.set(ref, { state, reason, version: (Number(current.get('version')) || 0) + 1, reviewerUid: actor, updatedAt: FieldValue.serverTimestamp() });
       tx.create(db.collection('securityAuditEvents').doc(), { actorUid: actor, targetUid: uid, action: 'account.restrict', state, reason, createdAt: FieldValue.serverTimestamp() });
     });
-    return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+    // A security decision ends the person's existing sessions; other decisions only when the moderator asks. The decision is
+    // already committed, so a failure here is audited and reported, never allowed to undo or block it.
+    const sessionsRevoked = reason === 'account_security' || revokeSessions === true ? await revokeAccountSessions(actor, uid, reason) : false;
+    return Response.json({ ok: true, sessionsRevoked }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) { return Response.json({ error: error instanceof Error && error.message === 'STALE_APPEAL' ? 'STALE_APPEAL' : 'DECISION_UNAVAILABLE' }, { status: error instanceof Error && error.message === 'STALE_APPEAL' ? 409 : 503 }); }
+});
+async function revokeAccountSessions(actor: string, uid: string, reason: string) {
+  const db = firestore();
+  try {
+    await adminAuth().revokeRefreshTokens(uid);
+    await db.collection('securityAuditEvents').add({ actorUid: actor, targetUid: uid, action: 'account.sessions.revoked', reason, createdAt: FieldValue.serverTimestamp() });
+    return true;
+  } catch {
+    try { await db.collection('securityAuditEvents').add({ actorUid: actor, targetUid: uid, action: 'account.sessions.revoke_failed', reason, createdAt: FieldValue.serverTimestamp() }); } catch { /* logged below */ }
+    console.error(JSON.stringify({ severity: 'ERROR', event: 'account_sessions_revoke_failed', targetUid: uid }));
+    return false;
+  }
 }
-export async function GET() {
+export const GET = route('moderation.account.queue', {}, async () => {
   const actor = await moderatorUid(); if (!actor) return Response.json({ error: 'RECENT_MFA_MODERATOR_REQUIRED' }, { status: 403 });
   try {
     const db = firestore();
@@ -36,4 +53,4 @@ export async function GET() {
     await db.collection('securityAuditEvents').add({ actorUid: actor, action: 'appeal.queue.read', createdAt: FieldValue.serverTimestamp() });
     return Response.json({ appeals: snapshot.docs.map(doc => ({ id: doc.id, ownerUid: doc.get('ownerUid'), message: doc.get('message'), restrictionVersion: doc.get('restrictionVersion') })) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch { return Response.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 }); }
-}
+});

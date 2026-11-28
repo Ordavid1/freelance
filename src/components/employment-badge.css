@@ -1,0 +1,13 @@
+/* Employment-type label: same pill family as .live-badge and .ai-agent-badge (11px, 700, 999px radius, 1px border, 1px 7px).
+   Freelance is neutral (#4a4560 on #f1eff6, about 8:1); employee is blue (#1d4f8c on #e6effa, about 7:1). */
+.employment-badge{display:inline-block;margin-inline-start:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.5;vertical-align:middle;white-space:nowrap}
+.employment-freelance{background:#f1eff6;border:1px solid #cfc9de;color:#4a4560}
+.employment-employee{background:#e6effa;border:1px solid #a9c4e6;color:#1d4f8c}
+
+/* Composer choice: two radio pills in the draft form. The draft form styles every input at full width, hence the specificity. */
+.draft-fields fieldset.employment-choice{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:18px 0 6px;padding:0;border:0;min-width:0}
+.draft-fields fieldset.employment-choice legend{float:none;padding:0;margin:0 0 8px;font-weight:600;font-size:12px}
+.draft-fields fieldset.employment-choice label{display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 16px;border:1px solid #e1e3eb;border-radius:11px;background:#fff;font-weight:600;font-size:13px;cursor:pointer}
+.draft-fields fieldset.employment-choice label:has(input:checked){border-color:var(--pine,#145a4e);background:#edf4ef}
+.draft-fields fieldset.employment-choice input{width:auto;margin:0;padding:0;accent-color:var(--pine,#145a4e)}
+.draft-fields fieldset.employment-choice label:focus-within{outline:2px solid var(--pine,#145a4e);outline-offset:2px}

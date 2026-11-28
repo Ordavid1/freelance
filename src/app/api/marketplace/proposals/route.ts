@@ -1,13 +1,11 @@
-import { accountWriteDenied, assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
-import { enforceActionLimit } from '@/lib/security/rate-limit';
-import { readJsonBody } from '@/lib/security/request-body';
-import { requireMarketplaceAccess } from '@/lib/membership/access';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isSameOrigin } from '@/lib/auth/session';
 import { firestore } from '@/lib/db/firestore';
 import { getProject } from '@/lib/data';
+import { route } from '@/lib/security/policy';
+import { employmentTypeOf, requiresQuote } from '@/lib/projects/employment';
+import { assertContactAllowed, ContactUnavailable } from '@/lib/security/marketplace-policy';
 
 export const runtime = 'nodejs';
 
@@ -20,9 +18,7 @@ function timestampMillis(value: unknown): number {
   return 0;
 }
 
-export async function GET(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לצפות בהצעות.' }, { status: 401 });
+export const GET = route('proposal.list', {}, async ({ request, user }) => {
   const params = new URL(request.url).searchParams;
   const projectSlug = params.get('projectSlug');
   if (projectSlug !== null && !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug)) return NextResponse.json({ error: 'הפרויקט לא נמצא.' }, { status: 404 });
@@ -53,6 +49,7 @@ export async function GET(request: Request) {
           amount: typeof record.amount === 'number' ? record.amount : 0,
           currency: typeof record.currency === 'string' ? record.currency : 'ILS',
           pricingType: typeof record.pricingType === 'string' ? record.pricingType : 'fixed',
+          employmentType: record.employmentType === 'employee' ? 'employee' : 'freelance',
           delivery: typeof record.delivery === 'string' ? record.delivery : '',
           status: isDemo ? 'test' : typeof record.status === 'string' ? record.status : 'submitted',
           isDemo,
@@ -67,7 +64,7 @@ export async function GET(request: Request) {
   } catch {
     return NextResponse.json({ error: 'לא ניתן לטעון הצעות כרגע.' }, { status: 503 });
   }
-}
+});
 
 async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: string, input: { projectSlug: string; projectTitle: string; message: string; amount: number; pricingType: unknown; delivery: string; privateFromPublic: boolean }) {
   try {
@@ -92,24 +89,18 @@ async function savePracticeProposal(db: ReturnType<typeof firestore>, uid: strin
   }
 }
 
-export async function POST(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לשלוח הצעה.' }, { status: 401 });
-  const denied = await requireMarketplaceAccess(user.uid); if (denied) return denied;
-  const limited = await enforceActionLimit(user.uid, 'proposal.create');
-  if (limited) return limited;
-  const accountDenied = await accountWriteDenied(user.uid); if (accountDenied) return accountDenied;
-  const parsedBody = await readJsonBody(request, 16_000);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value as Record<string, unknown> | null;
+export const POST = route('proposal.create', { body: { type: 'json', maxBytes: 16_000 } }, async ({ user, body: input }) => {
+  const body = input as Record<string, unknown> | null;
   const projectSlug = body?.projectSlug;
   const message = body?.message;
   const delivery = body?.delivery;
   const amount = Number(body?.amount);
   const pricingType = body?.pricingType;
   const privateFromPublic = body?.privateFromPublic;
-  if (typeof projectSlug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug) || typeof message !== 'string' || message.trim().length < 20 || message.length > 4000 || typeof delivery !== 'string' || delivery.trim().length < 2 || delivery.length > 120 || !Number.isFinite(amount) || amount <= 0 || amount > 100_000_000 || (pricingType !== 'fixed' && pricingType !== 'hourly') || (privateFromPublic !== undefined && typeof privateFromPublic !== 'boolean')) {
+  // Quote fields are required for freelance projects only. The project's own employment type decides, never the client:
+  // it is read below (sample and static projects are freelance), so a quote-less request cannot reach a freelance project.
+  const quoteValid = typeof delivery === 'string' && delivery.trim().length >= 2 && delivery.length <= 120 && Number.isFinite(amount) && amount > 0 && amount <= 100_000_000 && (pricingType === 'fixed' || pricingType === 'hourly');
+  if (typeof projectSlug !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(projectSlug) || typeof message !== 'string' || message.trim().length < 20 || message.length > 4000 || (pricingType !== undefined && pricingType !== 'fixed' && pricingType !== 'hourly') || (privateFromPublic !== undefined && typeof privateFromPublic !== 'boolean')) {
     return NextResponse.json({ error: 'בדקו את המחיר, זמן האספקה ותוכן ההצעה.' }, { status: 400 });
   }
 
@@ -128,7 +119,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
     }
   }
-  if (sampleTitle !== null) return savePracticeProposal(db, user.uid, { projectSlug, projectTitle: sampleTitle, message: message.trim(), amount, pricingType, delivery: delivery.trim(), privateFromPublic: privateFromPublic === true });
+  if (sampleTitle !== null && !quoteValid) return NextResponse.json({ error: 'בדקו את המחיר, זמן האספקה ותוכן ההצעה.' }, { status: 400 });
+  if (sampleTitle !== null) return savePracticeProposal(db, user.uid, { projectSlug, projectTitle: sampleTitle, message: message.trim(), amount, pricingType, delivery: (delivery as string).trim(), privateFromPublic: privateFromPublic === true });
 
   const projectRef = db.collection('projects').doc(projectSlug);
   const proposalId = createHash('sha256').update(`${projectSlug}:${user.uid}`).digest('hex');
@@ -142,11 +134,15 @@ export async function POST(request: Request) {
       if (project.get('sample') === true) throw new Error('SAMPLE_PROJECT');
       if (project.get('ownerUid') === user.uid) throw new Error('OWN_PROJECT');
       if (existing.exists) throw new Error('DUPLICATE_PROPOSAL');
+      const employmentType = employmentTypeOf({ employmentType: project.get('employmentType') });
+      if (requiresQuote(employmentType) && !quoteValid) throw new Error('INVALID_QUOTE');
       await assertContactAllowed(transaction, user.uid, project.get('ownerUid'));
+      // An employee application is a message only: no amount, delivery time or pricing model is stored.
+      const quote = requiresQuote(employmentType) ? { amount, pricingType, delivery: (delivery as string).trim() } : { amount: 0, pricingType: 'none', delivery: '' };
       const proposal = {
         projectSlug, projectTitle: project.get('title'), clientUid: project.get('ownerUid'), freelancerUid: user.uid,
-        freelancerName: user.name || user.email?.split('@')[0] || 'פרילנסר/ית', amount, currency: 'ILS', pricingType,
-        delivery: delivery.trim(), message: message.trim(), privateFromPublic: privateFromPublic === true, status: 'submitted', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+        freelancerName: user.name || user.email?.split('@')[0] || 'פרילנסר/ית', ...quote, currency: 'ILS', employmentType,
+        message: message.trim(), privateFromPublic: privateFromPublic === true, status: 'submitted', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
       };
       transaction.create(proposalRef, proposal);
       transaction.create(conversationRef, {
@@ -163,21 +159,16 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ContactUnavailable) return NextResponse.json({ code: 'CONTACT_UNAVAILABLE', error: 'לא ניתן ליצור קשר זה כרגע.' }, { status: 403 });
     const reason = error instanceof Error ? error.message : '';
+    if (reason === 'INVALID_QUOTE') return NextResponse.json({ error: 'בדקו את המחיר, זמן האספקה ותוכן ההצעה.' }, { status: 400 });
     if (reason === 'DUPLICATE_PROPOSAL') return NextResponse.json({ error: 'כבר שלחתם הצעה לפרויקט הזה.' }, { status: 409 });
     if (reason === 'OWN_PROJECT') return NextResponse.json({ error: 'אי אפשר להציע הצעה לפרויקט שפרסמתם.' }, { status: 403 });
     if (reason === 'SAMPLE_PROJECT') return NextResponse.json({ error: 'אי אפשר לשלוח הצעה ללקוח/ה בפרויקט השראה.' }, { status: 409 });
     if (reason === 'PROJECT_CLOSED') return NextResponse.json({ error: 'הפרויקט כבר אינו פתוח להצעות.' }, { status: 409 });
     return NextResponse.json({ error: 'לא הצלחנו לשלוח את ההצעה.' }, { status: 503 });
   }
-}
+});
 
-export async function PATCH(request: Request) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: 'הבקשה נדחתה.' }, { status: 403 });
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'יש להתחבר כדי לבטל הצעה.' }, { status: 401 });
-  const parsedBody = await readJsonBody(request, 4_096);
-  if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.value;
+export const PATCH = route('proposal.withdraw', { body: { type: 'json', maxBytes: 4_096 } }, async ({ user, body }) => {
   if (typeof body?.proposalId !== 'string' || !/^[a-f0-9]{64}$/.test(body.proposalId)) return NextResponse.json({ error: 'הצעה לא תקינה.' }, { status: 400 });
   const proposalId = body.proposalId;
   const db = firestore();
@@ -198,4 +189,4 @@ export async function PATCH(request: Request) {
     const reason = cause instanceof Error ? cause.message : '';
     return NextResponse.json({ error: reason === 'NOT_FOUND' ? 'ההצעה לא נמצאה.' : reason === 'INVALID_STATUS' ? 'לא ניתן לבטל את ההצעה במצב הנוכחי.' : 'ביטול ההצעה נכשל.' }, { status: reason === 'NOT_FOUND' ? 404 : reason === 'INVALID_STATUS' ? 409 : 503 });
   }
-}
+});

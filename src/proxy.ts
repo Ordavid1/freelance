@@ -1,6 +1,6 @@
 import { contentSecurityPolicy } from '@/lib/security/csp';
 import { NextResponse, type NextRequest } from 'next/server';
-import { SESSION_COOKIE } from '@/lib/auth/session-cookie';
+import { SESSION_COOKIE_NAMES } from '@/lib/auth/session-cookie';
 import { SITE_URL, indexingEnabled, isPrivatePath } from '@/lib/seo/site';
 
 // Query parameters that do not make a URL a different page: campaign tags everywhere, and the
@@ -43,7 +43,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(canonical, 308);
   }
   const nonce = crypto.randomUUID().replace(/-/g, '');
-  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === 'development', process.env.FIREBASE_AUTH_DOMAIN);
+  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === 'development', process.env.FIREBASE_AUTH_DOMAIN, Boolean(process.env.RECAPTCHA_SITE_KEY?.trim()) && Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim()));
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', policy);
@@ -52,7 +52,7 @@ export function proxy(request: NextRequest) {
   const hasContentQuery = [...request.nextUrl.searchParams.keys()].some((key) => !isNeutralQuery(key, request.nextUrl.pathname));
   // A URL that is public for signed-out visitors (the agency-page landing) is private as soon as the request carries a session
   // cookie, because the page then renders the account's own editor. Crawlers send no cookies, so they always see the public page.
-  const hasSession = request.cookies.has(SESSION_COOKIE);
+  const hasSession = SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name));
   if (!indexingEnabled() || host !== canonical.hostname || isPrivatePath(request.nextUrl.pathname, hasSession) || hasContentQuery) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }

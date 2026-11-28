@@ -1,10 +1,11 @@
 locals {
   initial_apis = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com"])
-  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com"])
+  apis         = toset(["cloudresourcemanager.googleapis.com", "run.googleapis.com", "artifactregistry.googleapis.com", "cloudbuild.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "aiplatform.googleapis.com", "identitytoolkit.googleapis.com", "firebase.googleapis.com", "firestore.googleapis.com", "firebaserules.googleapis.com", "storage.googleapis.com", "secretmanager.googleapis.com", "compute.googleapis.com", "cloudscheduler.googleapis.com", "cloudbilling.googleapis.com", "billingbudgets.googleapis.com", "cloudkms.googleapis.com", "pubsub.googleapis.com", "recaptchaenterprise.googleapis.com"])
   accounts     = toset(["runtime", "deployer", "builder"])
   project_roles = {
     runtime_vertex    = { account = "runtime", role = "roles/aiplatform.user" }
     runtime_firestore = { account = "runtime", role = "roles/datastore.user" }
+    runtime_recaptcha = { account = "runtime", role = "roles/recaptchaenterprise.agent" }
     deployer_run      = { account = "deployer", role = "roles/run.developer" }
     deployer_build    = { account = "deployer", role = "roles/cloudbuild.builds.editor" }
     deployer_usage    = { account = "deployer", role = "roles/serviceusage.serviceUsageConsumer" }
@@ -34,8 +35,8 @@ resource "google_project_iam_custom_role" "runtime_auth_session" {
   project     = var.project_id
   role_id     = "freelanceRuntimeAuthSession"
   title       = "Freelance Runtime Auth Sessions"
-  description = "Allows the runtime to create and verify sessions without managing user accounts."
-  permissions = ["firebaseauth.users.createSession", "firebaseauth.users.get"]
+  description = "Allows the runtime to create and verify sessions and to revoke a user's refresh tokens (moderator account decisions), without managing user accounts."
+  permissions = ["firebaseauth.users.createSession", "firebaseauth.users.get", "firebaseauth.users.update"]
   stage       = "GA"
 }
 resource "google_project_iam_member" "runtime_auth_session" {
@@ -264,6 +265,14 @@ resource "google_firestore_field" "security_rate_limit_expiry" {
   ttl_config {}
   index_config {}
 }
+resource "google_firestore_field" "revoked_session_expiry" {
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "revokedSessions"
+  field      = "expiresAt"
+  ttl_config {}
+  index_config {}
+}
 resource "google_identity_platform_config" "default" {
   project = var.project_id
   sign_in {
@@ -383,6 +392,10 @@ resource "google_cloud_run_v2_service" "engine" {
         value = google_service_account.maintenance_scheduler.email
       }
       env {
+        name  = "BUDGET_ALERT_PUSH_EMAIL"
+        value = google_service_account.budget_push.email
+      }
+      env {
         name  = "UPLOADS_BUCKET"
         value = google_storage_bucket.user_uploads.name
       }
@@ -445,6 +458,10 @@ resource "google_cloud_run_v2_service" "engine" {
       env {
         name  = "BILLING_ENABLED"
         value = tostring(var.billing_enabled)
+      }
+      env {
+        name  = "BILLING_TOKEN_KMS_KEY"
+        value = google_kms_crypto_key.cardcom_tokens.id
       }
       env {
         name  = "SUPPORT_INBOX_EMAIL"
@@ -534,7 +551,7 @@ resource "google_cloud_run_v2_service" "engine" {
     }
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom, google_secret_manager_secret_iam_member.runtime_resend, google_secret_manager_secret_iam_member.runtime_slack]
+  depends_on = [google_project_service.api, google_secret_manager_secret_iam_member.runtime_nango, google_secret_manager_secret_iam_member.runtime_dribbble, google_secret_manager_secret_iam_member.runtime_cardcom, google_secret_manager_secret_iam_member.runtime_resend, google_secret_manager_secret_iam_member.runtime_slack, google_kms_crypto_key_iam_member.runtime_cardcom_tokens]
 }
 resource "google_cloud_run_v2_service_iam_member" "public_web_invoker" {
   count    = var.engine_image == null ? 0 : 1
