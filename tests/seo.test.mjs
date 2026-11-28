@@ -15,6 +15,8 @@ function load(path, stubs = {}, env = { SITE_INDEXABLE: 'true' }) {
   vm.runInNewContext(code, { module, exports: module.exports, URL, Headers, crypto: webcrypto, process: { env }, console, require(name) { if (name in stubs) return stubs[name]; throw new Error(`Unexpected dependency: ${name}`); } }, { filename: path });
   return module.exports;
 }
+// The sitemap reads which runtime switches are on; none are, as in a deployment without MCP_ENABLED.
+const noneServed = { servedFeatures: async () => new Set() };
 const publication = load('src/lib/seo/publication.ts');
 const site = load('src/lib/seo/site.ts');
 // content.ts and the registry import sibling modules, so they use the shared project loader.
@@ -177,7 +179,7 @@ test('sitemap failures propagate and preview never touches the database', async 
   await assert.rejects(projectModule([], true).sitemapProjects(), /Database unavailable/);
   const preview = load('src/lib/seo/site.ts', {}, {});
   const route = load('src/app/sitemap.ts', {
-    '@/lib/seo/site': preview, '@/lib/seo/registry': registry,
+    '@/lib/seo/site': preview, '@/lib/seo/registry': registry, '@/lib/seo/served': noneServed,
     '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: () => { throw new Error('Should not read preview data'); } },
   });
   assert.equal((await route.default()).length, 0);
@@ -186,7 +188,7 @@ test('sitemap failures propagate and preview never touches the database', async 
 test('sitemap uses source modification times and only real public/editorial pages', async () => {
   const updatedAt = new Date('2026-11-08T12:00:00Z');
   const route = load('src/app/sitemap.ts', {
-    '@/lib/seo/site': site, '@/lib/seo/registry': registry,
+    '@/lib/seo/site': site, '@/lib/seo/registry': registry, '@/lib/seo/served': noneServed,
     '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project', updatedAt }] },
   });
   const entries = await route.default();

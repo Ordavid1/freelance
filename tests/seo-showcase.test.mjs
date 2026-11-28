@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
 import { loadPolicy } from './helpers/policy.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 
 // Showcase projects (seeded, published by an AI agent) are labelled inside the product, but they are
 // not client demand. Nothing that search engines or answer engines read may mention them, list them,
@@ -12,7 +13,7 @@ import { loadPolicy } from './helpers/policy.mjs';
 const ORIGIN = 'https://freelance-place.com';
 const env = { SITE_INDEXABLE: 'true', NEXT_PUBLIC_SITE_URL: ORIGIN };
 const billingOn = { ...env, BILLING_ENABLED: 'true', CARDCOM_TERMINAL_NUMBER: '1', CARDCOM_API_NAME: 'x' };
-const load = (entry, variant = env) => loadModule(entry, { env: variant, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
+const load = (entry, variant = env) => loadModule(entry, { env: variant, stubs: { ...switchStub(), '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
 
 // Wording that presents a project as AI-made, a sample or a demo, in Hebrew and English.
 const SHOWCASE_WORDING = /סוכן AI|סוכני AI|סוכן ה־?AI|פרויקט הדגמה|פרויקטי הדגמה|פרויקט השראה|פרויקטי השראה|פרויקטים לדוגמה|פרויקט לדוגמה|AI[ -]agent|sample project|demo project|showcase project|synthetic project/i;
@@ -98,7 +99,7 @@ test('llms.txt and llms-full.txt never mention showcase projects, in either bill
 });
 
 test('the sitemap lists no showcase project and not the project index while it has nothing to list', async () => {
-  const sitemap = (projects) => loadModule('src/app/sitemap.ts', { env, stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => projects } } });
+  const sitemap = (projects) => loadModule('src/app/sitemap.ts', { env, stubs: { ...switchStub(), '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => projects } } });
   const empty = await sitemap([]).default();
   const urls = empty.map((entry) => entry.url);
   assert.equal(urls.includes(`${ORIGIN}/projects`), false);

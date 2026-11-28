@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { firestore } from '@/lib/db/firestore';
+import { rateLimitedResponse } from '@/lib/security/rate-limited-response';
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -58,9 +59,7 @@ export type BudgetFeature = keyof typeof globalBudgets;
 type Policy = { readonly windowMs: number; readonly max: number };
 
 
-const tooMany = (retryAfter: number) => Response.json({ code: 'RATE_LIMITED', error: 'בוצעו יותר מדי פעולות. המתינו ונסו שוב.' }, {
-  status: 429, headers: { 'Retry-After': String(retryAfter), 'Cache-Control': 'no-store' },
-});
+const tooMany = rateLimitedResponse;
 // Never turn a limiter outage into unlimited AI spend or marketplace spam.
 const unavailable = () => {
   console.warn('security_rate_limit_unavailable');

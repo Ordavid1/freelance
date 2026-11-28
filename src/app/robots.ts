@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic';
 // to read their noindex directive, and robots.txt is not an access control.
 // A crawler obeys only its most specific group and ignores the `*` group once it has its own, so
 // every explicit group below repeats this list instead of relying on `*`.
-const disallow = ['/api/'];
+// /mcp is the MCP endpoint: an API, not a page (see apiPrefixes in lib/seo/site.ts). It is matched exactly (`$`) plus its subpaths,
+// not as a prefix, because agency handles live at /{handle} and /mcpshop must stay crawlable.
+const disallow = ['/api/', '/mcp$', '/mcp/'];
 
 export default function robots(): MetadataRoute.Robots {
   // Previews and any non-production deployment stay fully closed. No named group is emitted there:

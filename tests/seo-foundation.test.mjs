@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
 import { loadPolicy } from './helpers/policy.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 
 const ORIGIN = 'https://freelance-place.com';
 const billingOn = { BILLING_ENABLED: 'true', CARDCOM_TERMINAL_NUMBER: '1', CARDCOM_API_NAME: 'x', NEXT_PUBLIC_SITE_URL: ORIGIN };
@@ -104,7 +105,7 @@ test('comparison copy follows the billing state and keeps the no-escrow statemen
 });
 
 test('llms.txt product facts follow the billing state', () => {
-  const route = (env) => loadModule('src/app/llms.txt/route.ts', { env: { SITE_INDEXABLE: 'true', ...env }, stubs: { '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
+  const route = (env) => loadModule('src/app/llms.txt/route.ts', { env: { SITE_INDEXABLE: 'true', ...env }, stubs: { ...switchStub(), '@/lib/security/policy': loadPolicy({ '@/lib/auth/session': { getCurrentUser: async () => null, isSameOrigin: () => true } }) } });
   // Route handlers run behind the policy adapter, so they answer asynchronously.
   const text = async (env) => (await route(env).GET()).text();
   return Promise.all([text(billingOn), text(billingOff)]).then(([on, off]) => {
@@ -201,7 +202,7 @@ test('registry invariants: unique paths, length windows, valid dates and a consi
   }
   assert.equal(new Set(pages.map((page) => page.title)).size, pages.length, 'unique titles');
   assert.equal(new Set(pages.map((page) => page.description)).size, pages.length, 'unique descriptions');
-  assert.deepEqual(plain(registry.indexablePages().map((page) => page.path)), plain(pages.filter((page) => page.indexable !== false).map((page) => page.path)));
+  assert.deepEqual(plain(registry.indexablePages().map((page) => page.path)), plain(pages.filter((page) => page.indexable !== false && !page.requiresFeature).map((page) => page.path)), 'a page behind a runtime switch is left out unless its feature is served');
   assert.deepEqual(plain(content.editorialPaths), plain(registry.indexablePages().map((page) => page.path)));
   assert.equal(registry.pageByPath('/terms').modified, load('src/lib/legal/identity.ts').legalUpdated);
   assert.equal(registry.pageByPath('/missing'), undefined);
@@ -246,7 +247,7 @@ test('registry resolves related paths of guides and skills, and only complete sk
 test('sitemap lastModified comes only from declared page dates', async () => {
   const route = loadModule('src/app/sitemap.ts', {
     env: { SITE_INDEXABLE: 'true' },
-    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [] } },
+    stubs: { ...switchStub(), '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [] } },
   });
   const entries = await route.default();
   const byUrl = new Map(entries.map((entry) => [entry.url, entry]));
@@ -265,7 +266,7 @@ test('sitemap lastModified comes only from declared page dates', async () => {
 
   const withProjects = loadModule('src/app/sitemap.ts', {
     env: { SITE_INDEXABLE: 'true' },
-    stubs: { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-one', updatedAt: '2026-11-09' }] } },
+    stubs: { ...switchStub(), '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-one', updatedAt: '2026-11-09' }] } },
   });
   const listed = await withProjects.default();
   const listedUrls = new Set(listed.map((entry) => entry.url));

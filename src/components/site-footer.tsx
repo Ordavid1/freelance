@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { categories } from '@/lib/seo/categories';
 import { contactFacts } from '@/lib/seo/facts';
+import type { RuntimeFeature } from '@/lib/security/runtime-switch';
 import { indexablePages } from '@/lib/seo/registry';
+import { servedFeatures } from '@/lib/seo/served';
 import { skillCompleteness, skills } from '@/lib/seo/skills';
 import type { PageKind, SeoPage } from '@/lib/seo/types';
 
@@ -12,15 +14,16 @@ export type FooterGroup = { id: string; title: string; links: FooterLink[] };
 const SHORT_LABELS: Record<string, string> = {
   '/': 'דף הבית', '/alternatives/xplace': 'אלטרנטיבה ל־XPlace.com', '/privacy': 'מדיניות פרטיות', '/terms': 'תנאי שימוש',
   '/how-it-works': 'איך זה עובד', '/pricing': 'מחיר וחברות', '/faq': 'שאלות נפוצות', '/about': 'אודות', '/glossary': 'מילון מונחים',
-  '/guides': 'כל המדריכים', '/skills': 'כל הכישורים', '/projects': 'כל הפרויקטים', '/profile/headhunter': 'לסוכנויות גיוס',
+  '/guides': 'כל המדריכים', '/skills': 'כל הכישורים', '/projects': 'כל הפרויקטים', '/profile/headhunter': 'לסוכנויות גיוס', '/ai': 'חיבור לעוזרי AI',
 };
 const MAX_SKILLS = 8;
 const MAX_GUIDES = 6;
 
 // Every link comes from the registry (or the contact facts), so the footer never links to a
 // page that does not exist and a group with nothing to show is dropped.
-export function footerGroups(): FooterGroup[] {
-  const pages = indexablePages();
+// Pages behind a runtime switch appear only when their feature is in `served` (none by default).
+export function footerGroups(served?: ReadonlySet<RuntimeFeature>): FooterGroup[] {
+  const pages = indexablePages(served);
   const ofKind = (...kinds: PageKind[]) => pages.filter((page) => kinds.includes(page.kind));
   const link = (page: SeoPage, label = SHORT_LABELS[page.path] ?? page.title): FooterLink => ({ label, href: page.path });
   const contact = contactFacts();
@@ -35,8 +38,8 @@ export function footerGroups(): FooterGroup[] {
   return groups.filter((group) => group.links.length > 0);
 }
 
-export function SiteFooter() {
-  const groups = footerGroups();
+export async function SiteFooter() {
+  const groups = footerGroups(await servedFeatures());
   return <footer className="site-footer">
     <div className="site-footer-inner">
       <p className="site-footer-brand"><span lang="en" dir="ltr">Freelance Place</span></p>

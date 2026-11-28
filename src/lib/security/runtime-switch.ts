@@ -8,7 +8,7 @@ import { firestore } from '@/lib/db/firestore';
 //
 // Re-enabling is deliberately manual (docs/security-operations.md): nothing in the app turns a switch back on.
 
-export type RuntimeFeature = 'ai';
+export type RuntimeFeature = 'ai' | 'mcp';
 
 const COLLECTION = 'runtimeSwitches';
 const CACHE_MS = 30_000;
@@ -19,6 +19,8 @@ const cache = new Map<RuntimeFeature, { enabled: boolean; until: number }>();
 function envEnabled(feature: RuntimeFeature): boolean {
   switch (feature) {
     case 'ai': return process.env.AI_GENERATION_ENABLED !== 'false';
+    // Opt-in, unlike 'ai': a new public surface must not go live just because the code was deployed.
+    case 'mcp': return process.env.MCP_ENABLED === 'true';
   }
 }
 

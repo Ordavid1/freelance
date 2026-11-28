@@ -1,5 +1,7 @@
 // Shared SEO contracts. Every page, guide and skill module builds on these shapes,
 // so they are changed only together with the registry and its invariant tests.
+import type { RuntimeFeature } from '@/lib/security/runtime-switch';
+
 export type Question = { question: string; answer: string };
 export type PageKind = 'home' | 'hub' | 'category' | 'skill' | 'guide' | 'comparison' | 'info' | 'legal';
 export type SeoPage = {
@@ -12,6 +14,7 @@ export type SeoPage = {
   indexable?: boolean;          // default true; false => noindex + excluded from sitemap/footer/llms
   listsProjects?: boolean;      // a list of public projects: noindex, and left out of the sitemap, while none exist
   needsHeadhunterSwitch?: boolean; // answers 404 while the headhunter feature switch is off: left out of the sitemap while it is off
+  requiresFeature?: RuntimeFeature; // answers 404 and is left out of every list while the runtime switch is off (see indexablePages and servedFeatures)
   shareImage?: string;          // local path of a card made for this page (og:image and twitter:image only); the platform card when absent
   llms?: { section: 'Product' | 'Guides' | 'Categories' | 'Skills' | 'Comparisons' | 'Legal'; note: string };
 };

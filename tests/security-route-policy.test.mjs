@@ -85,7 +85,42 @@ test('an unregistered or duplicated operation cannot hide: each operation is use
   const used = new Map();
   for (const handler of handlers) used.set(handler.operationId, [...(used.get(handler.operationId) ?? []), `${handler.name} ${handler.path}`]);
   for (const [id, where] of used) assert.equal(where.length, 1, `${id} is used by ${where.join(', ')}`);
-  for (const id of Object.keys(operations)) assert.ok(used.has(id), `operation ${id} is registered but no route uses it`);
+  for (const id of Object.keys(operations)) assert.ok(used.has(id) || toolOperations.has(id), `operation ${id} is registered but no route or MCP tool uses it`);
+});
+
+// MCP tools are the other door into the registry: `defineTool({ operation: '<id>' })` (src/lib/mcp/policy.ts).
+function sourceFiles(dir) {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...sourceFiles(path));
+    else if (/\.tsx?$/.test(entry.name)) found.push(path);
+  }
+  return found;
+}
+const toolDefinitions = sourceFiles(join(ROOT, 'src/lib/mcp')).flatMap(file => [...readFileSync(file, 'utf8').matchAll(/defineTool\(\{[^}]*?operation:\s*'([^']+)'/gs)].map(match => ({ id: match[1], file: relative(ROOT, file) })));
+const toolOperations = new Set(toolDefinitions.map(tool => tool.id));
+
+test('every MCP tool runs under a registered operation an anonymous caller may use', () => {
+  for (const { id, file } of toolDefinitions) {
+    const operation = operations[id];
+    assert.ok(operation, `${file}: unknown operation ${id}`);
+    assert.ok(operation.auth.kind === 'public' || operation.auth.kind === 'optionalUser', `${file}: ${id} needs an identity the MCP endpoint cannot provide`);
+    assert.notEqual(operation.account, 'active', `${file}: ${id}`);
+    assert.equal(operation.membership, undefined, `${file}: ${id}`);
+    assert.equal(operation.humanCheck, undefined, `${file}: ${id}`);
+  }
+});
+
+test('the MCP operations are public reads without cookies, and the endpoint carries the burst limit', () => {
+  for (const id of ['mcp.transport', 'catalog.read', 'agency.list']) assert.equal(operations[id].auth.kind, 'public', id);
+  assert.equal(operations['mcp.transport'].burstLimit, 'mcp.request');
+  assert.equal(operations['project.list'].auth.kind, 'optionalUser', 'project search and reads reuse project.list');
+});
+
+test('burst limits are only declared on operations that need no identity for them, and name a real limit', () => {
+  const limits = loadModule('src/lib/security/burst-limit.ts').burstLimits;
+  for (const [id, operation] of Object.entries(operations)) if (operation.burstLimit) assert.ok(Object.hasOwn(limits, operation.burstLimit), id);
 });
 
 test('public operations say why, and nothing else is public by accident', () => {

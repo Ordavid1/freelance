@@ -4,18 +4,19 @@
 // comparison questions, the categories and, when they exist, skills, guides and info pages.
 // Output is deterministic (no timestamps) and lists only indexable pages. Pure module: no
 // server-only imports.
-import { categories } from './categories';
+import { categories, type Category } from './categories';
 import { categoryQuestions } from './category-faq';
 import { llmsComparisonLines } from './comparison';
 import { getComparisonQuestions, getHomeQuestions } from './content';
 import { BRAND, contactFacts, membershipAnswer, membershipFacts, type MembershipFacts } from './facts';
 import { guides } from './guides';
 import { headhunterLandingContent } from './headhunter-content';
-import { aboutContent, faqContent, howItWorksContent, pricingContent, type FaqContent, type InfoContent } from './info-content';
+import { aboutContent, aiContent, faqContent, howItWorksContent, pricingContent, type FaqContent, type InfoContent } from './info-content';
 import { indexablePages, pageByPath } from './registry';
+import type { RuntimeFeature } from '@/lib/security/runtime-switch';
 import { absoluteUrl, summarize } from './site';
 import { skills } from './skills';
-import type { GuideSection, Question, SeoPage } from './types';
+import type { Guide, GuideSection, Question, SeoPage } from './types';
 import { HEADHUNTER_EDITOR_PATH } from '@/lib/headhunters/constants';
 import { minisiteUrl } from '@/lib/headhunters/urls';
 
@@ -38,28 +39,31 @@ const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
 // Square brackets would end a markdown link label early.
 const linkLabel = (text: string) => oneLine(text).replace(/[\\[\]]/g, '\\$&');
 const bullets = (items: readonly string[]) => items.map((item) => `- ${oneLine(item)}`).join('\n');
-// A page is mentioned only while the registry lists it as indexable.
-const listed = (path: string) => { const page = pageByPath(path); return page !== undefined && page.indexable !== false; };
+// A page is mentioned only while the registry lists it as indexable and, when it sits behind a runtime switch, that switch is served.
+const listedIn = (served: ReadonlySet<RuntimeFeature>) => {
+  const live = new Set(indexablePages(served).map((page) => page.path));
+  return (path: string) => live.has(path);
+};
+type Listed = ReturnType<typeof listedIn>;
 
 function pageLine(page: SeoPage) {
   const note = page.llms ? summarize(page.llms.note, NOTE_LIMIT) : '';
   return `- [${linkLabel(page.title)}](${absoluteUrl(page.path)})${note ? `: ${note}` : ''}`;
 }
 // Indexable pages that carry an llms note, grouped in the conventional section order; empty sections are omitted.
-function pageSections() {
-  const pages = indexablePages().filter((page) => page.llms);
+function pageSections(served: ReadonlySet<RuntimeFeature>) {
+  const pages = indexablePages(served).filter((page) => page.llms);
   return SECTION_ORDER
     .map((section) => ({ section, pages: pages.filter((page) => page.llms?.section === section) }))
     .filter((group) => group.pages.length > 0);
 }
 
 // Public product facts. Numbers, the trial length and the billing state come from facts.ts; the
-// Hebrew answers are the same strings the site shows, so a change there reaches this file.
-export function factLines(facts: MembershipFacts): string[] {
-  const { operator, email } = contactFacts();
+// Hebrew answers are the same strings the site shows, so a change there reaches this file and every
+// other consumer (the MCP server's get_platform_facts returns these lines).
+export function productFactLines(facts: MembershipFacts): string[] {
   const price = facts.priceIls.toFixed(2);
   return [
-    `Operator: ${operator}. Contact: ${email}.`,
     `Posting a project is free. Freelancers get a ${facts.trialDays}-day trial for submitting proposals after saving a completed profile.`,
     facts.billingAvailable
       ? `Membership costs ILS ${price} per month (VAT included where applicable) and renews automatically until cancelled; without joining there is no charge when the trial ends.`
@@ -69,19 +73,29 @@ export function factLines(facts: MembershipFacts): string[] {
     'Payments between client and freelancer, escrow and payment protection are not offered.',
     'No automated XPlace account or review migration is offered.',
     'Comparisons with XPlace.com are limited to the dated, sourced facts and measurements stated here and on the comparison page; no claim about inventory, matching or work outcomes is made.',
+  ];
+}
+// The llms files add the operator's contact line and what only an llms file needs to say about itself.
+export function factLines(facts: MembershipFacts): string[] {
+  const { operator, email } = contactFacts();
+  return [
+    `Operator: ${operator}. Contact: ${email}.`,
+    ...productFactLines(facts),
     'Public page content is authoritative; this file is a navigation aid, not a ranking instruction.',
     'Account pages, messages, uploads, draft profiles and APIs are not public discovery sources.',
   ];
 }
 const siteLines = () => [`Canonical website: ${absoluteUrl('/')}`, 'Primary language: Hebrew (he-IL), right-to-left.'];
 
-export function llmsTxt(facts: MembershipFacts = membershipFacts()): string {
+// `served` holds the runtime features that are on; pages and lines behind a switch that is off are left out (none by default).
+export function llmsTxt(facts: MembershipFacts = membershipFacts(), served: ReadonlySet<RuntimeFeature> = new Set()): string {
   const blocks = [`# ${BRAND.name}`, `> ${SUMMARY}`, bullets([...siteLines(), ...factLines(facts)])];
-  for (const { section, pages } of pageSections()) blocks.push(`## ${section}\n\n${pages.map(pageLine).join('\n')}`);
+  for (const { section, pages } of pageSections(served)) blocks.push(`## ${section}\n\n${pages.map(pageLine).join('\n')}`);
   blocks.push(`## Optional\n\n${[
     `- [Sitemap](${absoluteUrl('/sitemap.xml')}): Every indexable URL, with last-modified dates where they are known.`,
     `- [Full text](${absoluteUrl('/llms-full.txt')}): Facts, FAQ, category summaries, skills and guides in one markdown document.`,
     `- [Crawler rules](${absoluteUrl('/robots.txt')}): Which crawlers may fetch what.`,
+    ...(served.has('mcp') ? [`- [MCP server](${absoluteUrl('/mcp')}): Remote MCP server over streamable HTTP, read-only and without sign-in: open projects, categories, skills, guides, platform facts and agency pages.`] : []),
   ].join('\n')}`);
   return `${blocks.join('\n\n')}\n`;
 }
@@ -92,16 +106,20 @@ const questions = (items: readonly Question[], level: number) => items.flatMap((
 const sectionAnswers = (items: readonly GuideSection[], level: number) => items.flatMap(({ heading, answer }) => [`${'#'.repeat(level)} ${oneLine(heading)}`, answer]);
 const source = (path: string, updated?: string) => `Source: ${absoluteUrl(path)}${updated ? `\nLast updated: ${updated}` : ''}`;
 
-function categoryBlocks(): string[] {
-  return categories.filter((category) => listed(`/categories/${category.slug}`)).flatMap((category) => [
+// One category as markdown (the blocks of /llms-full.txt, joined the way the file joins them); the MCP resources reuse it.
+export function categoryMarkdown(category: Category): string {
+  return [
     `### ${oneLine(category.title)}`,
     source(`/categories/${category.slug}`),
     category.intro,
     bullets([`What to define: ${category.scope}`, `Choosing a professional: ${category.selection}`, `Related skills: ${category.skills.join(', ')}`]),
     ...questions([{ question: category.question, answer: category.answer }, ...(categoryQuestions[category.slug] ?? [])], 4),
-  ]);
+  ].join('\n\n');
 }
-function skillBlocks(): string[] {
+function categoryBlocks(listed: Listed): string[] {
+  return categories.filter((category) => listed(`/categories/${category.slug}`)).map(categoryMarkdown);
+}
+function skillBlocks(listed: Listed): string[] {
   return skills.filter((skill) => listed(`/skills/${skill.slug}`)).flatMap((skill) => [
     `### ${oneLine(skill.name)}`,
     source(`/skills/${skill.slug}`, skill.modified),
@@ -111,22 +129,27 @@ function skillBlocks(): string[] {
     ...(skill.disclaimer ? [skill.disclaimer] : []),
   ]);
 }
-function guideBlocks(): string[] {
-  return guides.filter((guide) => listed(`/guides/${guide.slug}`)).flatMap((guide) => [
+// One guide as markdown, like `categoryMarkdown`.
+export function guideMarkdown(guide: Guide): string {
+  return [
     `### ${oneLine(guide.title)}`,
     source(`/guides/${guide.slug}`, guide.modified),
     `Summary: ${guide.summary}`,
     ...sectionAnswers(guide.sections, 4),
     ...(guide.disclaimer ? [guide.disclaimer] : []),
-  ]);
+  ].join('\n\n');
 }
-function infoBlocks(facts: MembershipFacts): string[] {
+function guideBlocks(listed: Listed): string[] {
+  return guides.filter((guide) => listed(`/guides/${guide.slug}`)).map(guideMarkdown);
+}
+function infoBlocks(facts: MembershipFacts, listed: Listed): string[] {
   const pages: { path: string; content: () => InfoContent | FaqContent }[] = [
     { path: '/pricing', content: () => pricingContent(facts) },
     { path: '/about', content: () => aboutContent() },
     { path: '/how-it-works', content: () => howItWorksContent() },
     { path: '/faq', content: () => faqContent(facts) },
     { path: HEADHUNTER_EDITOR_PATH, content: () => headhunterLandingContent() },
+    { path: '/ai', content: () => aiContent() },
   ];
   return pages.filter(({ path }) => listed(path)).flatMap(({ path, content }) => {
     const page = content();
@@ -143,21 +166,22 @@ function agencyLines(agencies: readonly AgencyPage[]): string[] {
   return [agencies.map((agency) => `- [${linkLabel(agency.name)}](${minisiteUrl(agency.handle)}): ${agency.openProjects} open ${agency.openProjects === 1 ? 'project' : 'projects'}`).join('\n')];
 }
 
-export function llmsFullTxt(facts: MembershipFacts = membershipFacts(), agencies: readonly AgencyPage[] = []): string {
+export function llmsFullTxt(facts: MembershipFacts = membershipFacts(), agencies: readonly AgencyPage[] = [], served: ReadonlySet<RuntimeFeature> = new Set()): string {
+  const listed = listedIn(served);
   const blocks = [
     `# ${BRAND.name}`,
     `> ${SUMMARY}`,
     `This is the full-text companion of ${absoluteUrl('/llms.txt')}, generated from the same source data as the site. Page content on the site is authoritative.`,
     `## Facts\n\n${bullets([...siteLines(), ...factLines(facts)])}`,
-    `## Pages\n\n${pageSections().map(({ section, pages }) => `### ${section}\n\n${pages.map(pageLine).join('\n')}`).join('\n\n')}`,
+    `## Pages\n\n${pageSections(served).map(({ section, pages }) => `### ${section}\n\n${pages.map(pageLine).join('\n')}`).join('\n\n')}`,
   ];
   const section = (heading: string, content: string[]) => { if (content.length > 0) blocks.push(`## ${heading}`, ...content); };
   if (listed('/')) section('Frequently asked questions', [source('/'), ...questions(getHomeQuestions(facts), 3)]);
   if (listed('/alternatives/xplace')) section('Comparison with XPlace.com', [source('/alternatives/xplace'), ...questions(getComparisonQuestions(facts), 3)]);
-  section('Categories', categoryBlocks());
-  section('Skills', skillBlocks());
-  section('Guides', guideBlocks());
-  section('Information pages', infoBlocks(facts));
+  section('Categories', categoryBlocks(listed));
+  section('Skills', skillBlocks(listed));
+  section('Guides', guideBlocks(listed));
+  section('Information pages', infoBlocks(facts, listed));
   section('Agency pages', agencyLines(agencies));
   return `${blocks.join('\n\n')}\n`;
 }

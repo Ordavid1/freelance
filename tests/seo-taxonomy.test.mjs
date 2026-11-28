@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { NextRequest, NextResponse } from 'next/server.js';
 import { loadModule, projectRoot } from './helpers/load-ts.mjs';
 import { headhunterTagsOff } from './helpers/headhunter-stubs.mjs';
+import { switchStub } from './helpers/runtime-switch.mjs';
 
 // Programmatic landing pages: the skill catalogue and its matching rule, the /skills and
 // /projects hubs, pagination, listing and linking rules, the category and project page upgrades
@@ -190,7 +191,7 @@ test('the /skills and /projects hubs are registered with their routes and meet t
     assert.equal(page.llms.section, section, path);
     assert.ok(existsSync(`${projectRoot}/src/app${path}/page.tsx`), `${path} has its route`);
   }
-  const route = load('src/app/sitemap.ts', { '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project' }] } });
+  const route = load('src/app/sitemap.ts', { ...switchStub(), '@/lib/seo/headhunters': { indexableHeadhunterPages: async () => [], headhunterLandingServed: async () => true }, '@/lib/seo/projects': { sitemapProjects: async () => [{ slug: 'real-project' }] } });
   const urls = (await route.default()).map((entry) => entry.url);
   for (const path of ['/skills', '/projects', '/projects/real-project']) assert.equal(urls.filter((url) => url === `https://freelance-place.com${path}`).length, 1, path);
   assert.equal(urls.some((url) => url.includes('?')), false, 'pagination URLs are discovered through links, not listed in the sitemap');

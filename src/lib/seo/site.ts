@@ -7,6 +7,8 @@ if (configuredOrigin.protocol !== 'https:' || configuredOrigin.username || confi
 }
 export const SITE_URL = configuredOrigin.origin;
 export const SITE_DESCRIPTION = 'Freelance Place — פרויקטים לפרילנסרים ופרסום פרויקטים לעסקים בישראל. מרחב עבודה בעברית, פרופיל מקצועי והצעות מחיר. הכירו אלטרנטיבה ל־XPlace.com.';
+// Machine endpoints: not pages, so never indexed or announced (isPrivatePath) and closed to crawlers (robots.ts).
+export const apiPrefixes = ['/api', '/mcp'];
 export const privatePaths = ['/signin', '/messages', '/membership', '/profile', '/projects/new'];
 // Exact URLs inside a private prefix that are public on purpose: a signed-out visitor (a crawler included) gets an indexable page,
 // and the same URL answers a signed-in session with the private editor. Only a request that carries a session cookie is private there.
@@ -14,7 +16,7 @@ export const privatePaths = ['/signin', '/messages', '/membership', '/profile', 
 export const signedOutPublicPaths: readonly string[] = ['/profile/headhunter', '/profile/headhunter/opengraph-image'];
 export function isPrivatePath(path: string, hasSession = false) {
   if (signedOutPublicPaths.includes(path)) return hasSession;
-  return privatePaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || path === '/api' || path.startsWith('/api/');
+  return privatePaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || apiPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 export function indexingEnabled() {
   return process.env.SITE_INDEXABLE === 'true';

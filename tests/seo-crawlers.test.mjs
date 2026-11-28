@@ -26,17 +26,18 @@ function groupFor(robots, token) {
   return rules.find((rule) => asList(rule.userAgent).some((agent) => agent.toLowerCase() === token.toLowerCase()))
     ?? rules.find((rule) => asList(rule.userAgent).includes('*'));
 }
-// RFC 9309: the longest matching path wins, allow wins a tie, no match means allowed.
+// RFC 9309: the longest matching path wins, allow wins a tie, no match means allowed. A trailing `$` anchors the pattern to the end of the path.
+const matches = (path, pattern) => pattern.endsWith('$') ? path === pattern.slice(0, -1) : path.startsWith(pattern);
 function allowed(group, path) {
   let best = { length: -1, allow: true };
   for (const [allow, patterns] of [[true, group.allow], [false, group.disallow]]) {
     for (const pattern of asList(patterns)) {
-      if (path.startsWith(pattern) && (pattern.length > best.length || (pattern.length === best.length && allow))) best = { length: pattern.length, allow };
+      if (matches(path, pattern) && (pattern.length > best.length || (pattern.length === best.length && allow))) best = { length: pattern.length, allow };
     }
   }
   return best.allow;
 }
-const PUBLIC_PATHS = ['/', '/projects/example-project', '/categories/design', '/guides/project-brief', '/messages', '/_next/static/chunks/app.js', '/llms.txt'];
+const PUBLIC_PATHS = ['/', '/projects/example-project', '/categories/design', '/guides/project-brief', '/messages', '/_next/static/chunks/app.js', '/llms.txt', '/ai', '/mcpshop'];
 
 test('registry lists only verified tokens, each with operator, group, documentation and check date', () => {
   const byGroup = {};
@@ -85,7 +86,7 @@ test('robots.txt: the wildcard group plus one explicit group per crawler, each r
   const [star, ...named] = robots.rules;
   assert.equal(star.userAgent, '*');
   assert.equal(star.allow, '/');
-  assert.deepEqual(plain(star.disallow), ['/api/']);
+  assert.deepEqual(plain(star.disallow), ['/api/', '/mcp$', '/mcp/'], 'the API and the MCP endpoint are machine endpoints, not pages; /mcp is exact so an agency handle such as /mcpshop stays crawlable');
   assert.equal(robots.sitemap, `${SITE_URL}/sitemap.xml`);
   assert.deepEqual(plain(named.map((rule) => rule.userAgent)), plain(crawlers.map((crawler) => crawler.token)), 'one group per token, in registry order');
   for (const group of named) {
@@ -102,6 +103,7 @@ test('robots.txt: every documented crawler may read public pages and render asse
     assert.equal(asList(group.userAgent).includes(crawler.token), true, `${crawler.token} resolves to its own group`);
     for (const path of PUBLIC_PATHS) assert.equal(allowed(group, path), true, `${crawler.token} ${path}`);
     assert.equal(allowed(group, '/api/marketplace/projects'), false, `${crawler.token} /api/`);
+    for (const endpoint of ['/mcp', '/mcp/x']) assert.equal(allowed(group, endpoint), false, `${crawler.token} ${endpoint}`);
   }
   // Unlisted crawlers keep using the wildcard group.
   const other = groupFor(robots, 'SomeOtherBot');
@@ -116,7 +118,7 @@ test('robots.txt: AI_TRAINING_CRAWLERS=disallow closes only the training crawler
   for (const value of ['disallow', 'Disallow', 'not-a-valid-value']) {
     const robots = robotsFor({ ...production, AI_TRAINING_CRAWLERS: value });
     const [star, ...named] = robots.rules;
-    assert.deepEqual(plain(star), { userAgent: '*', allow: '/', disallow: ['/api/'] }, 'the wildcard group is unchanged');
+    assert.deepEqual(plain(star), { userAgent: '*', allow: '/', disallow: ['/api/', '/mcp$', '/mcp/'] }, 'the wildcard group is unchanged');
     assert.equal(robots.sitemap, `${SITE_URL}/sitemap.xml`);
     assert.deepEqual(plain(named.map((rule) => rule.userAgent)), plain(crawlers.map((crawler) => crawler.token)));
     for (const crawler of crawlers) {
@@ -126,7 +128,7 @@ test('robots.txt: AI_TRAINING_CRAWLERS=disallow closes only the training crawler
         for (const path of ['/', ...PUBLIC_PATHS]) assert.equal(allowed(group, path), false, `${crawler.token} ${path}`);
       } else {
         assert.equal(group.allow, '/', crawler.token);
-        assert.deepEqual(plain(group.disallow), ['/api/'], crawler.token);
+        assert.deepEqual(plain(group.disallow), ['/api/', '/mcp$', '/mcp/'], crawler.token);
         for (const path of PUBLIC_PATHS) assert.equal(allowed(group, path), true, `${crawler.token} ${path}`);
       }
     }

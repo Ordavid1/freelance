@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadPolicy } from './helpers/policy.mjs';
+import { loadModule } from './helpers/load-ts.mjs';
 
 const ORIGIN = 'https://freelance-place.com';
 const user = { uid: 'uid-1', email: 'a@example.com', name: 'A', picture: null };
 
 // A policy adapter whose collaborators record the order in which they were consulted.
 function harness({ signedIn = user, sameOrigin = true, accountDenied = null, membershipDenied = null, humanEnabled = false, humanDenied = null,
-  actionLimited = null, anonymousLimited = null, budgetLimited = null, moderator = 'mod-1', scheduler, env = { NEXT_PUBLIC_SITE_URL: ORIGIN } } = {}) {
+  actionLimited = null, anonymousLimited = null, budgetLimited = null, burstLimited = null, moderator = 'mod-1', scheduler, env = { NEXT_PUBLIC_SITE_URL: ORIGIN } } = {}) {
   const order = [];
   const note = (label, value) => async (...args) => { order.push(label); calls[label] = args; return value; };
   const calls = {};
@@ -26,6 +27,7 @@ function harness({ signedIn = user, sameOrigin = true, accountDenied = null, mem
     '@/lib/security/rate-limit': {
       enforceActionLimit: note('limit', actionLimited), enforceAnonymousLimit: note('anonymous', anonymousLimited), enforceGlobalBudget: note('budget', budgetLimited),
     },
+    '@/lib/security/burst-limit': { enforceBurstLimit: (ip, action) => { order.push('burst'); calls.burst = [ip, action]; return burstLimited; } },
     '@/lib/security/moderator': { moderatorUid: async () => { order.push('moderator'); return moderator; } },
     'google-auth-library': { OAuth2Client: class { async verifyIdToken(options) { order.push('oidc'); calls.oidc = [options]; if (scheduler instanceof Error) throw scheduler; return { getPayload: () => scheduler }; } } },
   }, env);
@@ -302,4 +304,83 @@ test('deferred budgets are spent only when the handler asks, and only once', asy
 test('a handler may be called without a request (unit tests call GET() directly)', async () => {
   const h = harness();
   assert.equal((await h.policy.route('profile.read', {}, handlerSpy().handler)()).status, 200);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Burst limit (in memory, per client address) and the transport-independent budget step
+// ---------------------------------------------------------------------------------------------
+
+const FORWARDED = { 'x-forwarded-for': '203.0.113.9, 130.211.0.1' };
+
+test('the burst limit answers for every caller, signed in or not, before the handler runs', async () => {
+  for (const signedIn of [null, user]) {
+    const h = harness({ signedIn });
+    const { seen, handler } = handlerSpy();
+    const response = await h.policy.route('mcp.transport', { sameOrigin: false }, handler)(post({}, { headers: FORWARDED }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(h.calls.burst, ['203.0.113.9', 'mcp.request']);
+    assert.equal(seen.length, 1);
+  }
+});
+
+test('an exhausted burst limit stops the request with its 429 and nothing after it runs', async () => {
+  const h = harness({ burstLimited: Response.json({ code: 'RATE_LIMITED' }, { status: 429 }) });
+  const { seen, handler } = handlerSpy();
+  const response = await h.policy.route('mcp.transport', { sameOrigin: false, body: { type: 'json', maxBytes: 1000 } }, handler)(post({}, { headers: FORWARDED }));
+  assert.equal(response.status, 429);
+  assert.deepEqual(h.order, ['burst']);
+  assert.equal(seen.length, 0);
+});
+
+test('deferred budgets include the burst limit and run once', async () => {
+  const h = harness();
+  const route = h.policy.route('mcp.transport', { sameOrigin: false, deferBudgets: true }, async ({ charge }) => { await charge(); await charge(); return Response.json({}); });
+  await route(post({}, { headers: FORWARDED }));
+  assert.deepEqual(h.order, ['burst']);
+});
+
+test('operations without a burst limit never consult it', async () => {
+  const h = harness({ signedIn: null });
+  await h.policy.route('support.message', {}, handlerSpy().handler)(post());
+  await h.policy.route('config.firebase', {}, handlerSpy().handler)(get());
+  assert.equal(h.order.includes('burst'), false);
+});
+
+function budgetStep({ burstLimited = null, actionLimited = null, anonymousLimited = null, budgetLimited = null } = {}) {
+  const order = [];
+  const note = (label, value) => async (...args) => { order.push(label); return value; };
+  const module = loadModule('src/lib/security/budgets.ts', { stubs: {
+    '@/lib/security/burst-limit': { enforceBurstLimit: (ip, action) => { order.push(`burst:${ip}:${action}`); return burstLimited; } },
+    '@/lib/security/rate-limit': { enforceActionLimit: note('limit', actionLimited), enforceAnonymousLimit: note('anonymous', anonymousLimited), enforceGlobalBudget: note('budget', budgetLimited) },
+  } });
+  return { order, ...module };
+}
+const everything = { auth: { kind: 'optionalUser' }, account: 'any', burstLimit: 'mcp.request', limit: 'support.message', anonymousLimit: 'support.message', globalBudget: 'ai.profile' };
+
+test('the budget step spends the burst limit first, then the Firestore budgets in the existing order', async () => {
+  const signedOut = budgetStep();
+  assert.equal(await signedOut.enforceOperationBudgets(everything, null, '203.0.113.9'), null);
+  assert.deepEqual(signedOut.order, ['burst:203.0.113.9:mcp.request', 'anonymous', 'budget']);
+  const signedInStep = budgetStep();
+  assert.equal(await signedInStep.enforceOperationBudgets(everything, { uid: 'uid-1' }, '203.0.113.9'), null);
+  assert.deepEqual(signedInStep.order, ['burst:203.0.113.9:mcp.request', 'limit', 'budget']);
+});
+
+test('a burst denial never reaches Firestore', async () => {
+  const denied = Response.json({}, { status: 429 });
+  const step = budgetStep({ burstLimited: denied });
+  assert.equal(await step.enforceOperationBudgets(everything, null, 'x'), denied);
+  assert.deepEqual(step.order, ['burst:x:mcp.request']);
+});
+
+test('existing operations keep their budgets exactly: no burst call, same order, same denials', async () => {
+  const registry = loadModule('src/lib/security/operations.ts', { stubs: { '@/lib/headhunters/messages': { HEADHUNTER_API_ERRORS: { SIGN_IN: 's', FORBIDDEN: 'f' } } } });
+  const step = budgetStep();
+  await step.enforceOperationBudgets(registry.operations['ai.projectBrief'], { uid: 'u' }, 'ip');
+  await step.enforceOperationBudgets(registry.operations['support.message'], null, 'ip');
+  await step.enforceOperationBudgets(registry.operations['project.close'], { uid: 'u' }, 'ip');
+  assert.deepEqual(step.order, ['limit', 'budget', 'anonymous']);
+  const denied = Response.json({}, { status: 503 });
+  assert.equal(await budgetStep({ budgetLimited: denied }).enforceOperationBudgets(registry.operations['ai.projectBrief'], { uid: 'u' }, 'ip'), denied);
+  assert.deepEqual(Object.keys(registry.operations).filter(id => registry.operations[id].burstLimit), ['mcp.transport'], 'only the MCP endpoint is burst limited');
 });
